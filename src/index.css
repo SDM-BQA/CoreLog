@@ -1,75 +1,45 @@
-/* Tailwind preflight (replaces old @tailwind base) */
-@import "tailwindcss/preflight";
-
-/* Tailwind utilities */
-@import "tailwindcss/utilities";
-
-/* ===================== DARK DEFAULT THEME VARIABLES ===================== */
+@import "tailwindcss";
 :root {
-  --bg: 10 10 20;
-  --surface: 22 22 42;
+  /* Default to dark theme */
+  color-scheme: dark;
+  --color-bg: rgb(16, 16, 34);
+  --color-surface: rgb(22 22 42);
+  --color-primary: rgb(17 17 212);
+  --color-accent: rgb(59 59 255);
+  --color-secondary: rgb(0 242 255);
+  --color-text-primary: rgb(255 255 255);
+  --color-text-secondary: rgb(148 163 184);
+  --color-border: rgb(36 36 59);
+  --font-family-inter: "Inter", sans-serif;
+}
+@theme {
+  --color-bg: rgb(16 16 34);
+  --color-surface: rgb(22 22 42);
+  --color-primary: rgb(17 17 212);
+  --color-accent: rgb(59 59 255);
+  --color-secondary: rgb(0 242 255);
+  --color-text-primary: rgb(255 255 255);
+  --color-text-secondary: rgb(148 163 184);
+  --color-border: rgb(36 36 59);
+  --shadow-navbar: 0 4px 12px rgba(255, 255, 255, 0.1);
 
-  --primary: 17 17 212;
-  --accent: 59 59 255;
-  --secondary: 0 242 255;
-
-  --text-primary: 255 255 255;
-  --text-secondary: 148 163 184;
-
-  --border: 36 36 59;
-  --font: "Inter", sans-serif;
+  --font-family-inter: "Inter", sans-serif;
 }
 
-/* ===================== LIGHT THEME ===================== */
+/* Light theme overrides — applied when .light class is on <html> or <body> */
 .light {
-  --bg: 249 250 251;
-  --surface: 255 255 255;
-
-  --primary: 24 144 255;
-  --accent: 59 130 246;
-  --secondary: 16 185 129;
-
-  --text-primary: 17 24 39;
-  --text-secondary: 107 114 128;
-
-  --border: 209 213 219;
+  --color-bg: rgb(249 250 251);
+  --color-surface: rgb(255 255 255);
+  --color-primary: rgb(24 144 255);
+  --color-accent: rgb(59 130 246);
+  --color-secondary: rgb(16 185 129);
+  --color-text-primary: rgb(17 24 39);
+  --color-text-secondary: rgb(107 114 128);
+  --color-border: rgb(209 213 219);
 }
 
-/* ===================== CUSTOM UTILITIES USING VARIABLES ===================== */
-.bg-bg {
-  background-color: rgb(var(--bg) / 1);
-}
-.bg-surface {
-  background-color: rgb(var(--surface) / 1);
-}
-.bg-primary {
-  background-color: rgb(var(--primary) / 1);
-}
-.bg-accent {
-  background-color: rgb(var(--accent) / 1);
-}
-.bg-secondary {
-  background-color: rgb(var(--secondary) / 1);
-}
-
-.text-primary {
-  color: rgb(var(--text-primary) / 1);
-}
-.text-secondary {
-  color: rgb(var(--text-secondary) / 1);
-}
-
-.border-default {
-  border-color: rgb(var(--border) / 1);
-}
-.font-inter {
-  font-family: var(--font);
-}
-.font-inter {
-  font-family: var(--font);
-}
-
-.font-regular {
-  font-family: var(--font);
-  font-weight: 400; 
+@layer utilities {
+  .shadow-navbar {
+    box-shadow: 0 4px 12px rgba(17, 17, 212, 0.1);
+  }
 }
