@@ -3,7 +3,7 @@ import { appConfig } from "../../../@configs/app.config";
 
 const Navbar = () => {
   return (
-<div className="bg-bg/50 backdrop-blur-md w-full text-text-primary flex items-center justify-between px-8 py-4 shadow-navbar border-b border-border fixed top-0 left-0 z-50">      {/* Logo */}
+<div className="bg-bg/50 backdrop-blur-md w-full text-text-primary flex items-center justify-between px-8 py-4 shadow-navbar border-b border-border fixed top-0 left-0 z-50">      
       <Link to="/">
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="CoreLog Logo" className="w-8 h-8" />
