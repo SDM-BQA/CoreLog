@@ -12,6 +12,17 @@
   --color-border: rgb(36 36 59);
   --font-family-inter: "Inter", sans-serif;
   box-sizing: border-box;
+  /* For Webkit-based browsers like Chrome, Safari, etc. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* For Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
 }
 @theme {
   --color-bg: rgb(16 16 34);

@@ -8,7 +8,6 @@ import { FaArrowRightLong } from "react-icons/fa6";
 
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import Navbar from "../Navigation/Navbar";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +17,6 @@ const Login = () => {
       <div className="absolute bottom-8 right-8">
         <img src="/gear.png" alt="Gear" className="w-64 h-64 opacity-20" />
       </div>{" "}
-      <Navbar />
       <div className="bg-bg-secondary backdrop-blur-md  shadow-2xl p-8 rounded-md w-lg flex flex-col justify-center gap-6">
         <div>
           <div className="text-text-primary text-3xl font-bold font-inter">
@@ -103,6 +101,7 @@ const Login = () => {
             </label>
 
             {/* LOGIN BUTTON */}
+           <Link to="/auth/login/otp-verify" className="w-full">
             <button className="group flex items-center justify-center w-full py-4 bg-primary text-text-primary font-bold rounded-md hover:bg-primary/80 transition-colors cursor-pointer">
               <span className="font-inter">Sign In</span>
               <FaArrowRightLong
@@ -110,7 +109,8 @@ const Login = () => {
                 className="ml-2 group-hover:translate-x-1 transition-all"
               />
             </button>
-
+</Link>
+            {/* divider */}
             <div className="h-0.5 w-full bg-border"></div>
 
             {/* footer */}
