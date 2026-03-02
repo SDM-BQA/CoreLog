@@ -11,6 +11,8 @@
   --color-text-secondary: rgb(148 163 184);
   --color-border: rgb(36 36 59);
   --font-family-inter: "Inter", sans-serif;
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
   box-sizing: border-box;
   /* For Webkit-based browsers like Chrome, Safari, etc. */
 input[type="number"]::-webkit-outer-spin-button,
@@ -36,6 +38,9 @@ input[type="number"] {
   --color-border: rgb(36 36 59);
   --color-border-secondary: rgb(17 17 212);
   --shadow-navbar: 0 4px 12px rgba(255, 255, 255, 0.1);
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
+
 
   --font-family-inter: "Inter", sans-serif;
 }
@@ -50,6 +55,10 @@ input[type="number"] {
   --color-text-primary: rgb(17 24 39);
   --color-text-secondary: rgb(107 114 128);
   --color-border: rgb(209 213 219);
+  --color-border-secondary: rgb(24 144 255);
+  --shadow-navbar: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
 }
 
 @layer utilities {

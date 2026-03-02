@@ -8,9 +8,34 @@ import { FaArrowRightLong } from "react-icons/fa6";
 
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import {
+  validateLoginEmail,
+  validateLoginPassword,
+} from "../../../@validator/auth.validator";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const handleSubmit = () => {
+    const emailError = validateLoginEmail(email);
+    const passwordError = validateLoginPassword(password);
+
+    if (emailError || passwordError) {
+      setErrors({
+        email: emailError ?? undefined,
+        password: passwordError ?? undefined,
+      });
+      return;
+    }
+
+    console.log("Valid form");
+  };
 
   return (
     <div className="bg-bg h-screen flex flex-col items-center justify-center">
@@ -34,7 +59,7 @@ const Login = () => {
               <span className="text-text-secondary font-bold">
                 EMAIL OR USERNAME
               </span>
-              <div className="flex items-center px-4 py-4 bg-surface rounded-md gap-2 text-text-secondary text-lg border-2 border-border focus-within:border-border-secondary transition-colors relative">
+              <div className={`flex items-center px-4 py-4 bg-surface rounded-md gap-2 text-text-secondary text-lg border-2 border-border focus-within:border-border-secondary transition-all relative ${errors.email ? "border-error" : ""}`}>
                 <IoPersonOutline
                   className="text-text-secondary focus-within:text-surface transition-colors"
                   size={20}
@@ -42,10 +67,22 @@ const Login = () => {
                 <input
                   id="email"
                   type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) {
+                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    }
+                  }}
                   className="w-full outline-none bg-transparent text-text-primary"
                   placeholder="name@gmail.com"
                 />
               </div>
+              {errors.email && (
+                <span className="text-text-error text-sm mt-1">
+                  {errors.email}
+                </span>
+              )}
             </label>
 
             {/* PASSWORD FIELD */}
@@ -56,7 +93,7 @@ const Login = () => {
                   Forgot Password?
                 </Link>
               </span>
-              <div className="flex items-center px-4 py-4 bg-surface rounded-md gap-2 text-text-secondary text-lg border-2 border-border focus-within:border-border-secondary transition-colors relative">
+              <div className={`flex items-center px-4 py-4 bg-surface rounded-md gap-2 text-text-secondary text-lg border-2 border-border focus-within:border-border-secondary transition-alll relative ${errors.password ? "border-error" : ""}`}>
                 <LockIcon
                   className="text-text-secondary focus-within:text-surface transition-colors"
                   size={20}
@@ -64,6 +101,13 @@ const Login = () => {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) {
+                      setErrors((prev) => ({ ...prev, password: undefined }));
+                    }
+                  }}
                   className="flex-1 outline-none bg-transparent text-text-primary"
                   placeholder="••••••••"
                 />
@@ -85,6 +129,11 @@ const Login = () => {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <span className="text-text-error text-sm mt-1">
+                  {errors.password}
+                </span>
+              )}
             </label>
 
             {/* REMEMBER ME */}
@@ -101,15 +150,16 @@ const Login = () => {
             </label>
 
             {/* LOGIN BUTTON */}
-           <Link to="/auth/login/otp-verify" className="w-full">
-            <button className="group flex items-center justify-center w-full py-4 bg-primary text-text-primary font-bold rounded-md hover:bg-primary/80 transition-colors cursor-pointer">
+            <button
+              className="group flex items-center justify-center w-full py-4 bg-primary text-text-primary font-bold rounded-md hover:bg-primary/80 transition-colors cursor-pointer"
+              onClick={handleSubmit}
+            >
               <span className="font-inter">Sign In</span>
               <FaArrowRightLong
                 size={18}
                 className="ml-2 group-hover:translate-x-1 transition-all"
               />
             </button>
-</Link>
             {/* divider */}
             <div className="h-0.5 w-full bg-border"></div>
 

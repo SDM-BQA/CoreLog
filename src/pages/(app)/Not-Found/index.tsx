@@ -1,5 +1,6 @@
 import { LayoutDashboard, Home } from "lucide-react";
 import ErrorImg from "/404.png";
+import { Link } from "react-router-dom";
 
 const NotFoundPage = () => {
     return (
@@ -36,9 +37,8 @@ const NotFoundPage = () => {
               className="flex min-w-full items-center justify-center gap-2"
               style={{ marginTop: "2rem", gap: "1rem" }}
             >
-              <button
-                type="button"
-                className="flex w-[10px] items-center justify-center gap-2 bg-primary text-text-primary font-medium flex-1"
+              <Link to="/dashboard"
+                className="flex w-2.5 items-center justify-center gap-2 bg-primary text-text-primary font-medium flex-1"
                 style={{
                   borderRadius: ".5rem",
                   width: "min-content",
@@ -48,9 +48,8 @@ const NotFoundPage = () => {
               >
                 <LayoutDashboard size={16} style={{ marginRight: ".5rem" }} />
                 Return to Dashboard
-              </button>
-              <button
-                type="button"
+              </Link>
+              <Link to="/"
                 className="flex items-center justify-center gap-2 text-primary px-5 py-2.5 rounded-lg font-medium flex-1 w-fit bg-surface border border-default"
                 style={{
                   borderRadius: ".5rem",
@@ -61,7 +60,7 @@ const NotFoundPage = () => {
               >
                 <Home size={16} style={{ marginRight: ".5rem" }} />
               <span className="text-text-primary">Go Home</span>
-              </button>
+              </Link>
             </div>
           </div>
           <div

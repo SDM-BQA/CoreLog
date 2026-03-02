@@ -8,6 +8,7 @@ export const colorConfig = {
         textPrimary: "255 255 255",  // #ffffff
         textSecondary: "148 163 184",// #94A3B8
         border: "36 36 59",          // #24243b
+        textError: "255 69 58",           // #FF453A
     },
 
     light: {

@@ -1,4 +1,4 @@
-import { AtSign, LockIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { FaArrowRightLong } from "react-icons/fa6";
 import { Link } from "react-router-dom";
@@ -6,7 +6,7 @@ import { useState } from "react";
 
 const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedGender, setSelectedGender] = useState<string | null>(null); // State to track selected gender
+  const [selectedGender, setSelectedGender] = useState<string | null>(null);
 
   // Handle gender click
   const handleGenderClick = (gender: string) => {
@@ -140,7 +140,7 @@ const SignUp = () => {
                     onClick={() => handleGenderClick(gender)}
                     className={`flex-1 cursor-pointer px-2 py-1 border border-border rounded text-center text-text-primary hover:bg-accent transition-colors  ${
                       selectedGender === gender
-                        ? "bg-accent text-text-primary" // Apply styles for selected gender
+                        ? "bg-primary text-text-primary" 
                         : "text-text-primary"
                     }`}
                   >
