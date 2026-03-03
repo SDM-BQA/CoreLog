@@ -12,7 +12,7 @@ export const REGEX = {
      * - Allows spaces between words
      * - No leading/trailing space
      */
-    NAME: /^[A-Za-z](?:[A-Za-z ]{1, }[A-Za-z])?$/,
+    NAME: /^[A-Za-z](?:[A-Za-z ]{1,}[A-Za-z])?$/,
 
     /**
      * Email
@@ -27,7 +27,7 @@ export const REGEX = {
      * - Optional +91
      * - Optional space or dash
      */
-    PHONE: /^(?:\+91[\s]?)?[6-9]\d{9}$/,
+    PHONE: /^[6-9]\d{9}$/,
     /**
      * Strong Password
      * - Minimum 8 characters
@@ -39,25 +39,4 @@ export const REGEX = {
     STRONG_PASSWORD:
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/,
 
-}
-
-
-/**
- * Validation Helpers
- */
-
-export const validateName = (value: string): boolean => {
-    return REGEX.NAME.test(value.trim())
-}
-
-export const validateEmail = (value: string): boolean => {
-    return REGEX.EMAIL.test(value.trim())
-}
-
-export const validatePhone = (value: string): boolean => {
-    return REGEX.PHONE.test(value.trim())
-}
-
-export const validatePassword = (value: string): boolean => {
-    return REGEX.STRONG_PASSWORD.test(value.trim())
 }
