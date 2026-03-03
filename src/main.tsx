@@ -8,8 +8,8 @@ import { store } from "./@store";
 
 createRoot(document.getElementById("root")!).render(
   <ApolloProvider client={client}>
-    <Provider store={store}>
-      <App />
-    </Provider>
-  </ApolloProvider>,
+  <Provider store={store}>
+    <App />
+  </Provider>
+  </ApolloProvider>
 );

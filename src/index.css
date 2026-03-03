@@ -1,1 +1,82 @@
-@import "tailwindcss"
+@import "tailwindcss";
+:root {
+  /* Default to dark theme */
+  color-scheme: dark;
+  --color-bg: rgb(16, 16, 34);
+  --color-surface: rgb(22 22 42);
+  --color-primary: rgb(17 17 212);
+  --color-accent: rgb(59 59 255);
+  --color-secondary: rgb(0 242 255);
+  --color-text-primary: rgb(255 255 255);
+  --color-text-secondary: rgb(148 163 184);
+  --color-border: rgb(36 36 59);
+  --font-family-inter: "Inter", sans-serif;
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
+  box-sizing: border-box;
+  /* For Webkit-based browsers like Chrome, Safari, etc. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* For Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+}
+@theme {
+  --color-bg: rgb(16 16 34);
+  --color-bg-secondary: rgb(20 20 40);
+  --color-surface: rgb(23,31,49);
+  --color-primary: rgb(17 17 212);
+  --color-accent: rgb(59 59 255);
+  --color-secondary: rgb(0 242 255);
+  --color-text-primary: rgb(255 255 255);
+  --color-text-secondary: rgb(148 163 184);
+  --color-border: rgb(36 36 59);
+  --color-border-secondary: rgb(17 17 212);
+  --shadow-navbar: 0 4px 12px rgba(255, 255, 255, 0.1);
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
+
+
+  --font-family-inter: "Inter", sans-serif;
+}
+
+/* Light theme overrides — applied when .light class is on <html> or <body> */
+.light {
+  --color-bg: rgb(249 250 251);
+  --color-surface: rgb(255 255 255);
+  --color-primary: rgb(24 144 255);
+  --color-accent: rgb(59 130 246);
+  --color-secondary: rgb(16 185 129);
+  --color-text-primary: rgb(17 24 39);
+  --color-text-secondary: rgb(107 114 128);
+  --color-border: rgb(209 213 219);
+  --color-border-secondary: rgb(24 144 255);
+  --shadow-navbar: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --color-error: rgb(255 69 58);
+  --color-text-error: rgb(255 69 58);
+}
+
+@layer utilities {
+  .shadow-navbar {
+    box-shadow: 0 4px 12px rgba(17, 17, 212, 0.1);
+  }
+}
+@layer utilities {
+  .bg-dots {
+    background-image: 
+      linear-gradient(90deg, transparent 3px, currentColor 3px),
+      linear-gradient(90deg, transparent 3px, currentColor 3px),
+      linear-gradient(90deg, transparent 3px, currentColor 3px),
+      linear-gradient(90deg, transparent 3px, currentColor 3px),
+      linear-gradient(90deg, transparent 3px, currentColor 3px),
+      linear-gradient(90deg, transparent 3px, currentColor 3px);
+    background-size: 24px 2px;
+    background-position: center right;
+    background-repeat: no-repeat;
+  }
+}
