@@ -26,3 +26,19 @@ export const validateGender = (value: string | null) => {
     if (!value) return "Please select a gender";
     return null;
 };
+
+export const validateAvatar = (value: File | null) => {
+    if (!value) return null;
+    if (value.size > 5 * 1024 * 1024) return ERROR.INVALID_AVATAR;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(value.type))
+        return ERROR.INVALID_AVATAR;
+    return null;
+};
+
+export const validateUsername = compose(
+    required("Username"),
+    matches(
+        REGEX.USERNAME,
+        ERROR.INVALID_USERNAME
+    ),
+);

@@ -26,3 +26,21 @@ query Get_user_account($getUserAccountId: ID!) {
   }
 }
 `
+
+export const CREATE_USER_ACCOUNT_MUTATION = `
+mutation Create_user_account($input: CreateUserInput!) {
+  create_user_account(input: $input) {
+    accessToken
+    refreshToken
+    user {
+      _id
+      first_name
+      last_name
+      email_id
+      profile_pic
+      mobile_no
+      user_name
+      gender
+    }
+  }
+}`
