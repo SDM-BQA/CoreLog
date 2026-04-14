@@ -115,10 +115,10 @@ const AddMovie = () => {
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-surface border border-border rounded-xl p-6">
-          <div className="flex gap-6">
+        <div className="bg-surface border border-border rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-6">
             {/* ─── Left Column: Poster + Year + Rating ─── */}
-            <div className="flex flex-col gap-5 w-[220px] shrink-0">
+            <div className="flex flex-col gap-5 w-full sm:w-[220px] shrink-0">
               {/* Poster Upload */}
               <div>
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wide uppercase">
@@ -366,7 +366,7 @@ const AddMovie = () => {
         </div>
 
         {/* ─── Bottom Feature Cards ─── */}
-        <div className="grid grid-cols-3 gap-4 mt-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
           <div className="bg-surface border border-border rounded-xl px-4 py-3.5 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
               <Sparkles size={18} className="text-accent" />
