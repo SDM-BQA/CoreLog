@@ -2,11 +2,14 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Home } from "./(app)/Home";
 import NotFoundPage from "./(app)/Not-Found";
 import Login from "./(app)/Auth/Login";
-import SignUp from "./(app)/Auth/SignUp";
-import OTPVerifyPage from "./(app)/Auth/OTP-Verify";
+import SignUp from "./(app)/Auth/SignUp/SignUp";
 import DashboardHome from "./(app)/(dashboard)/Dashboard-Home/DashboardHome";
 import AppLayout from "./(app)/Layout/APPLayout";
 import DashboardLayout from "./(app)/Layout/DashboardLayout";
+import AddMovie from "./(app)/(dashboard)/movies/AddMovie";
+import MoviesList from "./(app)/(dashboard)/movies/MoviesList";
+import MovieDetail from "./(app)/(dashboard)/movies/MovieDetail";
+import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
     return RouterProvider({ router });
 };
@@ -31,13 +34,8 @@ const router = createBrowserRouter([
                 Component: SignUp,
             },
             {
-                path: "/auth/login/otp-verify",
-                Component: OTPVerifyPage,
-            },
-
-            {
-                path: "*",
-                Component: NotFoundPage,
+                path: "/pricing",
+                Component: Pricing,
             },
         ],
     },
@@ -48,8 +46,23 @@ const router = createBrowserRouter([
             {
                 index: true,
                 Component: DashboardHome,
-            }
+            },
+            {
+                path: "movies",
+                Component: MoviesList,
+            },
+            {
+                path: "movies/:id",
+                Component: MovieDetail,
+            },
+            {
+                path: "movies/add-movie",
+                Component: AddMovie,
+            },
         ],
-
-    }
+    },
+    {
+        path: "*",
+        Component: NotFoundPage,
+    },
 ]);
