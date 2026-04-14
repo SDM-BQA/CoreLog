@@ -1,0 +1,422 @@
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  Star,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Film,
+} from "lucide-react";
+import { DUMMY_MOVIES } from "./moviesData";
+
+const GENRE_OPTIONS = [
+  "Action",
+  "Adventure",
+  "Comedy",
+  "Crime",
+  "Drama",
+  "Horror",
+  "Sci-Fi",
+  "Thriller",
+];
+const RATING_OPTIONS = [5, 4, 3, 2, 1];
+const YEAR_OPTIONS = [2020, 2019, 2017, 2014, 2010, 2008, 1999];
+
+const ITEMS_PER_PAGE = 3;
+
+// ── Stars component ─────────────────────────────────────────
+const Stars = ({ rating }: { rating: number }) => (
+  <div className="flex gap-0.5">
+    {[1, 2, 3, 4, 5].map((s) => (
+      <Star
+        key={s}
+        size={14}
+        className={
+          s <= rating
+            ? "fill-yellow-400 text-yellow-400"
+            : "fill-transparent text-text-secondary/30"
+        }
+      />
+    ))}
+  </div>
+);
+
+// ── Filter Dropdown ─────────────────────────────────────────
+const FilterDropdown = ({
+  label,
+  options,
+  selected,
+  onSelect,
+  renderOption,
+}: {
+  label: string;
+  options: (string | number)[];
+  selected: (string | number)[];
+  onSelect: (val: string | number) => void;
+  renderOption?: (val: string | number) => string;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`
+          inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200
+          ${
+            selected.length > 0
+              ? "border-accent/50 bg-accent/10 text-accent"
+              : "border-border bg-surface text-text-secondary hover:text-text-primary hover:border-border"
+          }
+        `}
+      >
+        {label}
+        {selected.length > 0 && (
+          <span className="bg-accent/20 text-accent text-[10px] font-bold px-1.5 rounded-full">
+            {selected.length}
+          </span>
+        )}
+        <ChevronDown
+          size={13}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 top-full mt-1.5 left-0 min-w-[160px] bg-surface border border-border rounded-lg shadow-xl overflow-hidden">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onSelect(opt)}
+                className={`w-full text-left px-4 py-2 text-xs transition-colors ${
+                  selected.includes(opt)
+                    ? "bg-accent/15 text-accent"
+                    : "text-text-primary hover:bg-bg"
+                }`}
+              >
+                {renderOption ? renderOption(opt) : String(opt)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ── Main Component ──────────────────────────────────────────
+const MoviesList = () => {
+  const [search, setSearch] = useState("");
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
+  const [ratingFilter, setRatingFilter] = useState<number[]>([]);
+  const [yearFilter, setYearFilter] = useState<number[]>([]);
+  const [page, setPage] = useState(1);
+
+  const hasFilters =
+    genreFilter.length > 0 || ratingFilter.length > 0 || yearFilter.length > 0;
+
+  const clearFilters = () => {
+    setGenreFilter([]);
+    setRatingFilter([]);
+    setYearFilter([]);
+    setPage(1);
+  };
+
+  const toggleFilter = <T extends string | number>(
+    _arr: T[],
+    val: T,
+    setter: React.Dispatch<React.SetStateAction<T[]>>,
+  ) => {
+    setter((prev) =>
+      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val],
+    );
+    setPage(1);
+  };
+
+  // Filter + search
+  const filtered = useMemo(() => {
+    return DUMMY_MOVIES.filter((m) => {
+      const matchesSearch =
+        !search ||
+        m.title.toLowerCase().includes(search.toLowerCase()) ||
+        m.genres.some((g) => g.toLowerCase().includes(search.toLowerCase()));
+      const matchesGenre =
+        genreFilter.length === 0 ||
+        m.genres.some((g) => genreFilter.includes(g));
+      const matchesRating =
+        ratingFilter.length === 0 || ratingFilter.includes(m.rating);
+      const matchesYear =
+        yearFilter.length === 0 || yearFilter.includes(m.year);
+      return matchesSearch && matchesGenre && matchesRating && matchesYear;
+    });
+  }, [search, genreFilter, ratingFilter, yearFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginated = filtered.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
+
+  // ── Empty state ──
+  const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-20 h-20 rounded-2xl bg-surface border border-border flex items-center justify-center">
+        <Film size={36} className="text-text-secondary/40" />
+      </div>
+      <div className="text-center">
+        <p className="text-text-primary font-semibold text-lg">
+          No movies found
+        </p>
+        <p className="text-text-secondary text-sm mt-1">
+          {hasFilters || search
+            ? "Try adjusting your search or filters."
+            : "Start building your collection by adding your first movie."}
+        </p>
+      </div>
+      {!hasFilters && !search && (
+        <Link
+          to="/dashboard/movies/add-movie"
+          className="inline-flex items-center gap-2 bg-accent hover:bg-accent/80 text-text-primary text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors mt-2"
+        >
+          <Plus size={16} />
+          Add Your First Movie
+        </Link>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="bg-bg flex-1 flex flex-col min-h-0">
+      <div className="w-full max-w-[900px] mx-auto px-6 py-8 flex flex-col flex-1 min-h-0">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-text-primary text-3xl font-bold tracking-tight font-inter">
+              My Collection
+            </h1>
+            <p className="text-text-secondary text-sm mt-1">
+              Manage and explore your personal library of{" "}
+              <span className="text-accent font-semibold">
+                {DUMMY_MOVIES.length}
+              </span>{" "}
+              movies
+            </p>
+          </div>
+          <Link
+            to="/dashboard/movies/add-movie"
+            className="inline-flex items-center gap-2 bg-accent hover:bg-accent/80 text-text-primary text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shrink-0"
+          >
+            <Plus size={16} />
+            Add Movie
+          </Link>
+        </div>
+
+        {/* ── Search Bar ── */}
+        <div className="relative mb-4">
+          <Search
+            size={17}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+          />
+          <input
+            type="text"
+            placeholder="Search by title, director or actor..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-surface border border-border rounded-xl py-3 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent transition-colors"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setPage(1);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Filters ── */}
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <FilterDropdown
+            label="Genre"
+            options={GENRE_OPTIONS}
+            selected={genreFilter}
+            onSelect={(val) =>
+              toggleFilter(genreFilter, val as string, setGenreFilter)
+            }
+          />
+          <FilterDropdown
+            label="Rating"
+            options={RATING_OPTIONS}
+            selected={ratingFilter}
+            onSelect={(val) =>
+              toggleFilter(ratingFilter, val as number, setRatingFilter)
+            }
+            renderOption={(val) => `${"★".repeat(val as number)} ${val}.0`}
+          />
+          <FilterDropdown
+            label="Release Year"
+            options={YEAR_OPTIONS}
+            selected={yearFilter}
+            onSelect={(val) =>
+              toggleFilter(yearFilter, val as number, setYearFilter)
+            }
+          />
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
+            >
+              <X size={13} />
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        {/* ── Movie Cards ── */}
+        {paginated.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="flex flex-col gap-4 flex-1">
+            {paginated.map((movie) => (
+              <Link
+                key={movie.id}
+                to={`/dashboard/movies/${movie.id}`}
+                className="bg-surface border border-border rounded-xl p-4 flex gap-4 group hover:border-accent/30 transition-colors cursor-pointer"
+              >
+                {/* Poster */}
+                <div className="w-[80px] h-[110px] rounded-lg overflow-hidden shrink-0 bg-bg">
+                  <img
+                    src={movie.poster}
+                    alt={movie.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 flex flex-col">
+                  {/* Title row */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-text-primary font-bold text-base leading-tight">
+                        {movie.title}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-text-secondary text-xs">
+                          {movie.year}
+                        </span>
+                        <span className="text-text-secondary/30 text-xs">
+                          ·
+                        </span>
+                        <span className="text-text-secondary text-xs">
+                          {movie.genres.join(" / ")}
+                        </span>
+                        <span className="text-text-secondary/30 text-xs">
+                          ·
+                        </span>
+                        <Stars rating={movie.rating} />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
+                        type="button"
+                        title="Edit"
+                        onClick={(e) => e.preventDefault()}
+                        className="p-2 rounded-lg text-text-secondary hover:text-accent hover:bg-accent/10 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete"
+                        onClick={(e) => e.preventDefault()}
+                        className="p-2 rounded-lg text-text-secondary hover:text-error hover:bg-error/10 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Review */}
+                  <p className="text-text-secondary text-xs leading-relaxed mt-2.5 italic line-clamp-2">
+                    {movie.review}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* ── Pagination ── */}
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+            <p className="text-text-secondary text-xs">
+              Showing{" "}
+              <span className="text-text-primary font-semibold">
+                {paginated.length}
+              </span>{" "}
+              of{" "}
+              <span className="text-accent font-semibold">
+                {filtered.length}
+              </span>{" "}
+              movies
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+                className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPage(p)}
+                  className={`
+                    w-8 h-8 rounded-lg text-xs font-semibold transition-colors
+                    ${
+                      p === page
+                        ? "bg-accent text-text-primary"
+                        : "border border-border text-text-secondary hover:text-text-primary hover:border-accent/30"
+                    }
+                  `}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+                className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MoviesList;
