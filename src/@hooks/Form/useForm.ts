@@ -22,7 +22,7 @@ export function useForm<T extends Record<string, any>>({
     const [values, setValues] = useState<T>(initialValues);
     const [errors, setErrors] = useState<
         Partial<Record<keyof T, string>>
-        >({});
+    >({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
 
@@ -46,7 +46,7 @@ export function useForm<T extends Record<string, any>>({
 
     const handleChange =
         (name: keyof T) =>
-            (e: React.ChangeEvent<HTMLInputElement>) => {
+            (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
                 const value = e.target.value;
 
                 setValues((prev) => ({ ...prev, [name]: value }));
@@ -56,7 +56,7 @@ export function useForm<T extends Record<string, any>>({
                 }
             };
 
-    const setFieldValue = (name: keyof T, value: any) => {
+    const setFieldValue = <K extends keyof T>(name: K, value: T[K]) => {
         setValues((prev) => ({ ...prev, [name]: value }));
 
         if (errors[name]) {
@@ -108,6 +108,6 @@ export function useForm<T extends Record<string, any>>({
         resetForm,
         resetField,
         isSubmitting,
-    
+
     };
 }

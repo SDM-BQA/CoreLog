@@ -4,7 +4,7 @@ import { appConfig } from "../../../@configs/app.config";
 const NAV_LINKS = [
   { label: "Features", to: "/" },
   { label: "Community", to: "/about" },
-  { label: "Pricing", to: "/contact" },
+  { label: "Pricing", to: "/pricing" },
 ];
 
 const Navbar = () => {
@@ -13,7 +13,7 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-3">
       {/* Glass pill container */}
-      <div className="mx-auto bg-bg-secondary/70 backdrop-blur-xl border border-border rounded-xl shadow-lg px-6 py-3 flex items-center justify-between gap-8">
+      <div className="mx-auto bg-bg-secondary/70 backdrop-blur-xl border border-border rounded-xl shadow-lg px-4 md:px-6 py-3 flex items-center justify-between gap-3 md:gap-8 max-w-full">
         {/* Logo  */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className="w-8 h-8 rounded-lg overflow-hidden ring-1 ring-border group-hover:ring-border-secondary transition-all duration-300">
@@ -23,13 +23,13 @@ const Navbar = () => {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-text-primary font-semibold font-inter text-base tracking-tight">
+          <span className="text-text-primary font-semibold font-inter text-base tracking-tight hidden sm:block">
             {appConfig.appName}
           </span>
         </Link>
 
         {/* ── Nav links — centered ── */}
-        <div className="flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1">
           {NAV_LINKS.map(({ label, to }) => {
             const isActive = location.pathname === to;
             return (
