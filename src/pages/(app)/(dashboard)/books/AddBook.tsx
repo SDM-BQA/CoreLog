@@ -7,74 +7,65 @@ import {
   PlusCircle,
   Sparkles,
   Eye,
-  LayoutList,
+  BookOpen,
   Calendar,
+  User,
+  Check,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
 
 const GENRE_OPTIONS = [
-  "Action",
-  "Adventure",
-  "Animation",
-  "Comedy",
-  "Crime",
-  "Documentary",
-  "Drama",
-  "Fantasy",
-  "Horror",
-  "Mystery",
-  "Romance",
-  "Sci-Fi",
-  "Thriller",
-  "War",
-  "Western",
+  "Fiction", "Fantasy", "Sci-Fi", "Thriller", "Literary", 
+  "Classic", "Self-Help", "Non-Fiction", "Mystery", "Mythology"
 ];
 
-interface AddMovieForm {
+interface AddBookForm {
   title: string;
+  author: string;
   genres: string[];
   description: string;
   review: string;
-  releaseYear: string;
+  publicationYear: string;
   rating: number;
   status: string;
 }
 
-const STATUS_OPTIONS = ["Watchlist", "Watching", "Watched", "Not Finished"];
+const STATUS_OPTIONS = ["Want to Read", "Reading", "Read", "Not Finished"];
 
-const AddMovie = () => {
+const AddBook = () => {
   const { values, errors, handleChange, setFieldValue, handleSubmit } =
-    useForm<AddMovieForm>({
+    useForm<AddBookForm>({
       initialValues: {
         title: "",
-        genres: ["Sci-Fi", "Action"],
+        author: "",
+        genres: ["Fiction"],
         description: "",
         review: "",
-        releaseYear: "",
+        publicationYear: "",
         rating: 4,
-        status: "Watchlist",
+        status: "Want to Read",
       },
       validationSchema: {
         title: (val) => (val ? null : "Title is required"),
-        releaseYear: (val) => (val ? null : "Release year is required"),
+        author: (val) => (val ? null : "Author is required"),
+        publicationYear: (val) => (val ? null : "Publication year is required"),
         genres: (val) => (val.length > 0 ? null : "Genres is required"),
-        rating: (val) => (val ? null : "Rating is required"),
         status: (val) => (val ? null : "Status is required"),
       },
       onSubmit: (formValues) => {
-        if (formValues.status === "Watched" && !formValues.review) {
-          alert("Please add a review for watched movies.");
+        if (formValues.status === "Read" && !formValues.review) {
+          alert("Please add a review for read books.");
           return;
         }
-        console.log("Submitting movie:", formValues);
-        alert(`Movie "${formValues.title}" added successfully!`);
+        console.log("Submitting book:", formValues);
+        alert(`Book "${formValues.title}" added successfully!`);
       },
     });
 
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
-  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenreToggle = (genre: string) => {
@@ -92,7 +83,7 @@ const AddMovie = () => {
     );
   };
 
-  const handlePosterClick = () => {
+  const handleCoverClick = () => {
     fileInputRef.current?.click();
   };
 
@@ -100,7 +91,7 @@ const AddMovie = () => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setPosterPreview(reader.result as string);
+      reader.onloadend = () => setCoverPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -108,7 +99,7 @@ const AddMovie = () => {
   const activeRating = hoverRating || values.rating;
 
   return (
-    <div className="bg-bg flex-1 flex flex-col overflow-y-auto">
+    <div className="bg-bg flex-1 flex flex-col overflow-y-auto w-full">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-[820px] mx-auto px-4 sm:px-6 py-8"
@@ -116,43 +107,44 @@ const AddMovie = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-text-primary text-3xl font-bold tracking-tight font-inter">
-            Add New Movie
+            Add New Book
           </h1>
           <p className="text-text-secondary text-sm mt-2">
-            Enter the cinematic details to update your personal collection.
+            Enter the details of your latest reading adventure.
           </p>
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-surface border border-border rounded-2xl p-5 sm:p-8 shadow-sm">
+        <div className="bg-surface border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row gap-8">
-            {/* ─── Left Column: Poster & Rating (Visual Anchor) ─── */}
+            
+            {/* ─── Left Column: Cover & Rating (Visual Anchor) ─── */}
             <div className="flex flex-col gap-6 w-full sm:w-[220px] shrink-0">
-              {/* Poster Upload */}
+              {/* Cover Upload */}
               <div>
-                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                  Movie Poster
+                <label className="text-text-primary text-xs font-semibold mb-2.5 block tracking-wider uppercase">
+                  Book Cover
                 </label>
                 <div
-                  onClick={handlePosterClick}
-                  className="w-full aspect-[2/3] rounded-xl border-2 border-dashed border-border hover:border-accent cursor-pointer flex flex-col items-center justify-center gap-3 transition-colors bg-bg/50 overflow-hidden group shadow-sm"
+                  onClick={handleCoverClick}
+                  className="w-full aspect-[2/3] rounded-xl border-2 border-dashed border-border hover:border-accent hover:bg-accent/5 cursor-pointer flex flex-col items-center justify-center gap-3 transition-all duration-200 bg-bg/50 overflow-hidden group shadow-sm"
                 >
-                  {posterPreview ? (
+                  {coverPreview ? (
                     <img
-                      src={posterPreview}
-                      alt="Poster preview"
+                      src={coverPreview}
+                      alt="Cover preview"
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="flex flex-col items-center px-4 text-center">
-                      <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300 shadow-sm">
                         <ImagePlus
                           size={24}
                           className="text-text-secondary group-hover:text-accent transition-colors"
                         />
                       </div>
                       <span className="text-text-primary text-sm font-medium">
-                        Upload Poster
+                        Upload Cover
                       </span>
                       <span className="text-text-secondary text-[11px] mt-1">
                         PNG, JPG or WebP
@@ -169,51 +161,54 @@ const AddMovie = () => {
                 </div>
               </div>
 
-              {/* Star Rating */}
-              <div className="bg-bg/50 border border-border rounded-xl p-4 flex flex-col items-center gap-2">
-                <label className="text-text-secondary text-[11px] font-semibold tracking-wider uppercase">
-                  Your Rating
-                </label>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setFieldValue("rating", star)}
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(0)}
-                      className="p-1 transition-transform hover:scale-110"
-                    >
-                      <Star
-                        size={24}
-                        className={
-                          star <= activeRating
-                            ? "fill-yellow-400 text-yellow-400 drop-shadow-sm"
-                            : "fill-transparent text-text-secondary/30"
-                        }
-                      />
-                    </button>
-                  ))}
-                </div>
-                <span className="text-text-primary text-sm font-bold mt-1">
-                  {activeRating}.0{" "}
-                  <span className="text-text-secondary font-normal text-xs">
-                    / 5.0
+              {/* Star Rating (Conditional) */}
+              {values.status === "Read" && (
+                <div className="bg-bg/50 border border-border rounded-xl p-4 flex flex-col items-center gap-2 animate-in fade-in zoom-in duration-300">
+                  <label className="text-text-secondary text-[11px] font-semibold tracking-wider uppercase">
+                    Your Rating
+                  </label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFieldValue("rating", star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="p-1 transition-transform hover:scale-110"
+                      >
+                        <Star
+                          size={24}
+                          className={
+                            star <= activeRating
+                              ? "fill-yellow-400 text-yellow-400 drop-shadow-sm"
+                              : "fill-transparent text-text-secondary/30"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-text-primary text-sm font-bold mt-1">
+                    {activeRating}.0{" "}
+                    <span className="text-text-secondary font-normal text-xs">
+                      / 5.0
+                    </span>
                   </span>
-                </span>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* ─── Right Column: Textual Data & Metadata ─── */}
             <div className="flex flex-col gap-6 flex-1 min-w-0">
-              {/* Movie Title */}
+              
+              {/* Book Title */}
               <div>
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                  Movie Title
+                  Book Title
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Inception"
+                  placeholder="e.g. The Midnight Library"
                   value={values.title}
                   onChange={handleChange("title")}
                   className={`w-full bg-bg border rounded-xl py-3 px-4 text-text-primary text-base placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
@@ -223,18 +218,44 @@ const AddMovie = () => {
                   }`}
                 />
                 {errors.title && (
-                  <p className="text-error text-xs mt-1.5 pl-1">
-                    {errors.title}
-                  </p>
+                  <p className="text-error text-xs mt-1.5 pl-1">{errors.title}</p>
+                )}
+              </div>
+
+              {/* Author */}
+              <div>
+                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                  Author
+                </label>
+                <div className="relative">
+                  <User
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="e.g. Matt Haig"
+                    value={values.author}
+                    onChange={handleChange("author")}
+                    className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
+                      errors.author
+                        ? "border-error focus:border-error focus:ring-error/20"
+                        : "border-border focus:border-accent"
+                    }`}
+                  />
+                </div>
+                {errors.author && (
+                  <p className="text-error text-xs mt-1.5 pl-1">{errors.author}</p>
                 )}
               </div>
 
               {/* Grid Layout for Year & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                {/* Release Year */}
+                
+                {/* Publication Year */}
                 <div>
                   <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Release Year
+                    Publication Year
                   </label>
                   <div className="relative">
                     <Calendar
@@ -245,31 +266,31 @@ const AddMovie = () => {
                       type="text"
                       placeholder="YYYY"
                       maxLength={4}
-                      value={values.releaseYear}
+                      value={values.publicationYear}
                       onChange={(e) =>
                         setFieldValue(
-                          "releaseYear",
+                          "publicationYear",
                           e.target.value.replace(/\D/g, ""),
                         )
                       }
                       className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
-                        errors.releaseYear
+                        errors.publicationYear
                           ? "border-error focus:border-error focus:ring-error/20"
                           : "border-border focus:border-accent"
                       }`}
                     />
                   </div>
-                  {errors.releaseYear && (
+                  {errors.publicationYear && (
                     <p className="text-error text-xs mt-1.5 pl-1">
-                      {errors.releaseYear}
+                      {errors.publicationYear}
                     </p>
                   )}
                 </div>
 
-                {/* Status Section */}
+                {/* Status Section (CLEAR SELECT) */}
                 <div className="relative">
                   <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Watch Status
+                    Reading Status
                   </label>
                   <button
                     type="button"
@@ -285,34 +306,43 @@ const AddMovie = () => {
                     />
                   </button>
 
+                  {/* Dropdown Menu */}
                   {statusDropdownOpen && (
-                    <div className="absolute z-30 top-[calc(100%+4px)] left-0 w-full bg-surface border border-border rounded-xl shadow-lg shadow-black/5 overflow-hidden">
-                      {STATUS_OPTIONS.map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => {
-                            setFieldValue("status", status);
-                            setStatusDropdownOpen(false);
-                            if (status !== "Watched") {
-                              setFieldValue("review", "");
-                            }
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                            values.status === status
-                              ? "bg-accent/10 text-accent font-medium"
-                              : "text-text-primary hover:bg-bg"
-                          }`}
-                        >
-                          {status}
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      {/* Invisible overlay to catch outside clicks */}
+                      <div 
+                        className="fixed inset-0 z-20" 
+                        onClick={() => setStatusDropdownOpen(false)} 
+                      />
+                      <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden py-1">
+                        {STATUS_OPTIONS.map((status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => {
+                              setFieldValue("status", status);
+                              setStatusDropdownOpen(false);
+                              if (status !== "Read") {
+                                setFieldValue("review", "");
+                              }
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
+                              values.status === status
+                                ? "bg-accent/10 text-accent font-semibold"
+                                : "text-text-primary hover:bg-bg"
+                            }`}
+                          >
+                            {status}
+                            {values.status === status && <Check size={16} />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
 
-              {/* Genre */}
+              {/* Genres (CLEAR MULTI-SELECT) */}
               <div className="relative">
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Genres
@@ -320,9 +350,11 @@ const AddMovie = () => {
                 <button
                   type="button"
                   onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
-                  className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                  className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all ${
+                    errors.genres ? "border-error focus:border-error" : "border-border"
+                  }`}
                 >
-                  <span className="text-text-secondary/70">
+                  <span className="text-text-secondary/80">
                     Select genres to categorize...
                   </span>
                   <ChevronDown
@@ -331,29 +363,38 @@ const AddMovie = () => {
                   />
                 </button>
                 {errors.genres && (
-                  <p className="text-error text-xs mt-1.5 pl-1">
-                    {errors.genres}
-                  </p>
+                  <p className="text-error text-xs mt-1.5 pl-1">{errors.genres}</p>
                 )}
 
-                {/* Genre Dropdown */}
+                {/* Genre Dropdown Menu */}
                 {genreDropdownOpen && (
-                  <div className="absolute z-20 top-[calc(100%+4px)] left-0 w-full bg-surface border border-border rounded-xl shadow-lg shadow-black/5 max-h-56 overflow-y-auto py-1">
-                    {GENRE_OPTIONS.map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => handleGenreToggle(genre)}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                          values.genres.includes(genre)
-                            ? "bg-accent/10 text-accent font-medium"
-                            : "text-text-primary hover:bg-bg"
-                        }`}
-                      >
-                        {genre}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    {/* Invisible overlay to catch outside clicks */}
+                    <div 
+                      className="fixed inset-0 z-20" 
+                      onClick={() => setGenreDropdownOpen(false)} 
+                    />
+                    <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 max-h-60 overflow-y-auto py-1">
+                      {GENRE_OPTIONS.map((genre) => {
+                        const isSelected = values.genres.includes(genre);
+                        return (
+                          <button
+                            key={genre}
+                            type="button"
+                            onClick={() => handleGenreToggle(genre)}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
+                              isSelected
+                                ? "bg-accent/10 text-accent font-semibold"
+                                : "text-text-primary hover:bg-bg"
+                            }`}
+                          >
+                            {genre}
+                            {isSelected && <Check size={16} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
 
                 {/* Selected Genre Tags */}
@@ -362,13 +403,13 @@ const AddMovie = () => {
                     {values.genres.map((genre) => (
                       <span
                         key={genre}
-                        className="inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-semibold px-3 py-1.5 rounded-lg"
+                        className="inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-semibold px-3 py-1.5 rounded-lg group animate-in fade-in slide-in-from-bottom-1 duration-200"
                       >
                         {genre}
                         <button
                           type="button"
                           onClick={() => handleGenreRemove(genre)}
-                          className="hover:text-error hover:bg-error/10 rounded-full p-0.5 transition-colors"
+                          className="hover:bg-error hover:text-white text-accent/70 rounded-full p-0.5 transition-colors"
                         >
                           <X size={12} />
                         </button>
@@ -378,13 +419,13 @@ const AddMovie = () => {
                 )}
               </div>
 
-              {/* Description / Synopsis */}
+              {/* Synopsis */}
               <div>
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Synopsis
                 </label>
                 <textarea
-                  placeholder="A brief summary of the movie plot..."
+                  placeholder="A brief summary of the book plot..."
                   value={values.description}
                   onChange={handleChange("description")}
                   rows={3}
@@ -392,14 +433,14 @@ const AddMovie = () => {
                 />
               </div>
 
-              {/* Personal Review (Only shown if Watched) */}
-              {values.status === "Watched" && (
+              {/* Personal Review (Only shown if Read) */}
+              {values.status === "Read" && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                     Personal Review
                   </label>
                   <textarea
-                    placeholder="What did you think of this film? Share your thoughts..."
+                    placeholder="What did you think of this book? Share your thoughts..."
                     value={values.review}
                     onChange={handleChange("review")}
                     rows={4}
@@ -410,9 +451,7 @@ const AddMovie = () => {
                     }`}
                   />
                   {errors.review && (
-                    <p className="text-error text-xs mt-1.5 pl-1">
-                      {errors.review}
-                    </p>
+                    <p className="text-error text-xs mt-1.5 pl-1">{errors.review}</p>
                   )}
                 </div>
               )}
@@ -420,26 +459,26 @@ const AddMovie = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-end gap-3 mt-10 pt-6 border-t border-border">
             <button
               type="button"
-              className="px-6 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg rounded-xl transition-colors"
+              className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg rounded-xl transition-colors"
             >
               Discard
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors shadow-sm shadow-accent/20"
+              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm shadow-accent/20 active:scale-95"
             >
               <PlusCircle size={18} />
-              Save Movie
+              Save Book
             </button>
           </div>
         </div>
 
         {/* ─── Bottom Feature Cards ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-          <div className="bg-surface border border-border rounded-xl px-4 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
+          <div className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
               <Sparkles size={18} className="text-accent" />
             </div>
@@ -447,35 +486,35 @@ const AddMovie = () => {
               <p className="text-text-primary text-sm font-semibold">
                 Auto-fetch Data
               </p>
-              <p className="text-text-secondary text-xs mt-0.5">
+              <p className="text-text-secondary text-xs mt-0.5 leading-relaxed">
                 Pull details automatically
               </p>
             </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl px-4 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
+          <div className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
               <Eye size={18} className="text-accent" />
             </div>
             <div>
               <p className="text-text-primary text-sm font-semibold">
-                Public/Private
+                Public / Private
               </p>
-              <p className="text-text-secondary text-xs mt-0.5">
+              <p className="text-text-secondary text-xs mt-0.5 leading-relaxed">
                 Set visibility for reviews
               </p>
             </div>
           </div>
 
-          <div className="bg-surface border border-border rounded-xl px-4 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
+          <div className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center gap-4 hover:border-accent/30 transition-colors">
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-              <LayoutList size={18} className="text-accent" />
+              <BookOpen size={18} className="text-accent" />
             </div>
             <div>
               <p className="text-text-primary text-sm font-semibold">
-                Smart Lists
+                Smart Shelf
               </p>
-              <p className="text-text-secondary text-xs mt-0.5">
+              <p className="text-text-secondary text-xs mt-0.5 leading-relaxed">
                 Categorize automatically
               </p>
             </div>
@@ -486,4 +525,4 @@ const AddMovie = () => {
   );
 };
 
-export default AddMovie;
+export default AddBook;
