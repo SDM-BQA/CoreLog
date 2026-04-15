@@ -10,7 +10,7 @@ export interface Movie {
     runtime: string;
     language: string;
     addedOn: string;
-    status: "Watched" | "Watchlist" | "Rewatching";
+    status: "Watched" | "Watchlist" | "Rewatching" | "NotFinished";
 }
 
 export const DUMMY_MOVIES: Movie[] = [
