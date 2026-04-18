@@ -12,6 +12,10 @@ import MovieDetail from "./(app)/(dashboard)/movies/MovieDetail";
 import BooksList from "./(app)/(dashboard)/books/BooksList";
 import AddBook from "./(app)/(dashboard)/books/AddBook";
 import BookDetail from "./(app)/(dashboard)/books/BookDetail";
+import SeriesList from "./(app)/(dashboard)/series/SeriesList";
+import AddSeries from "./(app)/(dashboard)/series/AddSeries";
+import SeriesDetail from "./(app)/(dashboard)/series/SeriesDetail";
+import Journal from "./(app)/(dashboard)/journal/Journal";
 import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
     return RouterProvider({ router });
@@ -73,6 +77,22 @@ const router = createBrowserRouter([
             {
                 path: "books/:id",
                 Component: BookDetail,
+            },
+            {
+                path: "series",
+                Component: SeriesList,
+            },
+            {
+                path: "series/add-series",
+                Component: AddSeries,
+            },
+            {
+                path: "series/:id",
+                Component: SeriesDetail,
+            },
+            {
+                path: "journal",
+                Component: Journal,
             },
         ],
     },
