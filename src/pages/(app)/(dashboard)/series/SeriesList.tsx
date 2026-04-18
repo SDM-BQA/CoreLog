@@ -15,7 +15,7 @@ import {
   LayoutGrid,
   List as ListIcon,
 } from "lucide-react";
-import { DUMMY_SERIES } from "./seriesData";
+import { DUMMY_SERIES, SeriesStatus } from "./seriesData";
 
 const GENRE_OPTIONS = [
   "Action",
@@ -29,7 +29,13 @@ const GENRE_OPTIONS = [
 ];
 const RATING_OPTIONS = [5, 4, 3, 2, 1];
 const YEAR_OPTIONS = [2024, 2023, 2022, 2020, 2018, 2016, 2008];
-const STATUS_OPTIONS = ["Watched", "Watching", "Want to Watch", "Not Finished"];
+const STATUS_OPTIONS: { label: string; value: SeriesStatus }[] = [
+  { label: "Watchlist", value: "Watchlist" },
+  { label: "Watching", value: "Watching" },
+  { label: "Rewatching", value: "Rewatching" },
+  { label: "Watched", value: "Watched" },
+  { label: "Not Finished", value: "NotFinished" },
+];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -129,7 +135,7 @@ const SeriesList = () => {
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [ratingFilter, setRatingFilter] = useState<number[]>([]);
   const [yearFilter, setYearFilter] = useState<number[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<SeriesStatus[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
 
@@ -344,11 +350,12 @@ const SeriesList = () => {
               />
               <FilterDropdown
                 label="Status"
-                options={STATUS_OPTIONS}
+                options={STATUS_OPTIONS.map(s => s.value)}
                 selected={statusFilter}
                 onSelect={(val) =>
-                  toggleFilter(statusFilter, val as string, setStatusFilter)
+                  toggleFilter(statusFilter, val as SeriesStatus, setStatusFilter)
                 }
+                renderOption={(val) => STATUS_OPTIONS.find(s => s.value === val)?.label || String(val)}
                 icon={Filter}
               />
               {hasFilters && (

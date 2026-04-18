@@ -11,16 +11,16 @@ import {
   Quote,
   Filter,
   MoreVertical,
-  X,
   BookOpen,
   Cloud,
   Sun,
   Moon,
 } from "lucide-react";
-import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS, MOOD_COLORS, JournalEntry } from "./journalData";
+import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS, MOOD_COLORS } from "./journalData";
 
 const Journal = () => {
   const [search, setSearch] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [view, setView] = useState<"feed" | "calendar" | "trends">("feed");
 
@@ -75,6 +75,7 @@ const Journal = () => {
               ].map((item) => (
                 <button
                   key={item.id}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onClick={() => setView(item.id as any)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                     view === item.id 

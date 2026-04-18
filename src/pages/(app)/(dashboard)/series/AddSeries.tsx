@@ -5,12 +5,10 @@ import {
   X,
   Star,
   PlusCircle,
-  Sparkles,
-  Eye,
-  LayoutList,
   Calendar,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
+import { SeriesStatus } from "./seriesData";
 
 const GENRE_OPTIONS = [
   "Action",
@@ -38,10 +36,16 @@ interface AddSeriesForm {
   releaseYear: string;
   seasons: string;
   rating: number;
-  status: string;
+  status: SeriesStatus;
 }
 
-const STATUS_OPTIONS = ["Watchlist", "Watching", "Watched", "Not Finished"];
+const STATUS_OPTIONS: { label: string; value: SeriesStatus }[] = [
+  { label: "Watchlist", value: "Watchlist" },
+  { label: "Watching", value: "Watching" },
+  { label: "Rewatching", value: "Rewatching" },
+  { label: "Watched", value: "Watched" },
+  { label: "Not Finished", value: "NotFinished" },
+];
 
 const AddSeries = () => {
   const { values, errors, handleChange, setFieldValue, handleSubmit } =
@@ -54,7 +58,7 @@ const AddSeries = () => {
         releaseYear: "",
         seasons: "",
         rating: 4,
-        status: "Watchlist",
+        status: "Watchlist" as SeriesStatus,
       },
       validationSchema: {
         title: (val) => (val ? null : "Title is required"),
@@ -309,7 +313,7 @@ const AddSeries = () => {
                   className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                 >
                   <span className="text-text-primary font-medium">
-                    {values.status}
+                    {STATUS_OPTIONS.find(s => s.value === values.status)?.label || values.status}
                   </span>
                   <ChevronDown
                     size={18}
@@ -321,22 +325,22 @@ const AddSeries = () => {
                   <div className="absolute z-30 top-[calc(100%+4px)] left-0 w-full bg-surface border border-border rounded-xl shadow-lg shadow-black/5 overflow-hidden">
                     {STATUS_OPTIONS.map((status) => (
                       <button
-                        key={status}
+                        key={status.value}
                         type="button"
                         onClick={() => {
-                          setFieldValue("status", status);
+                          setFieldValue("status", status.value);
                           setStatusDropdownOpen(false);
-                          if (status !== "Watched") {
+                          if (status.value !== "Watched") {
                             setFieldValue("review", "");
                           }
                         }}
                         className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                          values.status === status
+                          values.status === status.value
                             ? "bg-accent/10 text-accent font-medium"
                             : "text-text-primary hover:bg-bg"
                         }`}
                       >
-                        {status}
+                        {status.label}
                       </button>
                     ))}
                   </div>

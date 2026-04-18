@@ -1,3 +1,5 @@
+export type SeriesStatus = "Watched" | "Watchlist" | "Watching" | "Rewatching" | "NotFinished";
+
 export interface Series {
     id: string;
     title: string;
@@ -8,7 +10,7 @@ export interface Series {
     poster: string;
     creator: string;
     seasons: number;
-    status: "Watched" | "Watchlist" | "Rewatching" | "NotFinished";
+    status: SeriesStatus;
     addedOn: string;
 }
 
