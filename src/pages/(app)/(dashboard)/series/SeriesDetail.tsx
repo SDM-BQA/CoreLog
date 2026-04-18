@@ -3,9 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Star,
-  Clock,
   Calendar,
-  Globe,
   Tv,
   Pencil,
   Trash2,
@@ -14,7 +12,7 @@ import {
   CalendarPlus,
   ChevronDown,
 } from "lucide-react";
-import { getSeriesById } from "./seriesData";
+import { getSeriesById, SeriesStatus } from "./seriesData";
 
 const STATUS_COLORS: Record<string, string> = {
   Watched: "text-green-500",
@@ -29,7 +27,7 @@ const SeriesDetail = () => {
   const navigate = useNavigate();
   const series = getSeriesById(id || "");
 
-  const [currentStatus, setCurrentStatus] = useState(
+  const [currentStatus, setCurrentStatus] = useState<SeriesStatus>(
     series?.status || "Watchlist",
   );
 
@@ -59,7 +57,7 @@ const SeriesDetail = () => {
   }
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCurrentStatus(e.target.value as "Watched" | "Watchlist" | "Watching" | "Rewatching" | "NotFinished");
+    setCurrentStatus(e.target.value as SeriesStatus);
   };
 
   return (
