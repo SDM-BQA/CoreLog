@@ -9,6 +9,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Tv,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -18,6 +19,7 @@ const SIDEBAR_SECTIONS = [
     links: [
       { label: "Overview", to: "/dashboard", icon: LayoutDashboard },
       { label: "Movies", to: "/dashboard/movies", icon: Film },
+      { label: "Web Series", to: "/dashboard/series", icon: Tv },
       { label: "Books", to: "/dashboard/books", icon: BookOpen },
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
     ],

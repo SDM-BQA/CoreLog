@@ -9,6 +9,10 @@ import {
   Search,
   LogOut,
   User,
+  Plus,
+  Tv,
+  BookOpen,
+  PenLine,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
@@ -22,6 +26,7 @@ const DASHBOARD_LINKS = [
 const DashboardNavbar = () => {
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Close profile dropdown on outside click
@@ -94,6 +99,73 @@ const DashboardNavbar = () => {
 
         {/* ── Right side: Search, Notifications, Profile ── */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Universal Add Button Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsAddOpen(!isAddOpen)}
+              type="button"
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                isAddOpen
+                  ? "bg-accent text-background"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface/60"
+              }`}
+              title="Add New..."
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+
+            {isAddOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsAddOpen(false)}
+                />
+                <div className="absolute right-0 top-[calc(100%+12px)] w-52 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <Link
+                    to="/dashboard/movies/add-movie"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg transition-colors"
+                    onClick={() => setIsAddOpen(false)}
+                  >
+                    <Film size={15} className="text-blue-500" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Add Movie
+                    </span>
+                  </Link>
+                  <Link
+                    to="/dashboard/series/add-series"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg transition-colors"
+                    onClick={() => setIsAddOpen(false)}
+                  >
+                    <Tv size={15} className="text-purple-500" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Add Series
+                    </span>
+                  </Link>
+                  <Link
+                    to="/dashboard/books/add-book"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg transition-colors"
+                    onClick={() => setIsAddOpen(false)}
+                  >
+                    <BookOpen size={15} className="text-emerald-500" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Add Book
+                    </span>
+                  </Link>
+                  <Link
+                    to="/dashboard/journal"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg transition-colors"
+                    onClick={() => setIsAddOpen(false)}
+                  >
+                    <PenLine size={15} className="text-pink-500" />
+                    <span className="text-sm font-medium text-text-primary">
+                      Add Journal Entry
+                    </span>
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Search */}
           <button
             type="button"
