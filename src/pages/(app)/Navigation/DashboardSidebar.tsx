@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Tv,
+  ScrollText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -22,6 +23,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Web Series", to: "/dashboard/series", icon: Tv },
       { label: "Books", to: "/dashboard/books", icon: BookOpen },
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
+      { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
     ],
   },
 ];
