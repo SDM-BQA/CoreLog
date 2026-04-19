@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Calendar as CalendarIcon,
   Search,
@@ -20,9 +20,13 @@ import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS, MOOD_COLORS } from "./journalData";
 
 const Journal = () => {
   const [search, setSearch] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [view, setView] = useState<"feed" | "calendar" | "trends">("feed");
+
+
+  useEffect(() => {
+    setSelectedMood("Happy");
+  }, []);
 
   // Filter entries
   const filteredEntries = useMemo(() => {

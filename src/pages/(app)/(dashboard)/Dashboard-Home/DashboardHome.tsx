@@ -13,10 +13,15 @@ import {
   Play,
   PenLine,
 } from "lucide-react";
-import { DUMMY_MOVIES } from "../movies/moviesData";
-import { booksData } from "../books/booksData";
-import { DUMMY_SERIES } from "../series/seriesData";
+import { DUMMY_MOVIES, type Movie } from "../movies/moviesData";
+import { booksData, type Book } from "../books/booksData";
+import { DUMMY_SERIES, type Series } from "../series/seriesData";
 import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS } from "../journal/journalData";
+
+type MediaItem = 
+  | (Movie & { type: 'Movie'; cover: string })
+  | (Series & { type: 'Series'; cover: string })
+  | (Book & { type: 'Book'; cover: string });
 
 const DashboardHome = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -30,18 +35,18 @@ const DashboardHome = () => {
   ];
 
   // Recently Added (Mix of all)
-  const recentlyAdded = [
-    ...DUMMY_MOVIES.slice(0, 2).map(m => ({ ...m, type: 'Movie', cover: m.poster })),
-    ...DUMMY_SERIES.slice(0, 1).map(s => ({ ...s, type: 'Series', cover: s.poster })),
-    ...booksData.slice(0, 1).map(b => ({ ...b, type: 'Book', cover: b.coverImage })),
-  ].sort((a, b) => new Date(b.addedOn || '').getTime() - new Date(a.addedOn || '').getTime());
+  const recentlyAdded: MediaItem[] = [
+    ...DUMMY_MOVIES.slice(0, 2).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
+    ...DUMMY_SERIES.slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
+    ...booksData.slice(0, 1).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
+  ].sort((a, b) => new Date(b.addedOn || '').getTime() - new Date(a.addedOn || '').getTime()) as MediaItem[];
 
   // Currently Watching/Reading (Simplified logic for dummy data)
-  const inProgress = [
-     ...DUMMY_MOVIES.filter(m => m.status === "Rewatching").slice(0, 1).map(m => ({ ...m, type: 'Movie', cover: m.poster })),
-     ...DUMMY_SERIES.filter(s => s.status === "Watching").slice(0, 1).map(s => ({ ...s, type: 'Series', cover: s.poster })),
-     ...booksData.filter(b => b.status === "Reading").slice(0, 2).map(b => ({ ...b, type: 'Book', cover: b.coverImage })),
-  ];
+  const inProgress: MediaItem[] = [
+     ...DUMMY_MOVIES.filter(m => m.status === "Rewatching").slice(0, 1).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
+     ...DUMMY_SERIES.filter(s => s.status === "Watching").slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
+     ...booksData.filter(b => b.status === "Reading").slice(0, 2).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
+  ] as MediaItem[];
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto">
@@ -155,7 +160,13 @@ const DashboardHome = () => {
                           {item.type}
                         </span>
                         <h3 className="text-text-primary font-bold text-sm mt-2 line-clamp-1">{item.title}</h3>
-                        <p className="text-text-secondary text-xs mt-1">{item.type === 'Series' ? `${item.seasons} Seasons` : item.author || 'Recently Started'}</p>
+                        <p className="text-text-secondary text-xs mt-1">
+                          {item.type === 'Series' 
+                            ? `${item.seasons} Seasons` 
+                            : item.type === 'Book' 
+                              ? item.author 
+                              : 'Recently Started'}
+                        </p>
                       </div>
                       <button className="flex items-center gap-2 text-accent text-xs font-bold hover:underline mt-2">
                         <Play size={12} fill="currentColor" />
