@@ -16,6 +16,9 @@ import SeriesList from "./(app)/(dashboard)/series/SeriesList";
 import AddSeries from "./(app)/(dashboard)/series/AddSeries";
 import SeriesDetail from "./(app)/(dashboard)/series/SeriesDetail";
 import Journal from "./(app)/(dashboard)/journal/Journal";
+import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
+import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
+import Settings from "./(app)/(dashboard)/settings/Settings";
 import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
     return RouterProvider({ router });
@@ -93,6 +96,18 @@ const router = createBrowserRouter([
             {
                 path: "journal",
                 Component: Journal,
+            },
+            {
+                path: "poetry",
+                Component: PoetryList,
+            },
+            {
+                path: "poetry/add-poem",
+                Component: AddPoem,
+            },
+            {
+                path: "settings",
+                Component: Settings,
             },
         ],
     },

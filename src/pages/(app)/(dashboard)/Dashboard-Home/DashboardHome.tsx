@@ -12,16 +12,19 @@ import {
   PlusCircle,
   Play,
   PenLine,
+  ScrollText,
 } from "lucide-react";
 import { DUMMY_MOVIES, type Movie } from "../movies/moviesData";
 import { booksData, type Book } from "../books/booksData";
 import { DUMMY_SERIES, type Series } from "../series/seriesData";
 import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS } from "../journal/journalData";
+import { myPoetryData } from "../poetry/poetryData";
 
 type MediaItem = 
   | (Movie & { type: 'Movie'; cover: string })
   | (Series & { type: 'Series'; cover: string })
-  | (Book & { type: 'Book'; cover: string });
+  | (Book & { type: 'Book'; cover: string })
+  | { type: 'Poem'; title: string; dateCreated: string; status: string; mood: string; id: string; cover?: string; rating?: number };
 
 const DashboardHome = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -31,6 +34,7 @@ const DashboardHome = () => {
     { label: "Movies", count: DUMMY_MOVIES.length, icon: Film, color: "text-blue-500", bg: "bg-blue-500/10", to: "/dashboard/movies" },
     { label: "Web Series", count: DUMMY_SERIES.length, icon: Tv, color: "text-purple-500", bg: "bg-purple-500/10", to: "/dashboard/series" },
     { label: "Books", count: booksData.length, icon: BookOpen, color: "text-emerald-500", bg: "bg-emerald-500/10", to: "/dashboard/books" },
+    { label: "Poetry", count: myPoetryData.length, icon: ScrollText, color: "text-amber-500", bg: "bg-amber-500/10", to: "/dashboard/poetry" },
     { label: "Journal", count: DUMMY_JOURNAL_ENTRIES.length, icon: PenLine, color: "text-pink-500", bg: "bg-pink-500/10", to: "/dashboard/journal" },
   ];
 
@@ -39,13 +43,19 @@ const DashboardHome = () => {
     ...DUMMY_MOVIES.slice(0, 2).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
     ...DUMMY_SERIES.slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
     ...booksData.slice(0, 1).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
-  ].sort((a, b) => new Date(b.addedOn || '').getTime() - new Date(a.addedOn || '').getTime()) as MediaItem[];
+    ...myPoetryData.slice(0, 1).map(p => ({ ...p, type: 'Poem' as const, cover: 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop' as string, rating: 5 as number })),
+  ].sort((a, b) => {
+    const dateA = new Date((a as any).addedOn || (a as any).dateCreated || '').getTime();
+    const dateB = new Date((b as any).addedOn || (b as any).dateCreated || '').getTime();
+    return dateB - dateA;
+  }) as MediaItem[];
 
   // Currently Watching/Reading (Simplified logic for dummy data)
   const inProgress: MediaItem[] = [
      ...DUMMY_MOVIES.filter(m => m.status === "Rewatching").slice(0, 1).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
      ...DUMMY_SERIES.filter(s => s.status === "Watching").slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
-     ...booksData.filter(b => b.status === "Reading").slice(0, 2).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
+     ...booksData.filter(b => b.status === "Reading").slice(0, 1).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
+     ...myPoetryData.filter(p => p.status === "Draft").slice(0, 1).map(p => ({ ...p, type: 'Poem' as const, cover: 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop' as string })),
   ] as MediaItem[];
 
   return (
@@ -101,6 +111,12 @@ const DashboardHome = () => {
                       </div>
                       <span className="text-sm font-semibold text-text-primary">Add Journal Entry</span>
                    </Link>
+                   <Link to="/dashboard/poetry/add-poem" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                        <ScrollText size={16} className="text-amber-500" />
+                      </div>
+                      <span className="text-sm font-semibold text-text-primary">Compose Poem</span>
+                   </Link>
                 </div>
               </>
             )}
@@ -148,29 +164,32 @@ const DashboardHome = () => {
                 {inProgress.map((item, idx) => (
                   <div key={idx} className="bg-surface border border-border rounded-2xl p-4 flex gap-4 hover:border-accent/30 transition-colors">
                     <div className="w-20 aspect-[2/3] rounded-lg overflow-hidden shrink-0 border border-border/50">
-                      <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={item.cover || 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop'} alt={item.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="py-1 flex flex-col justify-between">
                       <div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           item.type === 'Movie' ? 'bg-blue-500/10 text-blue-500' :
                           item.type === 'Series' ? 'bg-purple-500/10 text-purple-500' :
-                          'bg-emerald-500/10 text-emerald-500'
+                          item.type === 'Book' ? 'bg-emerald-500/10 text-emerald-500' :
+                          'bg-amber-500/10 text-amber-500'
                         }`}>
                           {item.type}
                         </span>
                         <h3 className="text-text-primary font-bold text-sm mt-2 line-clamp-1">{item.title}</h3>
                         <p className="text-text-secondary text-xs mt-1">
                           {item.type === 'Series' 
-                            ? `${item.seasons} Seasons` 
+                            ? `${(item as any).seasons} Seasons` 
                             : item.type === 'Book' 
-                              ? item.author 
-                              : 'Recently Started'}
+                              ? (item as any).author 
+                              : item.type === 'Poem'
+                                ? (item as any).mood
+                                : 'Recently Started'}
                         </p>
                       </div>
                       <button className="flex items-center gap-2 text-accent text-xs font-bold hover:underline mt-2">
                         <Play size={12} fill="currentColor" />
-                        Resume {item.type === 'Book' ? 'Reading' : 'Watching'}
+                        Resume {item.type === 'Book' ? 'Reading' : item.type === 'Poem' ? 'Drafting' : 'Watching'}
                       </button>
                     </div>
                   </div>
@@ -192,7 +211,7 @@ const DashboardHome = () => {
                 {recentlyAdded.map((item, idx) => (
                   <div key={idx} className="p-4 flex items-center gap-4 hover:bg-bg/40 transition-colors group">
                     <div className="w-12 h-16 rounded-md overflow-hidden shrink-0">
-                      <img src={item.cover} alt="" className="w-full h-full object-cover" />
+                      <img src={item.cover || 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop'} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                        <h4 className="text-text-primary font-bold text-sm truncate">{item.title}</h4>
@@ -200,15 +219,16 @@ const DashboardHome = () => {
                           <span className={`${
                             item.type === 'Movie' ? 'text-blue-500' :
                             item.type === 'Series' ? 'text-purple-500' :
-                            'text-emerald-500'
+                            item.type === 'Book' ? 'text-emerald-500' :
+                            'text-amber-500'
                           } font-semibold`}>{item.type}</span>
                           <span>•</span>
-                          <span>Added {new Date(item.addedOn || '').toLocaleDateString()}</span>
+                          <span>Added {new Date((item as any).addedOn || (item as any).dateCreated || '').toLocaleDateString()}</span>
                        </p>
                     </div>
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
                        <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                       <span className="text-text-primary text-xs font-bold">{item.rating}</span>
+                       <span className="text-text-primary text-xs font-bold">{item.rating || 'N/A'}</span>
                     </div>
                   </div>
                 ))}
@@ -241,6 +261,32 @@ const DashboardHome = () => {
                           <span key={tag} className="text-[9px] font-bold text-pink-500/70 bg-pink-500/5 px-2 py-0.5 rounded-full border border-pink-500/10">#{tag}</span>
                         ))}
                      </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+ 
+            {/* ── Recent Poetry Section ── */}
+            <section>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-text-primary text-xl font-bold flex items-center gap-2">
+                  <ScrollText size={22} className="text-amber-500" />
+                  Recent Poetry
+                </h2>
+                <Link to="/dashboard/poetry" className="text-accent text-xs font-bold hover:underline">View Studio</Link>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {myPoetryData.slice(0, 2).map((poem) => (
+                  <div key={poem.id} className="bg-surface border border-border rounded-2xl p-5 hover:border-amber-500/30 transition-colors group relative overflow-hidden">
+                     <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold text-amber-500/70 border border-amber-500/20 px-2 py-0.5 rounded-full bg-amber-500/5">{poem.mood}</span>
+                        <span className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">
+                          {new Date(poem.dateCreated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
+                     </div>
+                     <h4 className="text-text-primary font-bold text-sm mb-2 group-hover:text-amber-500 transition-colors line-clamp-1">{poem.title}</h4>
+                     <p className="text-text-secondary text-xs italic font-serif line-clamp-2 leading-relaxed">{poem.content}</p>
                   </div>
                 ))}
               </div>
