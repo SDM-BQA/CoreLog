@@ -19,6 +19,7 @@ import { booksData, type Book } from "../books/booksData";
 import { DUMMY_SERIES, type Series } from "../series/seriesData";
 import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS } from "../journal/journalData";
 import { myPoetryData } from "../poetry/poetryData";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 
 type MediaItem = 
   | (Movie & { type: 'Movie'; cover: string })
@@ -28,6 +29,7 @@ type MediaItem =
 
 const DashboardHome = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const { user } = useAppSelector((state) => state.user);  
 
   // Stats
   const stats = [
@@ -66,7 +68,7 @@ const DashboardHome = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-text-primary text-3xl font-bold tracking-tight font-inter">
-              Welcome back, User! 
+              Welcome back, {user?.first_name || user?.user_name || "User"}! 
             </h1>
             <p className="text-text-secondary text-base mt-1">
               Here's a breakdown of your personal media universe.

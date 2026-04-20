@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import DashboardSidebar from "../Navigation/DashboardSidebar";
+import { ToastContainer } from "react-toast";
 
 const DashboardLayout = () => {
   return (
@@ -8,6 +9,7 @@ const DashboardLayout = () => {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <ToastContainer delay={3000} />
     </div>
   );
 };

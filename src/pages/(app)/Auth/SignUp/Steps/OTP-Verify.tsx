@@ -1,6 +1,9 @@
 import { FaArrowRightLong } from "react-icons/fa6";
 import { useEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
+import { send_otp_mutation, verify_otp_mutation } from "../../../../../@apis/users";
+import { toast } from "react-toast";
+
 
 type Props = {
   email: string;
@@ -13,6 +16,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [timeLeft, setTimeLeft] = useState(59);
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
   const inputs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
 
   // Timer
@@ -23,6 +27,27 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
     }, 1000);
     return () => clearInterval(interval);
   }, [timeLeft]);
+
+  // Initial OTP Request
+  useEffect(() => {
+    const initOTP = async () => {
+      try {
+        setIsSendingOTP(true);
+        const success = await send_otp_mutation(email);
+        if (success) {
+          toast.success("OTP sent to your email!");
+        } else {
+          toast.error("Failed to send OTP. Please try again.");
+        }
+      } catch (error) {
+        toast.error("An error occurred while sending OTP.");
+      } finally {
+        setIsSendingOTP(false);
+      }
+    };
+    initOTP();
+  }, [email]);
+
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -60,23 +85,49 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
     inputs[focusIndex].current?.focus();
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const code = otp.join("");
     if (code.length < 6) {
       setOtpError("Please enter all 6 digits.");
       return;
     }
-    onStepComplete();
+    
+    try {
+      const isValid = await verify_otp_mutation(email, code);
+      if (isValid) {
+        onStepComplete();
+      } else {
+        setOtpError("Invalid or expired OTP. Please try again.");
+        toast.error("Verification failed.");
+      }
+    } catch (error) {
+      toast.error("An error occurred during verification.");
+    }
   };
 
-  const handleResend = () => {
-    if (timeLeft > 0) return;
-    setOtp(Array(6).fill(""));
-    setOtpError(null);
-    setTimeLeft(59);
-    inputs[0].current?.focus();
-    // TODO: trigger resend API call
+
+  const handleResend = async () => {
+    if (timeLeft > 0 || isSendingOTP) return;
+    try {
+      setIsSendingOTP(true);
+      setOtp(Array(6).fill(""));
+      setOtpError(null);
+      
+      const success = await send_otp_mutation(email);
+      if (success) {
+        setTimeLeft(59);
+        toast.success("A new OTP has been sent!");
+        inputs[0].current?.focus();
+      } else {
+        toast.error("Failed to resend OTP.");
+      }
+    } catch (error) {
+      toast.error("An error occurred.");
+    } finally {
+      setIsSendingOTP(false);
+    }
   };
+
 
   const isFilled = otp.every((d) => d !== "");
 
@@ -99,7 +150,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
             inputMode="numeric"
             maxLength={1}
             value={otp[index]}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSendingOTP}
             onChange={(e) => handleChange(e, index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={index === 0 ? handlePaste : undefined}
@@ -127,10 +178,10 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
       <button
         type="button"
         onClick={handleVerify}
-        disabled={isSubmitting || !isFilled}
+        disabled={isSubmitting || isSendingOTP || !isFilled}
         className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-md hover:bg-primary/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isSubmitting ? "Verifying..." : "Verify Account"}
+        {isSubmitting ? "Verifying..." : isSendingOTP ? "Sending OTP..." : "Verify Account"}
         <FaArrowRightLong
           size={16}
           className="ml-2 group-hover:translate-x-1 transition-all"
@@ -163,14 +214,14 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
         <button
           type="button"
           onClick={handleResend}
-          disabled={timeLeft > 0 || isSubmitting}
+          disabled={timeLeft > 0 || isSubmitting || isSendingOTP}
           className={`transition-colors font-medium ${
-            timeLeft > 0
+            timeLeft > 0 || isSendingOTP
               ? "text-text-secondary/40 cursor-not-allowed"
               : "text-accent hover:text-primary"
           }`}
         >
-          Resend Code
+          {isSendingOTP ? "Sending..." : "Resend Code"}
         </button>
       </div>
 

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { appConfig } from "../../../@configs/app.config";
 import {
   Film,
@@ -13,6 +13,9 @@ import {
   ScrollText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAppDispatch } from "../../../@store/hooks/store.hooks";
+import { clear_user } from "../../../@store/slices/user/user.slice";
+import { toast } from "react-toast";
 
 const SIDEBAR_SECTIONS = [
   {
@@ -34,6 +37,8 @@ const BOTTOM_LINKS = [
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -52,6 +57,12 @@ const DashboardSidebar = () => {
   const isActive = (to: string) => {
     if (to === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(to);
+  };
+
+  const handleLogout = () => {
+    dispatch(clear_user());
+    toast.success("Logged out successfully");
+    navigate("/");
   };
 
   return (
@@ -165,6 +176,7 @@ const DashboardSidebar = () => {
         <button
           type="button"
           title={collapsed ? "Log out" : undefined}
+          onClick={handleLogout}
           className={`
             flex items-center gap-3 rounded-lg transition-all duration-200 text-text-secondary hover:text-error hover:bg-error/10
             ${collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"}
