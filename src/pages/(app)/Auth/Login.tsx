@@ -5,23 +5,33 @@ import {
   IoEyeOffOutline,
 } from "react-icons/io5";
 import { FaArrowRightLong } from "react-icons/fa6";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { set_token } from "../../../@utils/api.utils";
+import { set_string } from "../../../@utils/storage.utils";
+import { login_user_account_mutation } from "../../../@apis/users";
+import { toast } from "react-toast";
+
 import {
   validateEmail,
   validatePassword,
 } from "../../../@validator/auth.validator";
 import { useForm } from "../../../@hooks/Form/useForm";
+import { useAppDispatch } from "../../../@store/hooks/store.hooks";
+import { set_user } from "../../../@store/slices/user/user.slice";
+import { AuthSuccess } from "../../../@components/AuthSuccess";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [loginUser, setLoginUser] = useState<string | null>(null);
 
   const {
     values,
     errors,
     handleChange,
     handleSubmit,
-    resetForm,
     isSubmitting,
   } = useForm({
     initialValues: {
@@ -33,15 +43,43 @@ const Login = () => {
       password: validatePassword,
     },
     onSubmit: async (values) => {
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(null);
-        }, 5000);
-      });
-      console.log("Login valid", values);
-      resetForm();
+      try {
+        const response = await login_user_account_mutation({
+          email_id: values.email,
+          password: values.password,
+        });
+
+        if (response) {
+          // 1. Store User and Tokens in Redux (State & Persistance)
+          dispatch(
+            set_user({
+              user: response.user,
+              accessToken: response.accessToken,
+              refreshToken: response.refreshToken,
+            })
+          );
+
+          setLoginUser(response.user.first_name);
+
+          // 2. Redirect to Dashboard
+          setTimeout(() => {
+            navigate("/dashboard");
+          }, 2000); // 2s for the animation to play
+        }
+      } catch (error) {
+        toast.error((error as Error).message || "Failed to login");
+      }
     },
   });
+
+  if (loginUser) {
+    return (
+      <AuthSuccess
+        title={`Welcome back, ${loginUser}!`}
+        subtitle="Setting up your personal dashboard..."
+      />
+    );
+  }
 
   return (
     <div className="bg-bg min-h-screen flex flex-col items-center justify-center px-4">

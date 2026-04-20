@@ -4,9 +4,12 @@ import { StepProgressBar } from "../../../../@components/StepProgressBar";
 import BasicInfo from "./Steps/BasicInfo";
 import ProfileSetup from "./Steps/ProfileSetup";
 import OTPVerify from "./Steps/OTP-Verify";
-import { create_user_account_mutation } from "../../../../@apis/users";
+import { AuthSuccess } from "../../../../@components/AuthSuccess";
+import { create_user_account_mutation, upload_image_api } from "../../../../@apis/users";
+
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
+
 
 // ─── Step definitions ────────────────────────────────────────────────────────
 const STEPS = [
@@ -39,6 +42,7 @@ const STEP_META = {
 const SignUp = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { currentStepIndex, currentStep, nextStep, prevStep, collectedData } =
     useMultiStepForm({
@@ -46,6 +50,12 @@ const SignUp = () => {
       onComplete: async (allData) => {
         try {
           setIsSubmitting(true);
+
+          let profilePicUrl = "";
+          if (allData.profileSetup.avatar) {
+            profilePicUrl = await upload_image_api(allData.profileSetup.avatar);
+          }
+
           const response = await create_user_account_mutation({
             first_name: allData.basicInfo.firstName,
             last_name: allData.basicInfo.lastName,
@@ -53,13 +63,18 @@ const SignUp = () => {
             mobile_no: allData.basicInfo.phone,
             password: allData.basicInfo.password,
             gender: allData.basicInfo.gender,
-            // profile_pic: allData.profileSetup.avatar,
-            // user_name: allData.profileSetup.username,
+            profile_pic: profilePicUrl,
+            user_name: allData.profileSetup.username,
           });
+
           console.log(response);
           if (response) {
-            navigate("/auth/login");
+            setShowSuccess(true);
+            setTimeout(() => {
+              navigate("/auth/login");
+            }, 2500);
           }
+
         } catch (error: unknown) {
           const message =
             error instanceof Error
@@ -73,6 +88,15 @@ const SignUp = () => {
     });
 
   const meta = STEP_META[currentStep.id as keyof typeof STEP_META];
+
+  if (showSuccess) {
+    return (
+      <AuthSuccess
+        title="Account Created!"
+        subtitle="Your journey with CoreLog begins now. Redirecting to login..."
+      />
+    );
+  }
 
   return (
     <div className="bg-bg min-h-screen flex flex-col w-full mx-auto justify-center items-center px-4">

@@ -5,6 +5,8 @@ export const ERROR = {
 
     INVALID_NAME: "name must be at least 3 characters and contain only letters",
 
+    INVALID_LAST_NAME: "Last name must be at least 1 character and contain only letters",
+
     INVALID_USERNAME:
         "name must be at least 3 characters and contain only letters, numbers or underscore",
 

@@ -9,10 +9,17 @@ import {
   FiCheckCircle,
   FiShield,
 } from "react-icons/fi";
+import { Link, Navigate } from "react-router-dom";
+import { useAppSelector } from "../../../@store/hooks/store.hooks";
 import Navbar from "../Navigation/Navbar";
-import { Link } from "react-router-dom";
 
 export const Home = () => {
+  const { isAuthenticated } = useAppSelector((state) => state.user);
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-bg text-text-primary font-[Inter] flex flex-col font-sans overflow-x-hidden">
       <Navbar />

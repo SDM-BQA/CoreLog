@@ -3,9 +3,13 @@ import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { FaArrowRightLong } from "react-icons/fa6";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { check_email_exists_query } from "../../../../../@apis/users";
+import { toast } from "react-toast";
+
 import {
   validateEmail,
   validateGender,
+  validateLastName,
   validateName,
   validatePassword,
   validatePhone,
@@ -47,14 +51,24 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
     },
     validationSchema: {
       firstName: validateName,
-      lastName: validateName,
+      lastName: validateLastName,
       email: validateEmail,
       phone: validatePhone,
       password: validatePassword,
       gender: validateGender,
     },
     onSubmit: async (values) => {
-      onStepComplete(values); 
+      try {
+        const exists = await check_email_exists_query(values.email);
+        if (exists) {
+          toast.error("This email is already registered. Please use another one or login.");
+          return;
+        }
+        onStepComplete(values);
+      } catch (error) {
+        console.log(error);
+        toast.error("An error occurred during email validation.");
+      }
     },
   });
 
