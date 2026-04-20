@@ -1,6 +1,8 @@
 import axios from "axios";
 import { delete_string, get_string, set_string } from "./storage.utils";
 import { api_configs } from "../@configs/api.configs";
+import { toSentenceCase } from "./case.utils";
+
 
 export const get_token = (): string | undefined => {
     return get_string("token") || undefined;
@@ -18,8 +20,9 @@ export const get_headers = (authorization: boolean = true) => {
         [api_configs.client_secret.name]: api_configs.client_secret.value,
         [api_configs.client_type.name]: api_configs.client_type.value,
     }
-    const headers = {
-        ...client_headers
+    const headers: Record<string, string> = {
+        ...client_headers,
+        "apollo-require-preflight": "true"
     }
     if (authorization) {
         const token = get_token()
@@ -50,11 +53,25 @@ export const axios_graphql_service_no_auth = () => {
 
 export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
     if (data.errors && data.errors.length > 0) {
-        const error_title = `${data.errors[0].extensions?.code || "GRAPHQL_ERROR"}`
-        const error_message = `${data.errors[0].message}`
-        throw new Error(`${error_title}: ${error_message}`)
+        // Return only the error message in sentence case
+        const error_message = toSentenceCase(data.errors[0].message);
+        throw new Error(error_message);
     }
 }
+
+
+export const get_full_image_url = (path: string | undefined): string | undefined => {
+    if (!path) return undefined;
+    if (path.startsWith("http")) return path;
+
+    // Handle extension mismatch for default profile photo
+    let correctedPath = path;
+    if (path === "/profile_pic.png") {
+        correctedPath = "/profile_pic.jpg";
+    }
+
+    return `${api_configs.server_url}${correctedPath}`;
+};
 
 
 interface GraphqlServerErrorResponse {

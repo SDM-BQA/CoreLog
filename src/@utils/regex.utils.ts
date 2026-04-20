@@ -14,6 +14,15 @@ export const REGEX = {
      */
     NAME: /^[A-Za-z](?:[A-Za-z ]{1,}[A-Za-z])?$/,
 
+
+    /**
+     * Last Name
+     * - Minimum 1 characters
+     * - Alphabets only
+     * - Allows spaces between words
+     * - No leading/trailing space
+     */
+    LAST_NAME: /^[A-Za-z](?:[A-Za-z]{1,})?$/,
     /**
      * Email
      * - Standard email validation

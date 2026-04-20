@@ -7,6 +7,11 @@ export const validateName = compose(
     matches(REGEX.NAME, ERROR.INVALID_USERNAME)
 );
 
+export const validateLastName = compose(
+    required("Last Name"),
+    matches(REGEX.LAST_NAME, ERROR.INVALID_LAST_NAME)
+);
+
 export const validateEmail = compose(
     required("Email"),
     matches(REGEX.EMAIL, ERROR.INVALID_EMAIL)

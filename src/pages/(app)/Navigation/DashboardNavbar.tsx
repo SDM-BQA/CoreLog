@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { appConfig } from "../../../@configs/app.config";
 import {
   LayoutDashboard,
@@ -15,6 +15,10 @@ import {
   PenLine,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "../../../@store/hooks/store.hooks";
+import { clear_user } from "../../../@store/slices/user/user.slice";
+import { toast } from "react-toast";
+import { get_full_image_url } from "../../../@utils/api.utils";
 
 const DASHBOARD_LINKS = [
   { label: "Overview", to: "/dashboard", icon: LayoutDashboard },
@@ -25,6 +29,9 @@ const DASHBOARD_LINKS = [
 
 const DashboardNavbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.user);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -46,6 +53,12 @@ const DashboardNavbar = () => {
   const isActive = (to: string) => {
     if (to === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(to);
+  };
+
+  const handleLogout = () => {
+    dispatch(clear_user());
+    toast.success("Logged out successfully");
+    navigate("/");
   };
 
   return (
@@ -196,11 +209,19 @@ const DashboardNavbar = () => {
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-2 p-1 pr-2 rounded-lg hover:bg-surface/60 transition-all duration-200 group"
             >
-              <div className="w-7 h-7 rounded-full bg-accent/20 border border-border flex items-center justify-center">
-                <User size={14} className="text-accent" />
+              <div className="w-7 h-7 rounded-full bg-accent/20 border border-border flex items-center justify-center overflow-hidden">
+                {user?.profile_pic ? (
+                  <img
+                    src={get_full_image_url(user.profile_pic)}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={14} className="text-accent" />
+                )}
               </div>
               <span className="text-text-primary text-sm font-medium hidden sm:inline">
-                User
+                {user?.first_name || "User"}
               </span>
             </button>
 
@@ -218,6 +239,7 @@ const DashboardNavbar = () => {
                 <div className="h-px bg-border" />
                 <button
                   type="button"
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-error hover:bg-bg transition-colors"
                 >
                   <LogOut size={15} />

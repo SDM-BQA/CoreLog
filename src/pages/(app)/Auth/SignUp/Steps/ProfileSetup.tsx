@@ -3,6 +3,9 @@ import { FaArrowRightLong } from "react-icons/fa6";
 import { UserIcon, AtSignIcon, ImagePlusIcon, XIcon } from "lucide-react";
 import { useForm } from "../../../../../@hooks/Form/useForm";
 import { validateAvatar, validateUsername } from "../../../../../@validator/auth.validator";
+import { check_username_exists_query } from "../../../../../@apis/users";
+import { toast } from "react-toast";
+
 
 
 type ProfileSetupValues = {
@@ -38,7 +41,16 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
       avatar: validateAvatar,
     },
     onSubmit: async (values) => {
-      onStepComplete(values);
+      try {
+        const exists = await check_username_exists_query(values.username);
+        if (exists) {
+          toast.error("This username is already taken. Please try another one.");
+          return;
+        }
+        onStepComplete(values);
+      } catch (error) {
+        toast.error("An error occurred during username validation.");
+      }
     },
   });
 

@@ -22,5 +22,7 @@ export const api_configs = {
         value: "admin"
     },
     token_type: "Bearer",
-    graphql_base_url
+    graphql_base_url,
+    server_url: base_url,
+    rest_base_url: `${base_url}/${api_version}`
 }
