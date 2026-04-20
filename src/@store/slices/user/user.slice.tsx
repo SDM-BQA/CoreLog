@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { get_json, get_string, set_json, set_string, delete_string } from "../../../@utils/storage.utils";
+import { get_string, set_string, delete_string } from "../../../@utils/storage.utils";
 
 interface User {
   _id: string;

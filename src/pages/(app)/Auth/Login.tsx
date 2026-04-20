@@ -7,8 +7,6 @@ import {
 import { FaArrowRightLong } from "react-icons/fa6";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { set_token } from "../../../@utils/api.utils";
-import { set_string } from "../../../@utils/storage.utils";
 import { login_user_account_mutation } from "../../../@apis/users";
 import { toast } from "react-toast";
 
