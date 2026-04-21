@@ -3,9 +3,6 @@ import { api_configs } from "../../@configs/api.configs"
 import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION } from "./structure"
 
 
-
-
-
 export const get_all_user_accounts_query = async () => {
     try {
         const service = axios_graphql_service_no_auth()
@@ -166,4 +163,4 @@ interface UpdateUserInput {
     profile_pic?: string
     gender?: string
     user_name?: string
-}
+}

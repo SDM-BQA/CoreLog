@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Search,
@@ -14,7 +14,23 @@ import {
   X,
   BookOpen,
 } from "lucide-react";
-import { booksData } from "./booksData";
+import { get_my_books_query } from "../../../../@apis/books";
+import { get_full_image_url } from "../../../../@utils/api.utils";
+
+export interface Book {
+  _id: string;
+  title: string;
+  author: string;
+  cover_image: string;
+  coverImage?: string; // for compatibility with old code if needed
+  rating: number;
+  genres: string[];
+  status: "read" | "reading" | "want_to_read" | "not_finished";
+  review?: string;
+  description?: string;
+  publication_year?: string;
+  addedOn?: string;
+}
 
 // ── Filter Dropdown ─────────────────────────────────────────
 const FilterDropdown = ({
@@ -102,13 +118,38 @@ const GENRE_OPTIONS = [
   "Mystery",
   "Mythology",
 ];
-const AUTHOR_OPTIONS = Array.from(
-  new Set(booksData.map((b) => b.author)),
-).sort();
 const RATING_OPTIONS = [5, 4, 3, 2, 1];
-const STATUS_OPTIONS = ["Read", "Reading", "Want to Read", "Not Finished"];
+const STATUS_MAP = {
+  want_to_read: "Wants to Read",
+  reading: "Reading",
+  read: "Read",
+  not_finished: "Not Finished",
+};
+
+const STATUS_OPTIONS = Object.keys(STATUS_MAP);
 
 const BooksList = () => {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        setIsLoading(true);
+        const data = await get_my_books_query();
+        setBooks(data);
+      } catch (error) {
+        console.error("Error fetching books:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchBooks();
+  }, []);
+
+  const AUTHOR_OPTIONS = useMemo(() => 
+    Array.from(new Set(books.map((b) => b.author))).sort(),
+  [books]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
@@ -146,7 +187,7 @@ const BooksList = () => {
 
   // Filter logic
   const filteredBooks = useMemo(() => {
-    return booksData.filter((book) => {
+    return books.filter((book) => {
       const matchesSearch =
         !searchQuery ||
         book.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -154,7 +195,7 @@ const BooksList = () => {
 
       const matchesGenre =
         genreFilter.length === 0 ||
-        book.genre.some((g) => genreFilter.includes(g));
+        book.genres?.some((g) => genreFilter.includes(g));
       const matchesAuthor =
         authorFilter.length === 0 || authorFilter.includes(book.author);
       // Floor rating for matching whole star values
@@ -172,12 +213,12 @@ const BooksList = () => {
         matchesStatus
       );
     });
-  }, [searchQuery, genreFilter, authorFilter, ratingFilter, statusFilter]);
+  }, [books, searchQuery, genreFilter, authorFilter, ratingFilter, statusFilter]);
 
   // Derived Stats
-  const totalCollection = booksData.length;
-  const completed = booksData.filter((b) => b.status === "Read").length;
-  const readingNow = booksData.filter((b) => b.status === "Reading").length;
+  const totalCollection = books.length;
+  const completed = books.filter((b) => b.status === "read").length;
+  const readingNow = books.filter((b) => b.status === "reading").length;
 
   // Pagination
   const totalPages = Math.max(
@@ -202,7 +243,7 @@ const BooksList = () => {
             <p className="text-text-secondary text-sm mt-1">
               Manage and explore your personal library of{" "}
               <span className="text-accent font-semibold">
-                {booksData.length}
+                {books.length}
               </span>{" "}
               books
             </p>
@@ -247,9 +288,6 @@ const BooksList = () => {
             <div className="flex items-center gap-3">
               <span className="text-text-primary text-3xl font-bold tracking-tight">
                 {readingNow}
-              </span>
-              <span className="bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center">
-                +2 today
               </span>
             </div>
           </div>
@@ -317,6 +355,7 @@ const BooksList = () => {
                 options={STATUS_OPTIONS}
                 selected={statusFilter}
                 onSelect={(val) => toggleFilter(val as string, setStatusFilter)}
+                renderOption={(val) => STATUS_MAP[val as keyof typeof STATUS_MAP]}
                 icon={Filter}
               />
               {hasFilters && (
@@ -369,14 +408,16 @@ const BooksList = () => {
                 <BookOpen className="text-text-secondary/40" size={32} />
               </div>
               <p className="text-text-primary font-semibold text-lg">
-                No books found
+                {isLoading ? "Loading your collection..." : "No books found"}
               </p>
               <p className="text-text-secondary text-sm mt-1 max-w-sm mb-4">
-                {hasFilters || searchQuery
-                  ? "Try adjusting your search or clear filters to see more results."
-                  : "Start building your reading collection."}
+                {isLoading 
+                  ? "Please wait while we fetch your books."
+                  : (hasFilters || searchQuery
+                    ? "Try adjusting your search or clear filters to see more results."
+                    : "Start building your reading collection.")}
               </p>
-              {(hasFilters || searchQuery) && (
+              {!isLoading && (hasFilters || searchQuery) && (
                 <button
                   onClick={() => {
                     setSearchQuery("");
@@ -394,13 +435,13 @@ const BooksList = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
                   {paginatedBooks.map((book) => (
                     <Link
-                      to={`/dashboard/books/${book.id}`}
-                      key={book.id}
+                      to={`/dashboard/books/${book._id}`}
+                      key={book._id}
                       className="group flex flex-col gap-3 cursor-pointer"
                     >
                       <div className="relative aspect-[2/3] w-full rounded-md md:rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1 border border-border/30 group-hover:border-accent/40 bg-surface">
                         <img
-                          src={book.coverImage}
+                          src={get_full_image_url(book.cover_image || book.coverImage)}
                           alt={book.title}
                           className="w-full h-full object-cover"
                         />
@@ -444,13 +485,13 @@ const BooksList = () => {
                 <div className="flex flex-col gap-3 pb-8">
                   {paginatedBooks.map((book) => (
                     <Link
-                      to={`/dashboard/books/${book.id}`}
-                      key={book.id}
+                      to={`/dashboard/books/${book._id}`}
+                      key={book._id}
                       className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
                     >
                       <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-lg overflow-hidden border border-border/50">
                         <img
-                          src={book.coverImage}
+                          src={get_full_image_url(book.cover_image || book.coverImage)}
                           alt={book.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
@@ -467,7 +508,7 @@ const BooksList = () => {
 
                       <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
                         <div className="flex flex-wrap gap-1.5">
-                          {book.genre.map((g) => (
+                          {book.genres?.map((g) => (
                             <span
                               key={g}
                               className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
@@ -489,7 +530,7 @@ const BooksList = () => {
                           </span>
                         </div>
                         <span className="text-text-secondary text-[10px] font-semibold px-2 py-0.5 rounded bg-bg/80 border border-border/50">
-                          {book.status}
+                          {STATUS_MAP[book.status as keyof typeof STATUS_MAP]}
                         </span>
                       </div>
                       <button className="p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-bg transition-colors z-10" onClick={(e) => e.preventDefault()}>

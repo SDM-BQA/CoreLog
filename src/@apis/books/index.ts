@@ -1,0 +1,98 @@
+import { axios_graphql_service_auth, check_graphql_error } from "../../@utils/api.utils"
+import { CREATE_BOOK_MUTATION, GET_MY_BOOKS_QUERY, GET_BOOK_QUERY, UPDATE_BOOK_MUTATION, DELETE_BOOK_MUTATION } from "./structure"
+
+export interface BookInput {
+    title: string;
+    author: string;
+    description?: string;
+    genres: string[];
+    publication_year: string;
+    status: string;
+    rating?: number;
+    review?: string;
+    cover_image?: string;
+    page_count?: number;
+    publisher?: string;
+    language?: string;
+}
+
+export const create_book_mutation = async (input: BookInput) => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: {
+            query: CREATE_BOOK_MUTATION,
+            variables: { input }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.create_book
+}
+
+export const get_my_books_query = async () => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: {
+            query: GET_MY_BOOKS_QUERY,
+            variables: {}
+        }
+    })
+    check_graphql_error(data)
+    return data.data.get_my_books
+}
+
+export const get_book_query = async (id: string) => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: {
+            query: GET_BOOK_QUERY,
+            variables: { id }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.get_book
+}
+
+export const update_book_mutation = async (id: string, input: Partial<BookInput>) => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: {
+            query: UPDATE_BOOK_MUTATION,
+            variables: { id, input }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.update_book
+}
+
+export const delete_book_mutation = async (id: string) => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: {
+            query: DELETE_BOOK_MUTATION,
+            variables: { id }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.delete_book
+}
+
+export const search_external_books_api = async (query: string) => {
+    const API_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY;
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5&key=${API_KEY}`
+        );
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error("Google Books API Error:", errorData);
+            return [];
+        }
+
+        const data = await response.json();
+        return data.items || [];
+    } catch (error) {
+        console.error("Network error fetching books:", error);
+        return [];
+    }
+}
