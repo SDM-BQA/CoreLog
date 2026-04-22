@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,17 +12,20 @@ import {
   BookOpen,
   User,
   ChevronDown,
-  Sparkles,
   Hash,
   Globe,
   Building2,
   PlayCircle,
   CheckCircle2,
+  Camera,
+  Library,
 } from "lucide-react";
 import { get_book_query, update_book_mutation, delete_book_mutation } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
+import RatingInput from "../../../../@components/RatingInput";
 
 interface Book {
   _id: string;
@@ -40,6 +43,8 @@ interface Book {
   language?: string;
   started_from?: string;
   finished_on?: string;
+  series_name?: string;
+  series_number?: number;
   created_at?: string;
 }
 
@@ -64,17 +69,30 @@ const BookDetail = () => {
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<string>("want_to_read");
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   
   // Modal State
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [modalData, setModalData] = useState({
+    title: "",
+    author: "",
+    publication_year: "",
+    page_count: 0,
+    publisher: "",
+    language: "",
+    started_from: "",
+    finished_on: "",
     rating: 0,
     description: "",
-    review: ""
+    review: "",
+    isPartOfSeries: false,
+    series_name: "",
+    series_number: 0
   });
-  const [hoverRating, setHoverRating] = useState(0);
   const [modalError, setModalError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editView, setEditView] = useState<"all" | "synopsis" | "review">("all");
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -134,10 +152,22 @@ const BookDetail = () => {
     const newStatus = e.target.value;
     
     if (newStatus === "read") {
+      setCurrentStatus("read");
       setModalData({
+        title: book.title,
+        author: book.author,
+        publication_year: book.publication_year || "",
+        page_count: book.page_count || 0,
+        publisher: book.publisher || "",
+        language: book.language || "",
         rating: book.rating || 0,
         description: book.description || "",
-        review: book.review || ""
+        review: book.review || "",
+        started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
+        finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+        isPartOfSeries: !!book.series_name,
+        series_name: book.series_name || "",
+        series_number: book.series_number || 0
       });
       setModalError(null);
       setIsStatusModalOpen(true);
@@ -154,28 +184,60 @@ const BookDetail = () => {
 
   const handleModalSave = async () => {
     if (!book) return;
-    if (modalData.rating === 0) {
+    if (currentStatus === "read" && modalData.rating === 0) {
       setModalError("Please provide a rating for the book you've completed.");
       return;
     }
+
+    // New Validations
+    if (modalData.page_count < 0) {
+      setModalError("Page count cannot be negative.");
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const pubYear = parseInt(modalData.publication_year);
+    if (modalData.publication_year && (isNaN(pubYear) || pubYear < 0 || pubYear > currentYear + 5)) {
+      setModalError("Please enter a valid publication year.");
+      return;
+    }
+
     setModalError(null);
     try {
       await update_book_mutation(book._id, {
-        status: "read",
+        status: currentStatus === "read" ? "read" : currentStatus, // Keep current status if editing via button
+        title: modalData.title,
+        author: modalData.author,
+        publication_year: modalData.publication_year,
+        page_count: modalData.page_count,
+        publisher: modalData.publisher,
+        language: modalData.language,
         rating: modalData.rating,
         description: modalData.description,
-        review: modalData.review
+        review: modalData.review,
+        started_from: modalData.started_from || undefined,
+        finished_on: modalData.finished_on || undefined,
+        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
+        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
       });
       
       // Update local state
       setBook({
         ...book,
-        status: "read",
+        title: modalData.title,
+        author: modalData.author,
+        publication_year: modalData.publication_year,
+        page_count: modalData.page_count,
+        publisher: modalData.publisher,
+        language: modalData.language,
         rating: modalData.rating,
         description: modalData.description,
-        review: modalData.review
+        review: modalData.review,
+        started_from: modalData.started_from || undefined,
+        finished_on: modalData.finished_on || undefined,
+        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
+        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
       });
-      setCurrentStatus("read");
       setIsStatusModalOpen(false);
       toast.success("Book details updated successfully!");
     } catch (error) {
@@ -185,10 +247,44 @@ const BookDetail = () => {
   };
 
   const handleEditClick = () => {
+    setEditView("all");
     setModalData({
+      title: book.title,
+      author: book.author,
+      publication_year: book.publication_year || "",
+      page_count: book.page_count || 0,
+      publisher: book.publisher || "",
+      language: book.language || "",
       rating: book.rating || 0,
       description: book.description || "",
-      review: book.review || ""
+      review: book.review || "",
+      started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
+      finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+      isPartOfSeries: !!book.series_name,
+      series_name: book.series_name || "",
+      series_number: book.series_number || 0
+    });
+    setModalError(null);
+    setIsStatusModalOpen(true);
+  };
+
+  const handleSectionEdit = (view: "synopsis" | "review") => {
+    setEditView(view);
+    setModalData({
+      title: book.title,
+      author: book.author,
+      publication_year: book.publication_year || "",
+      page_count: book.page_count || 0,
+      publisher: book.publisher || "",
+      language: book.language || "",
+      rating: book.rating || 0,
+      description: book.description || "",
+      review: book.review || "",
+      started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
+      finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+      isPartOfSeries: !!book.series_name,
+      series_name: book.series_name || "",
+      series_number: book.series_number || 0
     });
     setModalError(null);
     setIsStatusModalOpen(true);
@@ -196,6 +292,24 @@ const BookDetail = () => {
 
   const handleDelete = () => {
     setIsDeleteModalOpen(true);
+  };
+
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !book) return;
+    try {
+      setCoverUploading(true);
+      const url = await upload_image_api(file);
+      await update_book_mutation(book._id, { cover_image: url });
+      setBook({ ...book, cover_image: url });
+      toast.success("Cover image updated!");
+    } catch (error) {
+      console.error("Error updating cover:", error);
+      toast.error("Failed to update cover image.");
+    } finally {
+      setCoverUploading(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
   };
 
   const confirmDelete = async () => {
@@ -212,7 +326,7 @@ const BookDetail = () => {
   };
 
   return (
-    <div className="bg-bg flex-1 overflow-y-auto">
+    <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
       {/* ── Hero Section with blurred cover background ── */}
       <div className="relative overflow-hidden border-b border-border">
         {/* Blurred backdrop */}
@@ -220,6 +334,7 @@ const BookDetail = () => {
           <img
             src={get_full_image_url(book.cover_image)}
             alt=""
+            onError={(e) => { (e.target as HTMLImageElement).src = get_full_image_url(undefined, "book"); }}
             className="w-full h-full object-cover scale-125 blur-3xl opacity-[0.12]"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-bg/40 via-bg/80 to-bg" />
@@ -242,13 +357,36 @@ const BookDetail = () => {
           <div className="flex flex-col sm:flex-row gap-8 md:gap-10 items-center sm:items-start text-center sm:text-left">
             {/* ── Cover Image ── */}
             <div className="w-[200px] sm:w-[240px] shrink-0">
-              <div className="w-full aspect-[2/3] rounded-xl overflow-hidden ring-1 ring-border shadow-2xl bg-surface">
+              <div
+                className="relative w-full aspect-[2/3] rounded-xl overflow-hidden ring-1 ring-border shadow-2xl bg-surface group cursor-pointer"
+                onClick={() => coverInputRef.current?.click()}
+              >
                 <img
                   src={get_full_image_url(book.cover_image, "book")}
                   alt={book.title}
-                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).src = get_full_image_url(undefined, "book"); }}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
+                {/* Change Cover Overlay */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                  {coverUploading ? (
+                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Camera size={28} className="text-white" />
+                      <span className="text-white text-xs font-semibold tracking-wide">Change Cover</span>
+                    </>
+                  )}
+                </div>
               </div>
+              {/* Hidden file input */}
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverChange}
+              />
             </div>
 
             {/* ── Book Info ── */}
@@ -389,7 +527,20 @@ const BookDetail = () => {
                   </div>
                 )}
 
-                {/* Added */}
+                {/* Series */}
+                {book.series_name && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
+                      Series
+                    </span>
+                    <div className="flex items-center gap-1.5 text-text-primary">
+                      <Library size={14} className="text-text-secondary" />
+                      {book.series_name} {book.series_number ? `#${book.series_number}` : ""}
+                    </div>
+                  </div>
+                )}
+
+                {/* Added On - Always show */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
                     Added On
@@ -404,8 +555,8 @@ const BookDetail = () => {
                   </div>
                 </div>
 
-                {/* Started From */}
-                {book.started_from && (
+                {/* Started From - Only for Reading, Read, Not Finished */}
+                {currentStatus !== "want_to_read" && book.started_from && (
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
                       Started
@@ -421,8 +572,8 @@ const BookDetail = () => {
                   </div>
                 )}
 
-                {/* Finished On */}
-                {book.finished_on && (
+                {/* Finished On - Only for Read */}
+                {currentStatus === "read" && book.finished_on && (
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
                       Finished
@@ -460,10 +611,19 @@ const BookDetail = () => {
       <div className="max-w-[920px] mx-auto px-6 py-10 flex flex-col gap-8">
         {/* Synopsis Section */}
         <section>
-          <h2 className="text-text-primary text-lg font-bold mb-4 flex items-center gap-2">
-            <BookOpen size={20} className="text-text-secondary" />
-            Synopsis
-          </h2>
+          <div className="flex items-center justify-between mb-4 group/header">
+            <h2 className="text-text-primary text-lg font-bold flex items-center gap-2">
+              <BookOpen size={20} className="text-text-secondary" />
+              Synopsis
+            </h2>
+            <button
+              onClick={() => handleSectionEdit("synopsis")}
+              className="p-2 text-text-secondary hover:text-accent hover:bg-accent/5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-medium border border-border/50"
+            >
+              <Pencil size={14} />
+              Edit Synopsis
+            </button>
+          </div>
           <div className="bg-surface border border-border rounded-xl p-6 md:p-8 shadow-sm">
             <p className={book.description ? "text-text-secondary text-base leading-relaxed whitespace-pre-line" : "text-text-secondary/40 text-sm italic"}>
               {book.description || "No synopsis provided for this book yet."}
@@ -471,16 +631,25 @@ const BookDetail = () => {
           </div>
         </section>
 
-        {/* Review Section (Conditional to Read) */}
-        {currentStatus === "read" && (
+        {/* Review Section (Conditional to Read or Not Finished) */}
+        {(currentStatus === "read" || currentStatus === "not_finished") && (
           <section>
-            <h2 className="text-text-primary text-lg font-bold mb-4 flex items-center gap-2">
-              <Pencil size={20} className="text-text-secondary" />
-              Personal Review
-            </h2>
+            <div className="flex items-center justify-between mb-4 group/header">
+              <h2 className="text-text-primary text-lg font-bold flex items-center gap-2">
+                <Pencil size={20} className="text-text-secondary" />
+                {currentStatus === "not_finished" ? "Notes" : "Personal Review"}
+              </h2>
+              <button
+                onClick={() => handleSectionEdit("review")}
+                className="p-2 text-text-secondary hover:text-accent hover:bg-accent/5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-medium border border-border/50"
+              >
+                <Pencil size={14} />
+                Edit {currentStatus === "not_finished" ? "Notes" : "Review"}
+              </button>
+            </div>
             <div className="bg-surface border border-border rounded-xl p-6 md:p-8 shadow-sm">
               <p className={book.review ? "text-text-secondary text-base leading-relaxed whitespace-pre-line" : "text-text-secondary/40 text-sm italic"}>
-                {book.review || "No review added yet. Share your thoughts to help others!"}
+                {book.review || (currentStatus === "not_finished" ? "No notes added yet." : "No review added yet. Share your thoughts to help others!")}
               </p>
             </div>
           </section>
@@ -493,7 +662,13 @@ const BookDetail = () => {
           setIsStatusModalOpen(false);
           setCurrentStatus(book.status); // Revert to old status if cancelled
         }}
-        title="Completion Details"
+        title={
+          editView === "synopsis" 
+            ? "Edit Synopsis" 
+            : editView === "review" 
+              ? (currentStatus === "not_finished" ? "Edit Notes" : "Edit Review")
+              : "Edit Details"
+        }
         footer={
           <div className="flex justify-end gap-3">
              <button
@@ -515,76 +690,202 @@ const BookDetail = () => {
         }
       >
         <div className="flex flex-col gap-6">
-          {/* Star Rating */}
-          <div className="flex flex-col items-center gap-3 py-4 bg-bg/40 rounded-2xl border border-border/50">
-            <label className="text-text-secondary text-[10px] font-bold tracking-widest uppercase italic">
-              Rate your adventure
-            </label>
-            <div className="flex gap-1.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setModalData({ ...modalData, rating: star })}
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  className="p-1 transition-all hover:scale-125"
-                >
-                  <Star
-                    size={32}
-                    className={
-                      star <= (hoverRating || modalData.rating)
-                        ? "fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]"
-                        : "fill-transparent text-text-secondary/20"
-                    }
+          {/* Basic Info & Metadata - Only in All mode */}
+          {editView === "all" && (
+            <>
+              {/* Basic Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    value={modalData.title}
+                    onChange={(e) => setModalData({ ...modalData, title: e.target.value })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
                   />
-                </button>
-              ))}
+                </div>
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Author
+                  </label>
+                  <input
+                    type="text"
+                    value={modalData.author}
+                    onChange={(e) => setModalData({ ...modalData, author: e.target.value })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Metadata Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Year
+                  </label>
+                  <input
+                    type="text"
+                    value={modalData.publication_year}
+                    onChange={(e) => setModalData({ ...modalData, publication_year: e.target.value })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Pages
+                  </label>
+                  <input
+                    type="number"
+                    value={modalData.page_count}
+                    onChange={(e) => setModalData({ ...modalData, page_count: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+                <div className="col-span-1">
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Language
+                  </label>
+                  <input
+                    type="text"
+                    value={modalData.language}
+                    onChange={(e) => setModalData({ ...modalData, language: e.target.value })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all uppercase"
+                  />
+                </div>
+                <div className="col-span-1 sm:col-span-1">
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Publisher
+                  </label>
+                  <input
+                    type="text"
+                    value={modalData.publisher}
+                    onChange={(e) => setModalData({ ...modalData, publisher: e.target.value })}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Series Information */}
+              <div className="mt-2 mb-4 p-4 border border-border rounded-xl bg-surface/50">
+                <label className="flex items-center gap-3 cursor-pointer hover:bg-bg/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={modalData.isPartOfSeries}
+                    onChange={(e) => setModalData({ ...modalData, isPartOfSeries: e.target.checked })}
+                    className="w-4 h-4 rounded text-accent bg-surface border-border focus:ring-accent/20"
+                  />
+                  <span className="text-sm font-semibold text-text-primary">This book is part of a series</span>
+                </label>
+                
+                {modalData.isPartOfSeries && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                        Series Name
+                      </label>
+                      <input
+                        type="text"
+                        value={modalData.series_name}
+                        onChange={(e) => setModalData({ ...modalData, series_name: e.target.value })}
+                        className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                        Book Number
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={modalData.series_number || ""}
+                        onChange={(e) => setModalData({ ...modalData, series_number: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Date Inputs - Conditional */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {currentStatus !== "want_to_read" && (
+                  <div>
+                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={modalData.started_from}
+                      onChange={(e) => setModalData({ ...modalData, started_from: e.target.value })}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                    />
+                  </div>
+                )}
+                {currentStatus === "read" && (
+                  <div>
+                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                      Finish Date
+                    </label>
+                    <input
+                      type="date"
+                      value={modalData.finished_on}
+                      onChange={(e) => setModalData({ ...modalData, finished_on: e.target.value })}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Star Rating - Show in All or Review mode if Read */}
+          {(editView === "all" || editView === "review") && currentStatus === "read" && (
+            <RatingInput
+              value={modalData.rating}
+              onChange={(val) => setModalData({ ...modalData, rating: val })}
+            />
+          )}
+
+          {/* Synopsis - Only in Synopsis mode */}
+          {editView === "synopsis" && (
+            <div>
+              <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                Synopsis
+              </label>
+              <textarea
+                placeholder="A brief summary..."
+                value={modalData.description}
+                onChange={(e) => setModalData({ ...modalData, description: e.target.value })}
+                rows={12}
+                className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+              />
             </div>
-            {(hoverRating || modalData.rating) > 0 && (
-              <p className="text-accent font-bold text-lg animate-fade-in">
-                {(hoverRating || modalData.rating)}.0 <span className="text-text-secondary font-medium">/ 5.0</span>
-              </p>
-            )}
-          </div>
+          )}
 
-          {/* Synopsis */}
-          <div>
-            <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-              Synopsis
-            </label>
-            <textarea
-              placeholder="A brief summary of the book plot..."
-              value={modalData.description}
-              onChange={(e) => setModalData({ ...modalData, description: e.target.value })}
-              rows={3}
-              className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
-            />
-          </div>
-
-          {/* Personal Review */}
-          <div>
-            <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-              Your Review
-            </label>
-            <textarea
-              placeholder="What did you think of this book? Share your thoughts..."
-              value={modalData.review}
-              onChange={(e) => setModalData({ ...modalData, review: e.target.value })}
-              rows={5}
-              className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
-            />
-            {modalError && (
-              <p className="text-error text-xs mt-3 flex items-center gap-1.5 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-                <span className="w-1 h-1 rounded-full bg-error" />
-                {modalError}
-              </p>
-            )}
-            <p className="text-text-secondary text-[10px] mt-2 italic flex items-center gap-1.5 opacity-70">
-              <Sparkles size={12} className="text-accent" />
-              Tip: Your review helps others explore this book too.
+          {/* Personal Review / Notes - Only in Review mode if applicable */}
+          {editView === "review" && (currentStatus === "read" || currentStatus === "not_finished") && (
+            <div>
+              <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                {currentStatus === "not_finished" ? "Notes" : "Your Review"}
+              </label>
+              <textarea
+                placeholder={currentStatus === "not_finished" ? "Why did you stop reading this book?" : "What did you think of this book?"}
+                value={modalData.review}
+                onChange={(e) => setModalData({ ...modalData, review: e.target.value })}
+                rows={12}
+                className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+              />
+            </div>
+          )}
+          
+          {modalError && (
+            <p className="text-error text-xs mt-3 flex items-center gap-1.5 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+              <span className="w-1 h-1 rounded-full bg-error" />
+              {modalError}
             </p>
-          </div>
+          )}
         </div>
       </Modal>
       {/* Delete Confirmation Modal */}

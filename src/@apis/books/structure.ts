@@ -16,6 +16,8 @@ mutation Create_book($input: CreateBookInput!) {
     language
     started_from
     finished_on
+    series_name
+    series_number
     user_id
   }
 }
@@ -40,6 +42,8 @@ query Get_my_books($filter: BookFilterInput) {
       language
       started_from
       finished_on
+      series_name
+      series_number
       user_id
       created_at
     }
@@ -70,6 +74,8 @@ query Get_book($id: ID!) {
     language
     started_from
     finished_on
+    series_name
+    series_number
     user_id
     created_at
   }
@@ -94,6 +100,8 @@ mutation Update_book($id: ID!, $input: UpdateBookInput!) {
     language
     started_from
     finished_on
+    series_name
+    series_number
   }
 }
 `

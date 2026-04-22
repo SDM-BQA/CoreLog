@@ -16,6 +16,8 @@ export interface BookInput {
     language?: string;
     started_from?: string;
     finished_on?: string;
+    series_name?: string;
+    series_number?: number;
 }
 
 export const create_book_mutation = async (input: BookInput) => {

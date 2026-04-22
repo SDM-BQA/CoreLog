@@ -1,6 +1,26 @@
 import React from "react";
 import { Search, Loader2, BookOpen } from "lucide-react";
-import { GoogleBook } from "../AddBook";
+
+/**
+ * Represents a single book result from the Google Books API.
+ * Re-exported here so consumers don't need to import from a page-level file.
+ */
+export interface GoogleBook {
+  id: string;
+  volumeInfo: {
+    title: string;
+    authors?: string[];
+    description?: string;
+    publishedDate?: string;
+    categories?: string[];
+    imageLinks?: {
+      thumbnail?: string;
+    };
+    pageCount?: number;
+    publisher?: string;
+    language?: string;
+  };
+}
 
 interface SearchDropdownProps {
   isSearching: boolean;
@@ -36,10 +56,7 @@ const SearchDropdown: React.FC<SearchDropdownProps> = ({
                 <div className="w-12 h-16 rounded bg-bg shrink-0 overflow-hidden border border-border/50">
                   {book.volumeInfo.imageLinks?.thumbnail ? (
                     <img
-                      src={book.volumeInfo.imageLinks.thumbnail.replace(
-                        "http:",
-                        "https:"
-                      )}
+                      src={book.volumeInfo.imageLinks.thumbnail.replace("http:", "https:")}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -75,9 +92,7 @@ const SearchDropdown: React.FC<SearchDropdownProps> = ({
             <div className="w-12 h-12 rounded-full bg-bg flex items-center justify-center mx-auto mb-3">
               <Search size={20} className="text-text-secondary/30" />
             </div>
-            <p className="text-text-primary text-sm font-medium">
-              No books found
-            </p>
+            <p className="text-text-primary text-sm font-medium">No books found</p>
             <p className="text-text-secondary text-xs mt-1">
               Try a different title or enter manually.
             </p>

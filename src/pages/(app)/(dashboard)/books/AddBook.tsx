@@ -3,7 +3,6 @@ import {
   ImagePlus,
   ChevronDown,
   X,
-  Star,
   PlusCircle,
   Sparkles,
   Eye,
@@ -17,18 +16,45 @@ import {
   Building2,
   PlayCircle,
   CheckCircle2,
+  Library,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
 import { upload_image_api } from "../../../../@apis/users";
-import { create_book_mutation, search_external_books_api } from "../../../../@apis/books";
+import {
+  create_book_mutation,
+  search_external_books_api,
+} from "../../../../@apis/books";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
-import SearchDropdown from "./components/SearchDropdown";
-import FeatureCard from "./components/FeatureCard";
+import { GoogleBook, FeatureCard, SearchDropdown } from "../../../../@components/@smart";
+import RatingInput from "../../../../@components/RatingInput";
 
 const GENRE_OPTIONS = [
-  "Fiction", "Fantasy", "Sci-Fi", "Thriller", "Literary", 
-  "Classic", "Self-Help", "Non-Fiction", "Mystery", "Mythology"
+  "Drama",
+  "Comedy",
+  "Childrens",
+  "Psychological Drama",
+  "Fiction",
+  "Fantasy",
+  "Sci-Fi",
+  "Thriller",
+  "Literary",
+  "Classic",
+  "Self-Help",
+  "Non-Fiction",
+  "Mystery",
+  "Mythology",
+  "Historical-Fiction",
+  "Suspense",
+  "Horror",
+  "Action & Adventure",
+  "Biography & Autobiography",
+  "Cooking",
+  "Romance",
+  "Poetry",
+  "Psychological-Thriller",
+  "Crime",
+  "Young Adult"
 ];
 
 interface AddBookForm {
@@ -45,6 +71,9 @@ interface AddBookForm {
   language?: string;
   startedFrom?: string;
   finishedOn?: string;
+  isPartOfSeries?: boolean;
+  seriesName?: string;
+  seriesNumber?: number;
 }
 
 const STATUS_MAP = {
@@ -56,22 +85,6 @@ const STATUS_MAP = {
 
 const STATUS_OPTIONS = Object.keys(STATUS_MAP) as (keyof typeof STATUS_MAP)[];
 
-export interface GoogleBook {
-  id: string;
-  volumeInfo: {
-    title: string;
-    authors?: string[];
-    description?: string;
-    publishedDate?: string;
-    categories?: string[];
-    imageLinks?: {
-      thumbnail?: string;
-    };
-    pageCount?: number;
-    publisher?: string;
-    language?: string;
-  };
-}
 
 const validationSchema = {
   title: (val: string) => (val ? null : "Title is required"),
@@ -126,6 +139,9 @@ const AddBook = () => {
         language: "",
         startedFrom: new Date().toISOString().split("T")[0],
         finishedOn: new Date().toISOString().split("T")[0],
+        isPartOfSeries: false,
+        seriesName: "",
+        seriesNumber: undefined,
       },
       validationSchema,
       onSubmit: async (formValues) => {
@@ -152,8 +168,14 @@ const AddBook = () => {
             page_count: formValues.pageCount || 0,
             publisher: formValues.publisher || "",
             language: formValues.language || "",
-            started_from: formValues.status === "reading" || formValues.status === "read" ? formValues.startedFrom : undefined,
-            finished_on: formValues.status === "read" ? formValues.finishedOn : undefined,
+            started_from:
+              formValues.status === "reading" || formValues.status === "read"
+                ? formValues.startedFrom
+                : undefined,
+            finished_on:
+              formValues.status === "read" ? formValues.finishedOn : undefined,
+            series_name: formValues.isPartOfSeries ? formValues.seriesName : undefined,
+            series_number: formValues.isPartOfSeries ? formValues.seriesNumber : undefined,
           });
 
           toast.success(`Book "${formValues.title}" added successfully!`);
@@ -169,7 +191,7 @@ const AddBook = () => {
 
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
-  const [hoverRating, setHoverRating] = useState(0);
+  const [genreSearch, setGenreSearch] = useState("");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -234,13 +256,13 @@ const AddBook = () => {
     setFieldValue("author", info.authors?.join(", ") || "");
     setFieldValue("description", info.description || "");
     setFieldValue("publicationYear", info.publishedDate?.split("-")[0] || "");
-    
+
     if (info.categories) {
-       // Only add genres that exist in our GENRE_OPTIONS to keep it valid
-       const validGenres = info.categories
-         .map((c: string) => c.split(" / ").pop())
-         .filter((c): c is string => !!c && GENRE_OPTIONS.includes(c));
-       setFieldValue("genres", validGenres.length > 0 ? validGenres : []);
+      // Only add genres that exist in our GENRE_OPTIONS to keep it valid
+      const validGenres = info.categories
+        .map((c: string) => c.split(" / ").pop())
+        .filter((c): c is string => !!c && GENRE_OPTIONS.includes(c));
+      setFieldValue("genres", validGenres.length > 0 ? validGenres : []);
     }
 
     if (info.imageLinks?.thumbnail) {
@@ -256,10 +278,8 @@ const AddBook = () => {
     setShowResults(false);
   };
 
-  const activeRating = hoverRating || values.rating;
-
   return (
-    <div className="bg-bg flex-1 flex flex-col overflow-y-auto w-full">
+    <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-[820px] mx-auto px-4 sm:px-6 py-8"
@@ -277,7 +297,6 @@ const AddBook = () => {
         {/* Main Form Card */}
         <div className="bg-surface border border-border rounded-2xl p-6 sm:p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row gap-8">
-            
             {/* ─── Left Column: Cover & Rating (Visual Anchor) ─── */}
             <div className="flex flex-col gap-6 w-full sm:w-[220px] shrink-0">
               {/* Cover Upload */}
@@ -321,57 +340,29 @@ const AddBook = () => {
                 </div>
               </div>
 
-              {/* Star Rating - Only visible if Read */}
+              {/* Precision Rating - Only visible if Read */}
               {values.status === "read" && (
-                <div className="flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-text-primary text-xs font-semibold tracking-wider uppercase">
-                    Your Rating
-                  </label>
-                  <div className="flex flex-col items-center gap-3 py-4 bg-bg/50 rounded-2xl border border-border shadow-inner">
-                    <div className="flex gap-1.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFieldValue("rating", star)}
-                          onMouseEnter={() => setHoverRating(star)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          className="p-0.5 transition-all hover:scale-110"
-                        >
-                          <Star
-                            size={24}
-                            className={
-                              star <= activeRating
-                                ? "fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]"
-                                : "fill-transparent text-text-secondary/20"
-                            }
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    {activeRating > 0 && (
-                      <span className="text-accent font-bold text-sm">
-                        {activeRating}.0 / 5.0
-                      </span>
-                    )}
-                  </div>
-                  {errors.rating && (
-                    <p className="text-error text-[10px] font-medium text-center">{errors.rating}</p>
-                  )}
-                </div>
+                <RatingInput
+                  label="Your Rating"
+                  value={values.rating}
+                  onChange={(val) => setFieldValue("rating", val)}
+                  error={errors.rating}
+                />
               )}
             </div>
 
             {/* ─── Right Column: Textual Data & Metadata ─── */}
             <div className="flex flex-col gap-6 flex-1 min-w-0">
-              
               {/* Book Title with Search Suggestion */}
               <div className="relative">
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Book Title
                 </label>
                 <div className="relative">
-                  <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                  <Search
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                  />
                   <input
                     type="text"
                     placeholder="Type any book name to search..."
@@ -380,7 +371,9 @@ const AddBook = () => {
                       handleChange("title")(e);
                       handleSearch(e.target.value);
                     }}
-                    onFocus={() => values.title.length >= 3 && setShowResults(true)}
+                    onFocus={() =>
+                      values.title.length >= 3 && setShowResults(true)
+                    }
                     className={`w-full bg-bg border rounded-xl py-3 pl-11 pr-4 text-text-primary text-base placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
                       errors.title
                         ? "border-error focus:border-error focus:ring-error/20"
@@ -389,12 +382,14 @@ const AddBook = () => {
                   />
                 </div>
                 {errors.title && (
-                  <p className="text-error text-xs mt-1.5 pl-1">{errors.title}</p>
+                  <p className="text-error text-xs mt-1.5 pl-1">
+                    {errors.title}
+                  </p>
                 )}
 
                 {/* Search Results Dropdown */}
                 {showResults && (
-                  <SearchDropdown 
+                  <SearchDropdown
                     isSearching={isSearching}
                     searchResults={searchResults}
                     onSelect={selectBook}
@@ -426,13 +421,14 @@ const AddBook = () => {
                   />
                 </div>
                 {errors.author && (
-                  <p className="text-error text-xs mt-1.5 pl-1">{errors.author}</p>
+                  <p className="text-error text-xs mt-1.5 pl-1">
+                    {errors.author}
+                  </p>
                 )}
               </div>
 
               {/* Grid Layout for Year & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                
                 {/* Publication Year */}
                 <div>
                   <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
@@ -485,7 +481,7 @@ const AddBook = () => {
                       onChange={(e) =>
                         setFieldValue(
                           "pageCount",
-                          parseInt(e.target.value.replace(/\D/g, "")) || 0
+                          parseInt(e.target.value.replace(/\D/g, "")) || 0,
                         )
                       }
                       className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
@@ -531,6 +527,55 @@ const AddBook = () => {
                       className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
                     />
                   </div>
+                </div>
+
+                {/* Series Checkbox & Fields */}
+                <div className="sm:col-span-2">
+                  <label className="flex items-center gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-bg/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={values.isPartOfSeries}
+                      onChange={(e) => setFieldValue("isPartOfSeries", e.target.checked)}
+                      className="w-4 h-4 rounded text-accent bg-surface border-border focus:ring-accent/20"
+                    />
+                    <span className="text-sm font-semibold text-text-primary">This book is part of a series</span>
+                  </label>
+                  
+                  {values.isPartOfSeries && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                      <div>
+                        <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                          Series Name
+                        </label>
+                        <div className="relative">
+                          <Library size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="e.g. Harry Potter"
+                            value={values.seriesName}
+                            onChange={handleChange("seriesName")}
+                            className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                          Book Number
+                        </label>
+                        <div className="relative">
+                          <Hash size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 1"
+                            value={values.seriesNumber || ""}
+                            onChange={(e) => setFieldValue("seriesNumber", parseInt(e.target.value) || undefined)}
+                            className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Section (CLEAR SELECT) */}
@@ -602,7 +647,9 @@ const AddBook = () => {
                         type="date"
                         max={new Date().toISOString().split("T")[0]}
                         value={values.startedFrom}
-                        onChange={(e) => setFieldValue("startedFrom", e.target.value)}
+                        onChange={(e) =>
+                          setFieldValue("startedFrom", e.target.value)
+                        }
                         className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                       />
                     </div>
@@ -624,7 +671,9 @@ const AddBook = () => {
                         type="date"
                         max={new Date().toISOString().split("T")[0]}
                         value={values.finishedOn}
-                        onChange={(e) => setFieldValue("finishedOn", e.target.value)}
+                        onChange={(e) =>
+                          setFieldValue("finishedOn", e.target.value)
+                        }
                         className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                       />
                     </div>
@@ -637,52 +686,75 @@ const AddBook = () => {
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Genres
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
-                  className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all ${
-                    errors.genres ? "border-error focus:border-error" : "border-border"
+
+                {/* Trigger bar — becomes a search input when open */}
+                <div
+                  className={`w-full bg-bg border rounded-xl flex items-center gap-2 px-4 transition-all ${
+                    errors.genres ? "border-error" : genreDropdownOpen ? "border-accent ring-2 ring-accent/20" : "border-border"
                   }`}
                 >
-                  <span className="text-text-secondary/80">
-                    Select genres to categorize...
-                  </span>
-                  <ChevronDown
-                    size={18}
-                    className={`text-text-secondary transition-transform duration-200 ${genreDropdownOpen ? "rotate-180" : ""}`}
+                  <Search size={14} className="text-text-secondary/50 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search & select genres..."
+                    value={genreSearch}
+                    onFocus={() => setGenreDropdownOpen(true)}
+                    onChange={(e) => {
+                      setGenreSearch(e.target.value);
+                      setGenreDropdownOpen(true);
+                    }}
+                    className="flex-1 bg-transparent py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none"
                   />
-                </button>
+                  <ChevronDown
+                    size={16}
+                    className={`text-text-secondary/60 shrink-0 transition-transform duration-200 ${genreDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </div>
+
                 {errors.genres && (
-                  <p className="text-error text-xs mt-1.5 pl-1">{errors.genres}</p>
+                  <p className="text-error text-xs mt-1.5 pl-1">
+                    {errors.genres}
+                  </p>
                 )}
 
-                {/* Genre Dropdown Menu */}
+                {/* Genre Dropdown Panel — only the list, no extra search bar */}
                 {genreDropdownOpen && (
                   <>
-                    {/* Invisible overlay to catch outside clicks */}
-                    <div 
-                      className="fixed inset-0 z-20" 
-                      onClick={() => setGenreDropdownOpen(false)} 
+                    <div
+                      className="fixed inset-0 z-20"
+                      onClick={() => { setGenreDropdownOpen(false); setGenreSearch(""); }}
                     />
-                    <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 max-h-60 overflow-y-auto py-1">
-                      {GENRE_OPTIONS.map((genre) => {
-                        const isSelected = values.genres.includes(genre);
-                        return (
-                          <button
-                            key={genre}
-                            type="button"
-                            onClick={() => handleGenreToggle(genre)}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
-                              isSelected
-                                ? "bg-accent/10 text-accent font-semibold"
-                                : "text-text-primary hover:bg-bg"
-                            }`}
-                          >
-                            {genre}
-                            {isSelected && <Check size={16} />}
-                          </button>
-                        );
-                      })}
+                    <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden">
+                      <div className="max-h-52 overflow-y-auto py-1">
+                        {GENRE_OPTIONS.filter((g) =>
+                          g.toLowerCase().includes(genreSearch.toLowerCase())
+                        ).length === 0 ? (
+                          <p className="text-text-secondary/60 text-xs text-center py-4 italic">
+                            No genres match "{genreSearch}"
+                          </p>
+                        ) : (
+                          GENRE_OPTIONS.filter((g) =>
+                            g.toLowerCase().includes(genreSearch.toLowerCase())
+                          ).map((genre) => {
+                            const isSelected = values.genres.includes(genre);
+                            return (
+                              <button
+                                key={genre}
+                                type="button"
+                                onClick={() => handleGenreToggle(genre)}
+                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
+                                  isSelected
+                                    ? "bg-accent/10 text-accent font-semibold"
+                                    : "text-text-primary hover:bg-bg"
+                                }`}
+                              >
+                                {genre}
+                                {isSelected && <Check size={16} />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -735,11 +807,15 @@ const AddBook = () => {
                     onChange={handleChange("review")}
                     rows={4}
                     className={`w-full bg-bg border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none ${
-                        errors.review ? "border-error focus:border-error focus:ring-error/20" : "border-border focus:border-accent"
+                      errors.review
+                        ? "border-error focus:border-error focus:ring-error/20"
+                        : "border-border focus:border-accent"
                     }`}
                   />
                   {errors.review && (
-                    <p className="text-error text-xs mt-1.5 pl-1">{errors.review}</p>
+                    <p className="text-error text-xs mt-1.5 pl-1">
+                      {errors.review}
+                    </p>
                   )}
                   <p className="text-text-secondary text-[10px] mt-2 italic flex items-center gap-1.5 opacity-60">
                     <Sparkles size={12} className="text-accent" />
@@ -764,7 +840,7 @@ const AddBook = () => {
               className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm shadow-accent/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
-                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <PlusCircle size={18} />
               )}

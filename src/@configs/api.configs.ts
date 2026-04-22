@@ -1,4 +1,4 @@
-const dev_mode = true
+const dev_mode = import.meta.env.VITE_DEV_MODE === "true"
 const prod_domain = ""
 const dev_domain = "localhost:4002"
 const prod_protocol = "https"
