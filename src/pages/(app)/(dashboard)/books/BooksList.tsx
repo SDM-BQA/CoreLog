@@ -374,12 +374,12 @@ const BooksList = () => {
 
         {/* View Toggles & Results Info */}
         <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6 shrink-0">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8 relative">
             <button
               onClick={() => setViewMode("grid")}
-              className={`flex items-center gap-2 text-sm font-medium transition-colors relative pb-4 -mb-4 ${
+              className={`flex items-center gap-2 text-sm font-medium transition-colors relative pb-4 ${
                 viewMode === "grid"
-                  ? "text-accent border-b-2 border-accent"
+                  ? "text-accent"
                   : "text-text-secondary hover:text-text-primary"
               }`}
             >
@@ -388,15 +388,23 @@ const BooksList = () => {
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`flex items-center gap-2 text-sm font-medium transition-colors relative pb-4 -mb-4 ${
+              className={`flex items-center gap-2 text-sm font-medium transition-colors relative pb-4 ${
                 viewMode === "list"
-                  ? "text-accent border-b-2 border-accent"
+                  ? "text-accent"
                   : "text-text-secondary hover:text-text-primary"
               }`}
             >
               <ListIcon size={16} />
               List View
             </button>
+            {/* Sliding Underline */}
+            <div 
+              className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-in-out"
+              style={{
+                left: viewMode === "grid" ? "0px" : "110px", 
+                width: viewMode === "grid" ? "90px" : "85px"
+              }}
+            />
           </div>
         </div>
 
@@ -431,115 +439,117 @@ const BooksList = () => {
             </div>
           ) : (
             <>
-              {viewMode === "grid" ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
-                  {paginatedBooks.map((book) => (
-                    <Link
-                      to={`/dashboard/books/${book._id}`}
-                      key={book._id}
-                      className="group flex flex-col gap-3 cursor-pointer"
-                    >
-                      <div className="relative aspect-[2/3] w-full rounded-md md:rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1 border border-border/30 group-hover:border-accent/40 bg-surface">
-                        <img
-                          src={get_full_image_url(book.cover_image || book.coverImage)}
-                          alt={book.title}
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Subtle overlay for actions */}
-                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                          <span className="bg-accent/90 text-background text-xs font-bold px-4 py-2 rounded-lg">
-                            View Details
-                          </span>
+              <div key={viewMode} className="animate-fade-in">
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
+                    {paginatedBooks.map((book) => (
+                      <Link
+                        to={`/dashboard/books/${book._id}`}
+                        key={book._id}
+                        className="group flex flex-col gap-3 cursor-pointer"
+                      >
+                        <div className="relative aspect-[2/3] w-full rounded-md md:rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1 border border-border/30 group-hover:border-accent/40 bg-surface">
+                          <img
+                            src={get_full_image_url(book.cover_image || book.coverImage, "book")}
+                            alt={book.title}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Subtle overlay for actions */}
+                          <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                            <span className="bg-accent/90 text-background text-xs font-bold px-4 py-2 rounded-lg">
+                              View Details
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col">
-                        <h3 className="text-text-primary text-[15px] font-bold font-inter leading-tight truncate group-hover:text-accent transition-colors">
-                          {book.title}
-                        </h3>
-                        <p className="text-text-secondary text-xs mt-1 truncate">
-                          {book.author}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <div className="flex items-center gap-[1px]">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                size={10}
-                                className={
-                                  star <= Math.round(book.rating)
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "fill-transparent text-text-secondary/30"
-                                }
-                              />
+                        <div className="flex flex-col">
+                          <h3 className="text-text-primary text-[15px] font-bold font-inter leading-tight truncate group-hover:text-accent transition-colors">
+                            {book.title}
+                          </h3>
+                          <p className="text-text-secondary text-xs mt-1 truncate">
+                            {book.author}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <div className="flex items-center gap-[1px]">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  size={10}
+                                  className={
+                                    star <= Math.round(book.rating)
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "fill-transparent text-text-secondary/30"
+                                  }
+                                />
+                              ))}
+                            </div>
+                            <span className="text-text-secondary text-[10px] font-medium mt-[1px]">
+                              ({book.rating.toFixed(1)})
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 pb-8">
+                    {paginatedBooks.map((book) => (
+                      <Link
+                        to={`/dashboard/books/${book._id}`}
+                        key={book._id}
+                        className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
+                      >
+                        <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-lg overflow-hidden border border-border/50">
+                          <img
+                            src={get_full_image_url(book.cover_image || book.coverImage, "book")}
+                            alt={book.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+  
+                        <div className="flex-1 min-w-0 pr-4">
+                          <h3 className="text-text-primary font-bold text-[15px] leading-tight mb-1 truncate group-hover:text-accent transition-colors">
+                            {book.title}
+                          </h3>
+                          <p className="text-text-secondary text-xs truncate">
+                            {book.author}
+                          </p>
+                        </div>
+  
+                        <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
+                          <div className="flex flex-wrap gap-1.5">
+                            {book.genres?.map((g) => (
+                              <span
+                                key={g}
+                                className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
+                              >
+                                {g}
+                              </span>
                             ))}
                           </div>
-                          <span className="text-text-secondary text-[10px] font-medium mt-[1px]">
-                            ({book.rating.toFixed(1)})
-                          </span>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 pb-8">
-                  {paginatedBooks.map((book) => (
-                    <Link
-                      to={`/dashboard/books/${book._id}`}
-                      key={book._id}
-                      className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
-                    >
-                      <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-lg overflow-hidden border border-border/50">
-                        <img
-                          src={get_full_image_url(book.cover_image || book.coverImage)}
-                          alt={book.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0 pr-4">
-                        <h3 className="text-text-primary font-bold text-[15px] leading-tight mb-1 truncate group-hover:text-accent transition-colors">
-                          {book.title}
-                        </h3>
-                        <p className="text-text-secondary text-xs truncate">
-                          {book.author}
-                        </p>
-                      </div>
-
-                      <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
-                        <div className="flex flex-wrap gap-1.5">
-                          {book.genres?.map((g) => (
-                            <span
-                              key={g}
-                              className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
-                            >
-                              {g}
+  
+                        <div className="flex flex-col items-end gap-1.5 w-28 shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <Star
+                              size={13}
+                              className="fill-yellow-400 text-yellow-400"
+                            />
+                            <span className="text-text-primary text-sm font-bold">
+                              {book.rating.toFixed(1)}
                             </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5 w-28 shrink-0">
-                        <div className="flex items-center gap-1.5">
-                          <Star
-                            size={13}
-                            className="fill-yellow-400 text-yellow-400"
-                          />
-                          <span className="text-text-primary text-sm font-bold">
-                            {book.rating.toFixed(1)}
+                          </div>
+                          <span className="text-text-secondary text-[10px] font-semibold px-2 py-0.5 rounded bg-bg/80 border border-border/50">
+                            {STATUS_MAP[book.status as keyof typeof STATUS_MAP]}
                           </span>
                         </div>
-                        <span className="text-text-secondary text-[10px] font-semibold px-2 py-0.5 rounded bg-bg/80 border border-border/50">
-                          {STATUS_MAP[book.status as keyof typeof STATUS_MAP]}
-                        </span>
-                      </div>
-                      <button className="p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-bg transition-colors z-10" onClick={(e) => e.preventDefault()}>
-                        <MoreVertical size={16} />
-                      </button>
-                    </Link>
-                  ))}
-                </div>
-              )}
+                        <button className="p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-bg transition-colors z-10" onClick={(e) => e.preventDefault()}>
+                          <MoreVertical size={16} />
+                        </button>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

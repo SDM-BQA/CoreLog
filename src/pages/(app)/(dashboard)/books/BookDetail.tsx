@@ -240,7 +240,7 @@ const BookDetail = () => {
             <div className="w-[200px] sm:w-[240px] shrink-0">
               <div className="w-full aspect-[2/3] rounded-xl overflow-hidden ring-1 ring-border shadow-2xl bg-surface">
                 <img
-                  src={get_full_image_url(book.cover_image)}
+                  src={get_full_image_url(book.cover_image, "book")}
                   alt={book.title}
                   className="w-full h-full object-cover"
                 />

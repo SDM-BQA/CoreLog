@@ -72,7 +72,8 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
 
 export const get_full_image_url = (path: string | undefined, type: "book" | "user" = "user"): string => {
     if (!path) {
-        return type === "book" ? "/default_book_cover.png" : "/profile_pic.jpg";
+        const defaultPath = type === "book" ? "/default_book_cover.png" : "/profile_pic.jpg";
+        return `${api_configs.server_url}${defaultPath}`;
     }
     
     if (path.startsWith("http")) return path;

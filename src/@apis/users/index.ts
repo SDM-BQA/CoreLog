@@ -1,7 +1,8 @@
 import { axios_graphql_service_auth, axios_graphql_service_no_auth, check_graphql_error } from "../../@utils/api.utils"
 import { api_configs } from "../../@configs/api.configs"
 import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION } from "./structure"
-
+import axios from "axios";
+import { get_headers } from "../../@utils/api.utils"
 
 export const get_all_user_accounts_query = async () => {
     try {
@@ -71,15 +72,15 @@ export const update_user_account_mutation = async (id: string, input: UpdateUser
 }
 
 
-
 export const upload_image_api = async (file: File) => {
     const formData = new FormData();
     formData.append("image", file);
 
-    const { data } = await axios_graphql_service_no_auth().post(`${api_configs.rest_base_url}/upload`, formData, {
-        headers: { 
+    const { data } = await axios.post(`${api_configs.rest_base_url}/upload`, formData, {
+        headers: {
+            ...get_headers(false),
             "Content-Type": "multipart/form-data",
-            "apollo-require-preflight": "" // Clear the preflight for non-graphql routes if needed
+            "apollo-require-preflight": "" // Clear the preflight for non-graphql routes
         },
     });
     return data.url;
