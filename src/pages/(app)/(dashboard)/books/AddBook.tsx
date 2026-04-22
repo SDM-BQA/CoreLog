@@ -15,6 +15,8 @@ import {
   Hash,
   Globe,
   Building2,
+  PlayCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
 import { upload_image_api } from "../../../../@apis/users";
@@ -41,6 +43,8 @@ interface AddBookForm {
   pageCount?: number;
   publisher?: string;
   language?: string;
+  startedFrom?: string;
+  finishedOn?: string;
 }
 
 const STATUS_MAP = {
@@ -120,6 +124,8 @@ const AddBook = () => {
         pageCount: 0,
         publisher: "",
         language: "",
+        startedFrom: new Date().toISOString().split("T")[0],
+        finishedOn: new Date().toISOString().split("T")[0],
       },
       validationSchema,
       onSubmit: async (formValues) => {
@@ -145,7 +151,9 @@ const AddBook = () => {
             cover_image: cover_image,
             page_count: formValues.pageCount || 0,
             publisher: formValues.publisher || "",
-            language: formValues.language || ""
+            language: formValues.language || "",
+            started_from: formValues.status === "reading" || formValues.status === "read" ? formValues.startedFrom : undefined,
+            finished_on: formValues.status === "read" ? formValues.finishedOn : undefined,
           });
 
           toast.success(`Book "${formValues.title}" added successfully!`);
@@ -548,9 +556,9 @@ const AddBook = () => {
                   {statusDropdownOpen && (
                     <>
                       {/* Invisible overlay to catch outside clicks */}
-                      <div 
-                        className="fixed inset-0 z-20" 
-                        onClick={() => setStatusDropdownOpen(false)} 
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setStatusDropdownOpen(false)}
                       />
                       <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden py-1">
                         {STATUS_OPTIONS.map((status) => (
@@ -578,6 +586,50 @@ const AddBook = () => {
                     </>
                   )}
                 </div>
+
+                {/* Started From — shown when Reading or Read */}
+                {(values.status === "reading" || values.status === "read") && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                      Started From
+                    </label>
+                    <div className="relative">
+                      <PlayCircle
+                        size={18}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                      />
+                      <input
+                        type="date"
+                        max={new Date().toISOString().split("T")[0]}
+                        value={values.startedFrom}
+                        onChange={(e) => setFieldValue("startedFrom", e.target.value)}
+                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Finished On — shown only when Read */}
+                {values.status === "read" && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                      Finished On
+                    </label>
+                    <div className="relative">
+                      <CheckCircle2
+                        size={18}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                      />
+                      <input
+                        type="date"
+                        max={new Date().toISOString().split("T")[0]}
+                        value={values.finishedOn}
+                        onChange={(e) => setFieldValue("finishedOn", e.target.value)}
+                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Genres (CLEAR MULTI-SELECT) */}

@@ -1,5 +1,5 @@
 import { axios_graphql_service_auth, check_graphql_error } from "../../@utils/api.utils"
-import { CREATE_BOOK_MUTATION, GET_MY_BOOKS_QUERY, GET_BOOK_QUERY, UPDATE_BOOK_MUTATION, DELETE_BOOK_MUTATION } from "./structure"
+import { CREATE_BOOK_MUTATION, GET_MY_BOOKS_QUERY, GET_BOOK_QUERY, UPDATE_BOOK_MUTATION, DELETE_BOOK_MUTATION, GET_BOOK_FILTERS_QUERY } from "./structure"
 
 export interface BookInput {
     title: string;
@@ -14,6 +14,8 @@ export interface BookInput {
     page_count?: number;
     publisher?: string;
     language?: string;
+    started_from?: string;
+    finished_on?: string;
 }
 
 export const create_book_mutation = async (input: BookInput) => {
@@ -28,12 +30,31 @@ export const create_book_mutation = async (input: BookInput) => {
     return data.data.create_book
 }
 
-export const get_my_books_query = async () => {
+export interface BookFilter {
+    search?: string;
+    genres?: string[];
+    status?: string[];
+    rating?: number;
+    author?: string;
+    page?: number;
+    limit?: number;
+}
+
+export interface BookPage {
+    books: BookInput[];
+    total_count: number;
+    current_page: number;
+    per_page: number;
+    page_count: number;
+    has_next_page: boolean;
+}
+
+export const get_my_books_query = async (filter?: BookFilter): Promise<BookPage> => {
     const service = axios_graphql_service_auth()
     const { data } = await service({
         data: {
             query: GET_MY_BOOKS_QUERY,
-            variables: {}
+            variables: { filter }
         }
     })
     check_graphql_error(data)
@@ -74,6 +95,21 @@ export const delete_book_mutation = async (id: string) => {
     })
     check_graphql_error(data)
     return data.data.delete_book
+}
+
+export interface BookFilters {
+    genres: string[];
+    statuses: string[];
+    authors: string[];
+}
+
+export const get_book_filters_query = async (): Promise<BookFilters> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: GET_BOOK_FILTERS_QUERY }
+    })
+    check_graphql_error(data)
+    return data.data.get_book_filters
 }
 
 export const search_external_books_api = async (query: string) => {

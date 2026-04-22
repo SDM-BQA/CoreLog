@@ -14,29 +14,40 @@ mutation Create_book($input: CreateBookInput!) {
     page_count
     publisher
     language
+    started_from
+    finished_on
     user_id
   }
 }
 `
 
 export const GET_MY_BOOKS_QUERY = `
-query Get_my_books {
-  get_my_books {
-    _id
-    title
-    author
-    description
-    genres
-    publication_year
-    status
-    rating
-    review
-    cover_image
+query Get_my_books($filter: BookFilterInput) {
+  get_my_books(filter: $filter) {
+    books {
+      _id
+      title
+      author
+      description
+      genres
+      publication_year
+      status
+      rating
+      review
+      cover_image
+      page_count
+      publisher
+      language
+      started_from
+      finished_on
+      user_id
+      created_at
+    }
+    total_count
+    current_page
+    per_page
     page_count
-    publisher
-    language
-    user_id
-    created_at
+    has_next_page
   }
 }
 `
@@ -57,6 +68,8 @@ query Get_book($id: ID!) {
     page_count
     publisher
     language
+    started_from
+    finished_on
     user_id
     created_at
   }
@@ -79,6 +92,8 @@ mutation Update_book($id: ID!, $input: UpdateBookInput!) {
     page_count
     publisher
     language
+    started_from
+    finished_on
   }
 }
 `
@@ -86,5 +101,15 @@ mutation Update_book($id: ID!, $input: UpdateBookInput!) {
 export const DELETE_BOOK_MUTATION = `
 mutation Delete_book($id: ID!) {
   delete_book(id: $id)
+}
+`
+
+export const GET_BOOK_FILTERS_QUERY = `
+query Get_book_filters {
+  get_book_filters {
+    genres
+    statuses
+    authors
+  }
 }
 `

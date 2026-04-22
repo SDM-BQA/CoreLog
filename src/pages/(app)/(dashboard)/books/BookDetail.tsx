@@ -16,6 +16,8 @@ import {
   Hash,
   Globe,
   Building2,
+  PlayCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { get_book_query, update_book_mutation, delete_book_mutation } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
@@ -36,6 +38,8 @@ interface Book {
   page_count?: number;
   publisher?: string;
   language?: string;
+  started_from?: string;
+  finished_on?: string;
   created_at?: string;
 }
 
@@ -399,6 +403,40 @@ const BookDetail = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Started From */}
+                {book.started_from && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
+                      Started
+                    </span>
+                    <div className="flex items-center gap-1.5 text-text-primary">
+                      <PlayCircle size={14} className="text-blue-400" />
+                      {new Date(book.started_from).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Finished On */}
+                {book.finished_on && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">
+                      Finished
+                    </span>
+                    <div className="flex items-center gap-1.5 text-text-primary">
+                      <CheckCircle2 size={14} className="text-green-400" />
+                      {new Date(book.finished_on).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Genres */}
