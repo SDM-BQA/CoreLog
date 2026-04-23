@@ -53,15 +53,29 @@ export const axios_graphql_service_no_auth = () => {
 
 export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
     if (data.errors && data.errors.length > 0) {
+        const error_message = data.errors[0].message;
+
+        // Auto logout if token is expired or invalid
+        if (error_message === "Invalid or expired token" || error_message === "Authentication required") {
+            delete_string("token");
+            delete_string("userId");
+            delete_string("refreshToken");
+            window.location.href = "/auth/login";
+        }
+
         // Return only the error message in sentence case
-        const error_message = toSentenceCase(data.errors[0].message);
-        throw new Error(error_message);
+        const formatted_message = toSentenceCase(error_message);
+        throw new Error(formatted_message);
     }
 }
 
 
-export const get_full_image_url = (path: string | undefined): string | undefined => {
-    if (!path) return undefined;
+export const get_full_image_url = (path: string | undefined, type: "book" | "user" = "user"): string => {
+    if (!path) {
+        const defaultPath = type === "book" ? "/default_book_cover.png" : "/profile_pic.jpg";
+        return `${api_configs.server_url}${defaultPath}`;
+    }
+    
     if (path.startsWith("http")) return path;
 
     // Handle extension mismatch for default profile photo
