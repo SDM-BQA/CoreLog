@@ -13,9 +13,11 @@ import {
   MoreVertical,
   BookOpen,
   Library,
+  X,
 } from "lucide-react";
 import { get_my_books_query, get_book_filters_query, BookFilter } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
 
 export interface Book {
@@ -324,10 +326,10 @@ const BooksList = () => {
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <FilterDropdown
               label="Genre"
-              options={genreOptions}
+              options={genreOptions.map(get_genre_display)}
               emptyMessage="Add books to filter by genre"
-              selected={genreFilter}
-              onSelect={(val) => toggleFilter(val as string, setGenreFilter)}
+              selected={genreFilter.map(get_genre_display)}
+              onSelect={(val) => toggleFilter(get_genre_key(val as string), setGenreFilter)}
               icon={Filter}
             />
             <FilterDropdown
@@ -403,11 +405,16 @@ const BooksList = () => {
           )}
         </div>
 
-        {/* ── Content ── */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {isLoading ? (
-            viewMode === "grid" ? <GridSkeleton /> : viewMode === "list" ? <ListSkeleton /> : <GridSkeleton />
-          ) : viewMode === "calendar" ? (
+        {/* ── Main Flex Container for Desktop Layout ── */}
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 flex-1 min-h-0">
+          
+          {/* ── Content Area ── */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {isLoading ? (
+                <div className="animate-reveal">
+                  {viewMode === "grid" ? <GridSkeleton /> : viewMode === "list" ? <ListSkeleton /> : <GridSkeleton />}
+                </div>
+              ) : viewMode === "calendar" ? (
             isCalendarLoading
               ? <GridSkeleton />
               : <CalendarView books={allBooks} />
@@ -440,7 +447,7 @@ const BooksList = () => {
                   }
 
                   return (
-                    <div className="flex flex-col gap-10 pb-8">
+                    <div className="flex flex-col gap-10 pb-8 animate-reveal">
                       {sortedGroups.map(([seriesName, seriesBooks]) => (
                         <div key={seriesName} className="flex flex-col gap-4">
                           <h3 className="text-lg font-bold text-text-primary flex items-center gap-2 border-b border-border/50 pb-2">
@@ -469,11 +476,32 @@ const BooksList = () => {
                                       #{book.series_number || "?"}
                                     </span>
                                   </div>
+                                  <div className="absolute top-2 right-2 z-10">
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border backdrop-blur-md shadow-lg uppercase tracking-widest ${
+                                      book.status === "read" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                                      book.status === "reading" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                      book.status === "want_to_read" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                                      "bg-red-500/20 text-red-400 border-red-500/30"
+                                    }`}>
+                                      {STATUS_MAP[book.status]?.split(' ')[0] || book.status}
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="flex flex-col gap-1 px-1">
                                   <h4 className="text-text-primary text-[13px] font-bold leading-tight line-clamp-2 group-hover:text-accent transition-colors">
                                     {book.title}
                                   </h4>
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-text-secondary text-[10px] truncate font-semibold uppercase">
+                                      {book.author}
+                                    </span>
+                                    <div className="flex items-center gap-0.5 bg-accent/5 px-1 py-0.5 rounded border border-accent/10 shrink-0">
+                                      <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                                      <span className="text-white text-[9px] font-black">
+                                        {book.rating.toFixed(1)}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </Link>
                             ))}
@@ -501,7 +529,7 @@ const BooksList = () => {
               )}
             </div>
           ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8">
+            <div key={`${currentPage}-${committedSearch}`} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8 animate-reveal">
               {books.map((book) => (
                 <Link
                   to={`/dashboard/books/${book._id}`}
@@ -555,7 +583,7 @@ const BooksList = () => {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col gap-3 pb-8">
+            <div key={`${currentPage}-${committedSearch}`} className="flex flex-col gap-3 pb-8 animate-reveal">
               {books.map((book) => (
                 <Link
                   to={`/dashboard/books/${book._id}`}
@@ -586,7 +614,7 @@ const BooksList = () => {
                           key={g}
                           className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
                         >
-                          {g}
+                          {get_genre_display(g)}
                         </span>
                       ))}
                     </div>
@@ -615,49 +643,53 @@ const BooksList = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* ── Pagination — hidden in calendar view ── */}
-        {!isLoading && total > 0 && viewMode !== "calendar" && (
-          <div className="flex items-center justify-between mt-auto pt-4 border-t border-border shrink-0">
-            <p className="text-text-secondary text-xs">
-              Page <span className="text-text-primary font-semibold">{currentPage}</span> of{" "}
-              <span className="text-accent font-semibold">{totalPages}</span>
-            </p>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setCurrentPage(p)}
-                  className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
-                    p === currentPage
-                      ? "bg-accent text-text-primary"
-                      : "border border-border text-text-secondary hover:text-text-primary hover:border-accent/30"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={!hasNextPage}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
           </div>
-        )}
+
+          {/* ── Pagination — hidden in calendar and series view ── */}
+          {!isLoading && total > 0 && viewMode !== "calendar" && viewMode !== "series" && (
+            <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0">
+              
+              <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
+                Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
+              </p>
+
+              <div className="flex lg:flex-col items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} className="lg:-rotate-90" />
+                </button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center shrink-0 ${
+                      p === currentPage
+                        ? "bg-accent text-white"
+                        : "border border-border text-text-secondary hover:text-text-primary hover:border-accent/30"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                
+                <button
+                  type="button"
+                  disabled={!hasNextPage}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={16} className="lg:-rotate-90" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

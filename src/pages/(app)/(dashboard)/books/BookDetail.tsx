@@ -26,6 +26,7 @@ import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
 import RatingInput from "../../../../@components/RatingInput";
+import { get_genre_display } from "../../../../@utils/genres";
 
 interface Book {
   _id: string;
@@ -92,7 +93,7 @@ const BookDetail = () => {
   });
   const [modalError, setModalError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editView, setEditView] = useState<"all" | "synopsis" | "review">("all");
+  const [editView, setEditView] = useState<"all" | "synopsis" | "review" | "status_update">("all");
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -153,6 +154,7 @@ const BookDetail = () => {
     
     if (newStatus === "read") {
       setCurrentStatus("read");
+      setEditView("status_update");
       setModalData({
         title: book.title,
         author: book.author,
@@ -200,6 +202,17 @@ const BookDetail = () => {
     if (modalData.publication_year && (isNaN(pubYear) || pubYear < 0 || pubYear > currentYear + 5)) {
       setModalError("Please enter a valid publication year.");
       return;
+    }
+
+    if (modalData.isPartOfSeries) {
+      if (!modalData.series_name || modalData.series_name.trim() === "") {
+        setModalError("Series name cannot be blank if 'Part of a series' is checked.");
+        return;
+      }
+      if (modalData.series_number === undefined || modalData.series_number < 0) {
+        setModalError("Series number cannot be negative.");
+        return;
+      }
     }
 
     setModalError(null);
@@ -598,7 +611,7 @@ const BookDetail = () => {
                     key={g}
                     className="px-3 py-1 text-xs font-medium rounded-full bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-text-secondary/30 transition-colors cursor-default"
                   >
-                    {g}
+                    {get_genre_display(g)}
                   </span>
                 ))}
               </div>
@@ -667,7 +680,9 @@ const BookDetail = () => {
             ? "Edit Synopsis" 
             : editView === "review" 
               ? (currentStatus === "not_finished" ? "Edit Notes" : "Edit Review")
-              : "Edit Details"
+              : editView === "status_update"
+                ? "Completion Details"
+                : "Edit Details"
         }
         footer={
           <div className="flex justify-end gap-3">
@@ -807,9 +822,12 @@ const BookDetail = () => {
                   </div>
                 )}
               </div>
+            </>
+          )}
 
-              {/* Date Inputs - Conditional */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Date Inputs - Conditional */}
+          {(editView === "all" || editView === "status_update") && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {currentStatus !== "want_to_read" && (
                   <div>
                     <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
@@ -837,11 +855,10 @@ const BookDetail = () => {
                   </div>
                 )}
               </div>
-            </>
           )}
 
-          {/* Star Rating - Show in All or Review mode if Read */}
-          {(editView === "all" || editView === "review") && currentStatus === "read" && (
+          {/* Star Rating - Show in All, Review, or Status Update mode if Read */}
+          {(editView === "all" || editView === "review" || editView === "status_update") && currentStatus === "read" && (
             <RatingInput
               value={modalData.rating}
               onChange={(val) => setModalData({ ...modalData, rating: val })}
@@ -864,8 +881,8 @@ const BookDetail = () => {
             </div>
           )}
 
-          {/* Personal Review / Notes - Only in Review mode if applicable */}
-          {editView === "review" && (currentStatus === "read" || currentStatus === "not_finished") && (
+          {/* Personal Review / Notes - Show in Review or Status Update mode if applicable */}
+          {(editView === "review" || editView === "status_update") && (currentStatus === "read" || currentStatus === "not_finished") && (
             <div>
               <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                 {currentStatus === "not_finished" ? "Notes" : "Your Review"}

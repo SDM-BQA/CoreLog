@@ -146,6 +146,15 @@ input[type="number"] {
     animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  @keyframes reveal {
+    from { transform: translateY(15px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .animate-reveal {
+    animation: reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, opacity;
+  }
+
   /* Hide scrollbar for Chrome, Safari and Opera */
   .hide-scrollbar::-webkit-scrollbar {
     display: none;

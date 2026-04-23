@@ -28,34 +28,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
 import { GoogleBook, FeatureCard, SearchDropdown } from "../../../../@components/@smart";
 import RatingInput from "../../../../@components/RatingInput";
+import { GENRE_MAP, get_genre_key } from "../../../../@utils/genres";
 
-const GENRE_OPTIONS = [
-  "Drama",
-  "Comedy",
-  "Childrens",
-  "Psychological Drama",
-  "Fiction",
-  "Fantasy",
-  "Sci-Fi",
-  "Thriller",
-  "Literary",
-  "Classic",
-  "Self-Help",
-  "Non-Fiction",
-  "Mystery",
-  "Mythology",
-  "Historical-Fiction",
-  "Suspense",
-  "Horror",
-  "Action & Adventure",
-  "Biography & Autobiography",
-  "Cooking",
-  "Romance",
-  "Poetry",
-  "Psychological-Thriller",
-  "Crime",
-  "Young Adult"
-];
+const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
 interface AddBookForm {
   title: string;
@@ -109,6 +84,18 @@ const validationSchema = {
         ? null
         : "Personal review is required for read books"
       : null,
+  seriesName: (val: string | undefined, formValues: AddBookForm) =>
+    formValues.isPartOfSeries
+      ? val && val.trim()
+        ? null
+        : "Series name is required if part of a series"
+      : null,
+  seriesNumber: (val: number | undefined, formValues: AddBookForm) =>
+    formValues.isPartOfSeries
+      ? val === undefined || val < 0
+        ? "Series number cannot be negative"
+        : null
+      : null,
 };
 
 const AddBook = () => {
@@ -159,7 +146,7 @@ const AddBook = () => {
             title: formValues.title,
             author: formValues.author,
             description: formValues.description,
-            genres: formValues.genres,
+            genres: formValues.genres.map(get_genre_key),
             publication_year: formValues.publicationYear,
             status: formValues.status,
             rating: formValues.rating,
@@ -554,9 +541,16 @@ const AddBook = () => {
                             placeholder="e.g. Harry Potter"
                             value={values.seriesName}
                             onChange={handleChange("seriesName")}
-                            className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                            className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
+                              errors.seriesName ? "border-error" : "border-border"
+                            }`}
                           />
                         </div>
+                        {errors.seriesName && (
+                          <p className="text-error text-xs font-semibold mt-1.5 ml-1">
+                            {errors.seriesName}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
@@ -566,13 +560,19 @@ const AddBook = () => {
                           <Hash size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
                           <input
                             type="number"
-                            min="1"
                             placeholder="e.g. 1"
-                            value={values.seriesNumber || ""}
-                            onChange={(e) => setFieldValue("seriesNumber", parseInt(e.target.value) || undefined)}
-                            className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                            value={values.seriesNumber === undefined ? "" : values.seriesNumber}
+                            onChange={(e) => setFieldValue("seriesNumber", e.target.value ? parseInt(e.target.value) : undefined)}
+                            className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
+                              errors.seriesNumber ? "border-error" : "border-border"
+                            }`}
                           />
                         </div>
+                        {errors.seriesNumber && (
+                          <p className="text-error text-xs font-semibold mt-1.5 ml-1">
+                            {errors.seriesNumber}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -830,6 +830,7 @@ const AddBook = () => {
           <div className="flex items-center justify-end gap-3 mt-10 pt-6 border-t border-border">
             <button
               type="button"
+              onClick={() => navigate("/dashboard/books")}
               className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg rounded-xl transition-colors"
             >
               Discard
