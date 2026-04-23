@@ -70,9 +70,11 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
 }
 
 
-export const get_full_image_url = (path: string | undefined, type: "book" | "user" = "user"): string => {
+export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" = "user"): string => {
     if (!path) {
-        const defaultPath = type === "book" ? "/default_book_cover.png" : "/profile_pic.jpg";
+        let defaultPath = "/profile_pic.jpg";
+        if (type === "book") defaultPath = "/default_book_cover.png";
+        if (type === "series") defaultPath = "/default_book_cover.png"; // Using book cover as fallback for now
         return `${api_configs.server_url}${defaultPath}`;
     }
     
@@ -85,6 +87,18 @@ export const get_full_image_url = (path: string | undefined, type: "book" | "use
     }
 
     return `${api_configs.server_url}${correctedPath}`;
+};
+
+export const get_rating_level = (rating: number): string => {
+    if (rating === 0) return "Not Rated";
+    if (rating >= 4.8) return "Masterpiece";
+    if (rating >= 4.5) return "Excellent";
+    if (rating >= 4.0) return "Great";
+    if (rating >= 3.5) return "Good";
+    if (rating >= 3.0) return "Decent";
+    if (rating >= 2.5) return "Average";
+    if (rating >= 1.5) return "Poor";
+    return "Awful";
 };
 
 

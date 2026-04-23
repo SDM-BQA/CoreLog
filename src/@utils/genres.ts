@@ -23,7 +23,11 @@ export const GENRE_MAP: Record<string, string> = {
   poetry: "Poetry",
   psychological_thriller: "Psychological-Thriller",
   crime: "Crime",
-  young_adult: "Young Adult"
+  young_adult: "Young Adult",
+  animation: "Animation",
+  documentary: "Documentary",
+  war: "War",
+  western: "Western"
 };
 
 export const get_genre_display = (key: string): string => {
