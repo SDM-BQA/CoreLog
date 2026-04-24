@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import {
   ImagePlus,
   ChevronDown,
-  X,
   Star,
   PlusCircle,
   Sparkles,
