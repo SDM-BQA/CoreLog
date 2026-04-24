@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen, Tv } from "lucide-react";
 import { get_full_image_url } from "../../@utils/api.utils";
 
 /**
@@ -13,6 +13,7 @@ export interface CalendarBook {
   cover_image: string;
   started_from?: string;
   finished_on?: string;
+  status?: string;
 }
 
 // Palette for book spans — cycles through these colours
@@ -42,6 +43,8 @@ interface CalendarViewProps {
   books: CalendarBook[];
   /** Base path for book detail links. Defaults to "/dashboard/books" */
   detailBasePath?: string;
+  /** Media type for image lookup. Defaults to "book" */
+  type?: "book" | "series";
 }
 
 function getBooksForDay(booksWithDates: BookWithDates[], day: Date): BookWithDates[] {
@@ -49,9 +52,19 @@ function getBooksForDay(booksWithDates: BookWithDates[], day: Date): BookWithDat
   return booksWithDates.filter((b) => {
     if (!b.start) return false;
     const start = new Date(b.start); start.setHours(0, 0, 0, 0);
+    
+    // For 'not_finished' items without an end date, only show on the start date
+    if (!b.end && b.status === "not_finished") {
+        return isSameDay(d, start);
+    }
+    
     const end = b.end ? new Date(b.end) : null;
     if (end) { end.setHours(23, 59, 59, 0); return d >= start && d <= end; }
-    return d >= start;
+    
+    // Ongoing items (reading/watching) without an end date prolong to the current day
+    const today = new Date();
+    today.setHours(23, 59, 59, 0);
+    return d >= start && d <= today;
   });
 }
 
@@ -64,6 +77,7 @@ function isSameDay(a: Date, b: Date) {
 export default function CalendarView({
   books,
   detailBasePath = "/dashboard/books",
+  type = "book",
 }: CalendarViewProps) {
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -85,6 +99,12 @@ export default function CalendarView({
     const lastDay = new Date(year, month + 1, 0);
     return booksWithDates.filter((b) => {
       if (!b.start) return false;
+      
+      // If it's not finished and has no end date, it's a single day event
+      if (!b.end && b.status === "not_finished") {
+        return b.start <= lastDay && b.start >= firstDay;
+      }
+      
       const end = b.end ?? new Date();
       return b.start <= lastDay && end >= firstDay;
     });
@@ -192,7 +212,9 @@ export default function CalendarView({
               {dayBooks.slice(0, MAX_VISIBLE).map((b) => {
                 const c = colorMap[b._id];
                 const isStart = b.start ? isSameDay(b.start, day) : false;
-                const isEnd   = b.end   ? isSameDay(b.end,   day) : false;
+                const isEnd   = b.end   
+                                  ? isSameDay(b.end,   day) 
+                                  : (b.status === "not_finished" ? isStart : false);
                 const isHovered = hoveredBook === b._id;
                 return (
                   <Link
@@ -207,7 +229,7 @@ export default function CalendarView({
                   >
                     {isStart && (
                       <img
-                        src={get_full_image_url(b.cover_image, "book")}
+                        src={get_full_image_url(b.cover_image, type)}
                         alt=""
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         className="w-3 h-4 sm:w-3.5 sm:h-5 object-cover rounded shrink-0"
@@ -235,11 +257,15 @@ export default function CalendarView({
       {booksThisMonth.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
           <div className="w-14 h-14 rounded-2xl bg-surface border border-border flex items-center justify-center">
-            <BookOpen size={28} className="text-text-secondary/30" />
+            {type === "series" ? (
+              <Tv size={28} className="text-text-secondary/30" />
+            ) : (
+              <BookOpen size={28} className="text-text-secondary/30" />
+            )}
           </div>
-          <p className="text-text-primary font-semibold">No reading activity this month</p>
+          <p className="text-text-primary font-semibold">No {type === "series" ? "watching" : "reading"} activity this month</p>
           <p className="text-text-secondary text-sm max-w-xs">
-            Books with <span className="text-accent font-medium">Started From</span> or{" "}
+            {type === "series" ? "Series" : "Books"} with <span className="text-accent font-medium">Started From</span> or{" "}
             <span className="text-accent font-medium">Finished On</span> dates will appear here.
           </p>
         </div>

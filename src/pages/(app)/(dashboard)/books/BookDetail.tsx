@@ -25,8 +25,11 @@ import { get_full_image_url } from "../../../../@utils/api.utils";
 import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
+import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
-import { get_genre_display } from "../../../../@utils/genres";
+import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
+import { MultiSearchSelect } from "../../../../@components/@smart";
+const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
 interface Book {
   _id: string;
@@ -87,6 +90,7 @@ const BookDetail = () => {
     rating: 0,
     description: "",
     review: "",
+    genres: [] as string[],
     isPartOfSeries: false,
     series_name: "",
     series_number: 0
@@ -165,6 +169,7 @@ const BookDetail = () => {
         rating: book.rating || 0,
         description: book.description || "",
         review: book.review || "",
+        genres: (book.genres || []).map(get_genre_display),
         started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
         finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
         isPartOfSeries: !!book.series_name,
@@ -228,6 +233,7 @@ const BookDetail = () => {
         rating: modalData.rating,
         description: modalData.description,
         review: modalData.review,
+        genres: modalData.genres.map(get_genre_key),
         started_from: modalData.started_from || undefined,
         finished_on: modalData.finished_on || undefined,
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
@@ -246,6 +252,7 @@ const BookDetail = () => {
         rating: modalData.rating,
         description: modalData.description,
         review: modalData.review,
+        genres: modalData.genres.map(get_genre_key),
         started_from: modalData.started_from || undefined,
         finished_on: modalData.finished_on || undefined,
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
@@ -275,7 +282,8 @@ const BookDetail = () => {
       finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
-      series_number: book.series_number || 0
+      series_number: book.series_number || 0,
+      genres: (book.genres || []).map(get_genre_display)
     });
     setModalError(null);
     setIsStatusModalOpen(true);
@@ -297,7 +305,8 @@ const BookDetail = () => {
       finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
-      series_number: book.series_number || 0
+      series_number: book.series_number || 0,
+      genres: (book.genres || []).map(get_genre_display)
     });
     setModalError(null);
     setIsStatusModalOpen(true);
@@ -782,6 +791,25 @@ const BookDetail = () => {
                 </div>
               </div>
 
+              <MultiSearchSelect
+                label="Genres"
+                options={GENRE_OPTIONS}
+                selected={modalData.genres}
+                onToggle={(genre) => {
+                  setModalData(prev => ({
+                    ...prev,
+                    genres: prev.genres.includes(genre) ? prev.genres.filter(x => x !== genre) : [...prev.genres, genre]
+                  }));
+                }}
+                onRemove={(genre) => {
+                  setModalData(prev => ({
+                    ...prev,
+                    genres: prev.genres.filter(x => x !== genre)
+                  }));
+                }}
+                placeholder="Search genres..."
+              />
+
               {/* Series Information */}
               <div className="mt-2 mb-4 p-4 border border-border rounded-xl bg-surface/50">
                 <label className="flex items-center gap-3 cursor-pointer hover:bg-bg/50 transition-colors">
@@ -905,38 +933,13 @@ const BookDetail = () => {
           )}
         </div>
       </Modal>
-      {/* Delete Confirmation Modal */}
-      <Modal
+      <DeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
         title="Delete Book"
-        footer={
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() => setIsDeleteModalOpen(false)}
-              className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-95"
-            >
-              Delete Book
-            </button>
-          </div>
-        }
-      >
-        <div className="flex flex-col items-center text-center py-4">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-            <Trash2 size={32} className="text-red-500" />
-          </div>
-          <h3 className="text-text-primary text-lg font-bold mb-2">Are you sure?</h3>
-          <p className="text-text-secondary text-sm leading-relaxed">
-            This action cannot be undone. This will permanently delete <span className="text-text-primary font-semibold">"{book?.title}"</span> from your collection.
-          </p>
-        </div>
-      </Modal>
+        itemName={book?.title ?? ""}
+      />
     </div>
   );
 };

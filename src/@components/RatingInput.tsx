@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Star } from "lucide-react";
+import { get_rating_level } from "../@utils/api.utils";
 
 interface RatingInputProps {
   value: number;
@@ -62,6 +63,9 @@ const RatingInput: React.FC<RatingInputProps> = ({ value, onChange, label, error
           </div>
           <p className="text-[9px] text-text-secondary uppercase tracking-widest font-semibold italic opacity-60">
             Precision Rating
+          </p>
+          <p className="text-[10px] text-accent font-black uppercase tracking-tighter mt-1 bg-accent/10 px-2 py-0.5 rounded-full">
+            {get_rating_level(value)}
           </p>
         </div>
       </div>
