@@ -603,6 +603,12 @@ const AddBook = () => {
                             onClick={() => {
                               setFieldValue("status", status);
                               setStatusDropdownOpen(false);
+                              if (status === "reading" && !values.startedFrom) {
+                                setFieldValue("startedFrom", new Date().toISOString().split("T")[0]);
+                              }
+                              if (status === "read" && !values.finishedOn) {
+                                setFieldValue("finishedOn", new Date().toISOString().split("T")[0]);
+                              }
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
                               values.status === status

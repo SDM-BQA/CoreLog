@@ -156,9 +156,15 @@ const BookDetail = () => {
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
     
-    if (newStatus === "read") {
-      setCurrentStatus("read");
+    if (newStatus === "read" || newStatus === "reading") {
+      setCurrentStatus(newStatus);
       setEditView("status_update");
+      
+      const today = new Date().toLocaleDateString('en-CA');
+      const startedFrom = book.started_from 
+        ? new Date(book.started_from).toLocaleDateString('en-CA') 
+        : (newStatus === "reading" ? today : "");
+
       setModalData({
         title: book.title,
         author: book.author,
@@ -170,8 +176,8 @@ const BookDetail = () => {
         description: book.description || "",
         review: book.review || "",
         genres: (book.genres || []).map(get_genre_display),
-        started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
-        finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+        started_from: startedFrom,
+        finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : (newStatus === "read" ? today : ""),
         isPartOfSeries: !!book.series_name,
         series_name: book.series_name || "",
         series_number: book.series_number || 0
