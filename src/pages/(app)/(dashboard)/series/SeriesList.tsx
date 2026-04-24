@@ -7,6 +7,7 @@ import {
   Plus,
   LayoutGrid,
   List as ListIcon,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   MoreVertical,
@@ -16,7 +17,7 @@ import {
 import { get_my_series_query, SeriesFilter } from "../../../../@apis/series";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
-import { FilterDropdown } from "../../../../@components/@smart";
+import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
 
 export interface Series {
   _id: string;
@@ -31,6 +32,8 @@ export interface Series {
   release_year?: string;
   seasons: number;
   platform?: string;
+  started_from?: string;
+  finished_on?: string;
   created_at?: string;
 }
 
@@ -89,7 +92,7 @@ const SeriesList = () => {
   const [platformOptions, setPlatformOptions] = useState<string[]>([]);
 
   // State from URL
-  const [viewMode, setViewMode] = useState<"grid" | "list">(
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "platform">(
     (searchParams.get("view") as any) || "grid"
   );
   const [currentPage, setCurrentPage] = useState(
@@ -98,6 +101,10 @@ const SeriesList = () => {
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [committedSearch, setCommittedSearch] = useState(searchParams.get("search") || "");
+
+  // All series for calendar view (unpaginated)
+  const [allSeries, setAllSeries] = useState<Series[]>([]);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const [genreFilter, setGenreFilter] = useState<string[]>(
     searchParams.get("genres")?.split(",").filter(Boolean) || []
@@ -186,6 +193,23 @@ const SeriesList = () => {
     fetchMeta();
   }, []);
 
+  // Fetch ALL series (no pagination) when calendar or platform view is active
+  useEffect(() => {
+    if (viewMode !== "calendar" && viewMode !== "platform") return;
+    const fetchAll = async () => {
+      setIsCalendarLoading(true);
+      try {
+        const result = await get_my_series_query({ limit: 1000 });
+        setAllSeries(result.series as unknown as Series[]);
+      } catch (error) {
+        console.error("Error fetching all series for calendar:", error);
+      } finally {
+        setIsCalendarLoading(false);
+      }
+    };
+    fetchAll();
+  }, [viewMode]);
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -214,8 +238,8 @@ const SeriesList = () => {
   };
 
   return (
-    <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 min-h-full flex flex-col">
+    <div className="bg-bg flex-1 flex flex-col min-h-0">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 h-full flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -322,7 +346,7 @@ const SeriesList = () => {
         {/* View Toggle */}
         <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6 shrink-0">
           <div className="flex items-center gap-6 relative">
-            {(["grid", "list"] as const).map((mode) => (
+            {(["grid", "list", "calendar", "platform"] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -330,15 +354,15 @@ const SeriesList = () => {
                   viewMode === mode ? "text-accent" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
-                {mode === "grid" ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                {mode === "grid" ? "Grid" : "List"}
+                {mode === "grid" ? <LayoutGrid size={16} /> : mode === "list" ? <ListIcon size={16} /> : mode === "calendar" ? <CalendarDays size={16} /> : <Tv size={16} />}
+                {mode === "grid" ? "Grid" : mode === "list" ? "List" : mode === "calendar" ? "Calendar" : "Platform"}
               </button>
             ))}
             <div
               className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-in-out rounded-full"
               style={{
-                left: viewMode === "grid" ? "0px" : "70px",
-                width: viewMode === "grid" ? "54px" : "50px",
+                left: viewMode === "grid" ? "0px" : viewMode === "list" ? "70px" : viewMode === "calendar" ? "146px" : "252px",
+                width: viewMode === "grid" ? "54px" : viewMode === "list" ? "50px" : viewMode === "calendar" ? "88px" : "80px",
               }}
             />
           </div>
@@ -356,12 +380,114 @@ const SeriesList = () => {
 
         {/* Content Area */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 flex-1 min-h-0">
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar pr-2">
             {isLoading ? (
-              <div className="animate-reveal">
-                {viewMode === "grid" ? <GridSkeleton /> : <ListSkeleton />}
-              </div>
-            ) : seriesList.length === 0 ? (
+                <div className="animate-reveal">
+                  {viewMode === "grid" ? <GridSkeleton /> : viewMode === "list" ? <ListSkeleton /> : <GridSkeleton />}
+                </div>
+              ) : viewMode === "calendar" ? (
+                isCalendarLoading
+                  ? <GridSkeleton />
+                  : <CalendarView 
+                      books={allSeries.map(s => ({
+                        _id: s._id,
+                        title: s.title,
+                        cover_image: s.poster_image,
+                        started_from: (s as any).started_from,
+                        finished_on: (s as any).finished_on,
+                        status: s.status
+                      }))} 
+                      detailBasePath="/dashboard/series"
+                      type="series"
+                    />
+              ) : viewMode === "platform" ? (
+                isCalendarLoading
+                  ? <GridSkeleton />
+                  : (() => {
+                      const groups: Record<string, Series[]> = {};
+                      for (const series of allSeries) {
+                        const platform = series.platform || "Other";
+                        if (!groups[platform]) groups[platform] = [];
+                        groups[platform].push(series);
+                      }
+                      Object.values(groups).forEach(g => g.sort((a, b) => b.rating - a.rating));
+                      const sortedGroups = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+                      
+                      if (sortedGroups.length === 0) {
+                         return (
+                           <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+                             <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-4">
+                               <Tv className="text-text-secondary/40" size={32} />
+                             </div>
+                             <p className="text-text-primary font-semibold text-lg">No platforms found</p>
+                             <p className="text-text-secondary text-sm mt-1 max-w-sm mb-4">
+                               Add series with a platform to see them grouped here.
+                             </p>
+                           </div>
+                         );
+                      }
+
+                      return (
+                        <div className="flex flex-col gap-10 pb-8 animate-reveal">
+                          {sortedGroups.map(([platformName, seriesList]) => (
+                            <div key={platformName} className="flex flex-col gap-4">
+                              <h3 className="text-lg font-bold text-text-primary flex items-center gap-2 border-b border-border/50 pb-2">
+                                <Tv size={18} className="text-accent" />
+                                {platformName}
+                                <span className="text-xs font-semibold bg-surface border border-border px-2 py-0.5 rounded-full text-text-secondary ml-2">
+                                  {seriesList.length} Series
+                                </span>
+                              </h3>
+                              <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+                                {seriesList.map((series) => (
+                                  <Link
+                                    to={`/dashboard/series/${series._id}`}
+                                    key={series._id}
+                                    className="group shrink-0 w-32 sm:w-40 flex flex-col gap-3 cursor-pointer snap-start"
+                                  >
+                                    <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-lg border border-border/40 group-hover:border-accent/40 bg-surface">
+                                      <img
+                                        src={get_full_image_url(series.poster_image, "series")}
+                                        alt={series.title}
+                                        onError={(e) => { (e.target as HTMLImageElement).src = get_full_image_url(undefined, "series"); }}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                      />
+                                      <div className="absolute top-2 right-2 z-10">
+                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md border backdrop-blur-md shadow-lg uppercase tracking-widest ${
+                                          series.status === "watched" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                                          series.status === "watching" || series.status === "rewatching" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                          series.status === "watchlist" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                                          "bg-red-500/20 text-red-400 border-red-500/30"
+                                        }`}>
+                                          {STATUS_MAP[series.status]?.split(' ')[0] || series.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1 px-1">
+                                      <h4 className="text-text-primary text-[13px] font-bold leading-tight line-clamp-2 group-hover:text-accent transition-colors">
+                                        {series.title}
+                                      </h4>
+                                      <div className="flex items-center justify-between gap-1">
+                                        <span className="text-text-secondary text-[10px] truncate font-semibold uppercase">
+                                          {series.creator}
+                                        </span>
+                                        <div className="flex items-center gap-0.5 bg-accent/5 px-1 py-0.5 rounded border border-accent/10 shrink-0">
+                                          <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                                          <span className="text-white text-[9px] font-black">
+                                            {series.rating.toFixed(1)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()
+              ) : seriesList.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
                 <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-4">
                   <Tv className="text-text-secondary/40" size={32} />
@@ -494,8 +620,8 @@ const SeriesList = () => {
             )}
           </div>
 
-          {/* Pagination */}
-          {!isLoading && total > 0 && (
+          {/* Pagination — hidden in calendar and platform view */}
+          {!isLoading && total > 0 && viewMode !== "calendar" && viewMode !== "platform" && (
             <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0">
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
                 Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>

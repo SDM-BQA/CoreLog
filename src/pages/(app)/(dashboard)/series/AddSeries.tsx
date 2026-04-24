@@ -22,7 +22,12 @@ import { create_series_mutation } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import RatingInput from "../../../../@components/RatingInput";
-import { FeatureCard } from "../../../../@components/@smart";
+import { SearchDropdown, TMDBSeries, FeatureCard } from "../../../../@components/@smart";
+import { 
+  search_external_series_api, 
+  fetch_external_series_details_api,
+  fetch_external_series_providers_api 
+} from "../../../../@apis/series";
 import { toast } from "react-toast";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -32,9 +37,12 @@ interface AddSeriesForm {
   creator: string;
   genres: string[];
   description: string;
+  language: string;
+  origin_country: string;
   review: string;
   releaseYear: string;
   seasons: string;
+  episodes: string;
   platform: string;
   rating: number;
   status: string;
@@ -53,6 +61,19 @@ const STATUS_MAP = {
 type StatusKey = keyof typeof STATUS_MAP;
 const STATUS_OPTIONS = Object.keys(STATUS_MAP) as StatusKey[];
 
+const TMDB_GENRE_MAP: Record<number, string> = {
+  10759: "Action & Adventure",
+  16: "Animation",
+  35: "Comedy",
+  80: "Crime",
+  99: "Documentary",
+  18: "Drama",
+  9648: "Mystery",
+  10765: "Sci-Fi",
+  10768: "War",
+  37: "Western",
+};
+
 const AddSeries = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +84,13 @@ const AddSeries = () => {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [genreSearch, setGenreSearch] = useState("");
+  const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
+
+  // Search States
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<TMDBSeries[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { values, errors, handleChange, setFieldValue, handleSubmit } =
     useForm<AddSeriesForm>({
@@ -71,9 +99,12 @@ const AddSeries = () => {
         creator: "",
         genres: [],
         description: "",
+        language: "",
+        origin_country: "",
         review: "",
         releaseYear: "",
         seasons: "1",
+        episodes: "0",
         platform: "",
         rating: 0,
         status: "watchlist",
@@ -131,29 +162,37 @@ const AddSeries = () => {
           let poster_image = "";
           if (posterFile) {
             poster_image = await upload_image_api(posterFile);
+          } else if (remotePosterUrl) {
+            poster_image = remotePosterUrl;
           }
+
+          const started_from =
+            formValues.status !== "watchlist"
+              ? new Date(formValues.started_from).toISOString().split("T")[0]
+              : undefined;
+
+          const finished_on =
+            formValues.status === "watched" || formValues.status === "rewatching"
+              ? new Date(formValues.finished_on).toISOString().split("T")[0]
+              : undefined;
 
           await create_series_mutation({
             title: formValues.title,
-            creator: formValues.creator,
+            creator: formValues.language + " (" + formValues.origin_country + ")",
             description: formValues.description,
             genres: formValues.genres.map(get_genre_key),
             release_year: formValues.releaseYear,
             seasons: parseInt(formValues.seasons) || 1,
+            episodes: parseInt(formValues.episodes) || 0,
+            language: formValues.language,
+            origin_country: formValues.origin_country,
             status: formValues.status,
             rating: formValues.rating,
             review: formValues.review,
             poster_image,
             platform: formValues.platform,
-            started_from:
-              formValues.status !== "watchlist"
-                ? formValues.started_from
-                : undefined,
-            finished_on:
-              formValues.status === "watched" ||
-              formValues.status === "rewatching"
-                ? formValues.finished_on
-                : undefined,
+            started_from,
+            finished_on,
           });
 
           toast.success(`Series "${formValues.title}" added successfully!`);
@@ -170,11 +209,84 @@ const AddSeries = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setRemotePosterUrl(null);
       setPosterFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setPosterPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSearch = async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    setShowResults(true);
+    setIsSearching(true);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const items = await search_external_series_api(query);
+        setSearchResults(items);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+  };
+
+  const selectSeries = async (series: TMDBSeries) => {
+    setFieldValue("title", series.name);
+    setFieldValue("description", series.overview || "");
+    setFieldValue("releaseYear", series.first_air_date?.split("-")[0] || "");
+    setFieldValue("language", series.original_language?.toUpperCase() || "");
+    setFieldValue("origin_country", series.origin_country?.join(", ") || "");
+
+    if (series.genre_ids) {
+      const validGenres = series.genre_ids
+        .map((id) => TMDB_GENRE_MAP[id])
+        .filter((g): g is string => !!g);
+      setFieldValue("genres", validGenres.length > 0 ? validGenres : []);
+    }
+
+    if (series.poster_path) {
+      const url = `https://image.tmdb.org/t/p/w500${series.poster_path}`;
+      setPosterPreview(url);
+      setRemotePosterUrl(url);
+      setPosterFile(null);
+    }
+
+    // Fetch extra details for No. of Seasons & Platforms
+    try {
+      const [details, providers] = await Promise.all([
+        fetch_external_series_details_api(series.id),
+        fetch_external_series_providers_api(series.id)
+      ]);
+
+      if (details && details.number_of_seasons) {
+        setFieldValue("seasons", details.number_of_seasons.toString());
+      }
+
+      if (details && details.number_of_episodes) {
+        setFieldValue("episodes", details.number_of_episodes.toString());
+      }
+
+      if (providers && providers.flatrate && providers.flatrate.length > 0) {
+        // Use the first flatrate provider as the platform
+        setFieldValue("platform", providers.flatrate[0].provider_name);
+      }
+    } catch (error) {
+      console.error("Failed to fetch extra series info:", error);
+    }
+
+    setShowResults(false);
   };
 
   const handleGenreToggle = (genre: string) => {
@@ -278,21 +390,25 @@ const AddSeries = () => {
 
             {/* ─── Right Column: Fields ─── */}
             <div className="flex flex-col gap-6 flex-1 min-w-0">
-              {/* Title */}
-              <div>
+              {/* Series Title with Search */}
+              <div className="relative">
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Series Title
                 </label>
                 <div className="relative">
-                  <Tv
+                  <Search
                     size={18}
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
                   />
                   <input
                     type="text"
-                    placeholder="e.g. Breaking Bad"
+                    placeholder="Type series name to autofill..."
                     value={values.title}
-                    onChange={handleChange("title")}
+                    onChange={(e) => {
+                      handleChange("title")(e);
+                      handleSearch(e.target.value);
+                    }}
+                    onFocus={() => values.title.length >= 3 && setShowResults(true)}
                     className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
                       errors.title
                         ? "border-error focus:border-error focus:ring-error/20"
@@ -305,25 +421,56 @@ const AddSeries = () => {
                     {errors.title}
                   </p>
                 )}
+
+                {/* Search Results Dropdown */}
+                {showResults && (
+                  <SearchDropdown
+                    isSearching={isSearching}
+                    searchResults={searchResults}
+                    onSelect={selectSeries}
+                    onClose={() => setShowResults(false)}
+                    type="series"
+                  />
+                )}
               </div>
 
-              {/* Creator */}
-              <div>
-                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                  Creator / Director
-                </label>
-                <div className="relative">
-                  <User
-                    size={18}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="e.g. Vince Gilligan"
-                    value={values.creator}
-                    onChange={handleChange("creator")}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                  />
+              {/* Language & Country */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Language
+                  </label>
+                  <div className="relative">
+                    <Globe
+                      size={18}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. EN, KO"
+                      value={values.language}
+                      onChange={handleChange("language")}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Origin Country
+                  </label>
+                  <div className="relative">
+                    <Globe
+                      size={18}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. US, KR"
+                      value={values.origin_country}
+                      onChange={handleChange("origin_country")}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -387,6 +534,34 @@ const AddSeries = () => {
                   {errors.seasons && (
                     <p className="text-error text-xs mt-1.5 pl-1">
                       {errors.seasons}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Total Episodes
+                  </label>
+                  <div className="relative">
+                    <PlayCircle
+                      size={18}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                    />
+                    <input
+                      type="number"
+                      placeholder="e.g. 62"
+                      value={values.episodes}
+                      onChange={handleChange("episodes")}
+                      className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
+                        errors.episodes
+                          ? "border-error focus:border-error focus:ring-error/20"
+                          : "border-border focus:border-accent"
+                      }`}
+                    />
+                  </div>
+                  {errors.episodes && (
+                    <p className="text-error text-xs mt-1.5 pl-1">
+                      {errors.episodes}
                     </p>
                   )}
                 </div>

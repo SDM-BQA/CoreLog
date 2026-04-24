@@ -23,7 +23,7 @@ import {
   delete_series_mutation 
 } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
-import { get_full_image_url, get_rating_level } from "../../../../@utils/api.utils";
+import { get_full_image_url, get_rating_level, get_language_name, get_country_name } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
 import DeleteModal from "../../../../@components/DeleteModal";
@@ -38,6 +38,9 @@ interface Series {
   genres: string[];
   release_year: string;
   seasons: number;
+  episodes: number;
+  language: string;
+  origin_country: string;
   status: "watchlist" | "watching" | "rewatching" | "watched" | "not_finished";
   rating: number;
   review?: string;
@@ -83,6 +86,9 @@ const SeriesDetail = () => {
     creator: "",
     release_year: "",
     seasons: 1,
+    episodes: 0,
+    language: "",
+    origin_country: "",
     status: "",
     genres: [] as string[],
     platform: "",
@@ -143,6 +149,9 @@ const SeriesDetail = () => {
           creator: data.creator,
           release_year: data.release_year,
           seasons: data.seasons,
+          episodes: data.episodes || 0,
+          language: data.language || "",
+          origin_country: data.origin_country || "",
           status: data.status,
           genres: data.genres.map(get_genre_display),
           platform: data.platform || "",
@@ -175,6 +184,9 @@ const SeriesDetail = () => {
           creator: series.creator,
           release_year: series.release_year,
           seasons: series.seasons,
+          episodes: series.episodes || 0,
+          language: series.language || "",
+          origin_country: series.origin_country || "",
           status: newStatus,
           genres: series.genres.map(get_genre_display),
           platform: series.platform || "",
@@ -215,6 +227,8 @@ const SeriesDetail = () => {
     const payload: any = { ...modalData };
     // Map genres to keys
     payload.genres = modalData.genres.map(get_genre_key);
+    // Keep creator in sync for legacy display if needed
+    payload.creator = `${modalData.language} (${modalData.origin_country})`;
     updateSeries(payload);
   };
 
@@ -260,6 +274,9 @@ const SeriesDetail = () => {
         creator: series.creator,
         release_year: series.release_year,
         seasons: series.seasons,
+        episodes: series.episodes || 0,
+        language: series.language || "",
+        origin_country: series.origin_country || "",
         status: series.status,
         genres: series.genres.map(get_genre_display),
         platform: series.platform || "",
@@ -352,9 +369,16 @@ const SeriesDetail = () => {
               </span>
             </div>
 
-            <div className="flex items-center justify-center sm:justify-start gap-2 text-text-primary text-lg font-medium mb-6">
-              <User size={18} className="text-text-secondary" />
-              {series.creator}
+            <div className="flex items-center justify-center sm:justify-start gap-4 text-text-primary text-lg font-medium mb-6">
+              <div className="flex items-center gap-2">
+                <Globe size={18} className="text-text-secondary" />
+                <span className="capitalize">{get_language_name(series.language)}</span>
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <span className="text-text-secondary text-sm">Origin:</span>
+                <span className="capitalize">{get_country_name(series.origin_country)}</span>
+              </div>
             </div>
 
             {/* Actions Row */}
@@ -419,6 +443,14 @@ const SeriesDetail = () => {
                 <div className="flex items-center gap-1.5 text-text-primary">
                   <Clapperboard size={14} className="text-text-secondary" />
                   {series.seasons}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Episodes</span>
+                <div className="flex items-center gap-1.5 text-text-primary">
+                  <PlayCircle size={14} className="text-text-secondary" />
+                  {series.episodes || 0}
                 </div>
               </div>
 
@@ -568,8 +600,12 @@ const SeriesDetail = () => {
                   {modalErrors.title && <p className="text-error text-xs mt-1.5 pl-1">{modalErrors.title}</p>}
                 </div>
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Creator</label>
-                  <input type="text" placeholder="e.g. Vince Gilligan" value={modalData.creator} onChange={e => setModalData({...modalData, creator: e.target.value})} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none" />
+                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Language</label>
+                  <input type="text" placeholder="e.g. EN, KO" value={modalData.language} onChange={e => setModalData({...modalData, language: e.target.value.toUpperCase()})} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none" />
+                </div>
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Origin Country</label>
+                  <input type="text" placeholder="e.g. US, KR" value={modalData.origin_country} onChange={e => setModalData({...modalData, origin_country: e.target.value.toUpperCase()})} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -594,6 +630,10 @@ const SeriesDetail = () => {
                   <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Seasons</label>
                   <input type="number" value={modalData.seasons} onChange={e => setModalData({...modalData, seasons: parseInt(e.target.value) || 1})} className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.seasons ? "border-error focus:border-error focus:ring-error/20" : "border-border focus:border-accent"}`} />
                   {modalErrors.seasons && <p className="text-error text-xs mt-1.5 pl-1">{modalErrors.seasons}</p>}
+                </div>
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Episodes</label>
+                  <input type="number" value={modalData.episodes} onChange={e => setModalData({...modalData, episodes: parseInt(e.target.value) || 0})} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4">

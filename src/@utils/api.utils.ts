@@ -70,11 +70,12 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
 }
 
 
-export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" = "user"): string => {
+export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" | "movie" = "user"): string => {
     if (!path) {
         let defaultPath = "/profile_pic.jpg";
         if (type === "book") defaultPath = "/default_book_cover.png";
-        if (type === "series") defaultPath = "/default_book_cover.png"; // Using book cover as fallback for now
+        if (type === "series") defaultPath = "/default_series_cover.png";
+        if (type === "movie") defaultPath = "/default_series_cover.png"; // Using series cover for now until movie cover is made
         return `${api_configs.server_url}${defaultPath}`;
     }
     
@@ -99,6 +100,30 @@ export const get_rating_level = (rating: number): string => {
     if (rating >= 2.5) return "Average";
     if (rating >= 1.5) return "Poor";
     return "Awful";
+};
+
+export const get_language_name = (code: string | undefined): string => {
+    if (!code) return "N/A";
+    try {
+        const langNames = new Intl.DisplayNames(['en'], { type: 'language' });
+        return langNames.of(code.toLowerCase()) || code.toUpperCase();
+    } catch (e) {
+        return code.toUpperCase();
+    }
+};
+
+export const get_country_name = (code: string | undefined): string => {
+    if (!code) return "N/A";
+    try {
+        const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+        // Handle multiple countries if separated by comma
+        return code.split(',').map(c => {
+            const trimmed = c.trim().toUpperCase();
+            return regionNames.of(trimmed) || trimmed;
+        }).join(', ');
+    } catch (e) {
+        return code.toUpperCase();
+    }
 };
 
 

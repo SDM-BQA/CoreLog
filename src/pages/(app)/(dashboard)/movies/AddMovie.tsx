@@ -9,8 +9,15 @@ import {
   Eye,
   LayoutList,
   Calendar,
+  Globe,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
+import { SearchDropdown, TMDBMovie } from "../../../../@components/@smart";
+import { 
+  search_external_movies_api, 
+  fetch_external_movie_providers_api 
+} from "../../../../@apis/movies";
+import { Search } from "lucide-react";
 
 const GENRE_OPTIONS = [
   "Action",
@@ -38,9 +45,28 @@ interface AddMovieForm {
   releaseYear: string;
   rating: number;
   status: string;
+  platform: string;
 }
 
 const STATUS_OPTIONS = ["Watchlist", "Watching", "Watched", "Not Finished"];
+
+const TMDB_GENRE_MAP: Record<number, string> = {
+  28: "Action",
+  12: "Adventure",
+  16: "Animation",
+  35: "Comedy",
+  80: "Crime",
+  99: "Documentary",
+  18: "Drama",
+  14: "Fantasy",
+  27: "Horror",
+  9648: "Mystery",
+  10749: "Romance",
+  878: "Sci-Fi",
+  53: "Thriller",
+  10752: "War",
+  37: "Western",
+};
 
 const AddMovie = () => {
   const { values, errors, handleChange, setFieldValue, handleSubmit } =
@@ -53,6 +79,7 @@ const AddMovie = () => {
         releaseYear: "",
         rating: 4,
         status: "Watchlist",
+        platform: "",
       },
       validationSchema: {
         title: (val) => (val ? null : "Title is required"),
@@ -75,7 +102,14 @@ const AddMovie = () => {
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Search States
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<TMDBMovie[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleGenreToggle = (genre: string) => {
     const currentGenres = values.genres;
@@ -99,10 +133,67 @@ const AddMovie = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setRemotePosterUrl(null);
       const reader = new FileReader();
       reader.onloadend = () => setPosterPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSearch = async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    setShowResults(true);
+    setIsSearching(true);
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const items = await search_external_movies_api(query);
+        setSearchResults(items);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+  };
+
+  const selectMovie = async (movie: TMDBMovie) => {
+    setFieldValue("title", movie.title);
+    setFieldValue("description", movie.overview || "");
+    setFieldValue("releaseYear", movie.release_date?.split("-")[0] || "");
+
+    if (movie.genre_ids) {
+      const validGenres = movie.genre_ids
+        .map((id) => TMDB_GENRE_MAP[id])
+        .filter((g): g is string => !!g);
+      setFieldValue("genres", validGenres.length > 0 ? validGenres : []);
+    }
+
+    if (movie.poster_path) {
+      const url = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+      setPosterPreview(url);
+      setRemotePosterUrl(url);
+    }
+
+    // Fetch Providers
+    try {
+      const providers = await fetch_external_movie_providers_api(movie.id);
+      if (providers && providers.flatrate && providers.flatrate.length > 0) {
+        setFieldValue("platform", providers.flatrate[0].provider_name);
+      }
+    } catch (error) {
+      console.error("Failed to fetch movie providers:", error);
+    }
+
+    setShowResults(false);
   };
 
   const activeRating = hoverRating || values.rating;
@@ -206,26 +297,47 @@ const AddMovie = () => {
 
             {/* ─── Right Column: Textual Data & Metadata ─── */}
             <div className="flex flex-col gap-6 flex-1 min-w-0">
-              {/* Movie Title */}
-              <div>
+              {/* Movie Title with Search */}
+              <div className="relative">
                 <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
                   Movie Title
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Inception"
-                  value={values.title}
-                  onChange={handleChange("title")}
-                  className={`w-full bg-bg border rounded-xl py-3 px-4 text-text-primary text-base placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
-                    errors.title
-                      ? "border-error focus:border-error focus:ring-error/20"
-                      : "border-border focus:border-accent"
-                  }`}
-                />
+                <div className="relative">
+                  <Search
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Type movie name to autofill..."
+                    value={values.title}
+                    onChange={(e) => {
+                      handleChange("title")(e);
+                      handleSearch(e.target.value);
+                    }}
+                    onFocus={() => values.title.length >= 3 && setShowResults(true)}
+                    className={`w-full bg-bg border rounded-xl py-3 pl-11 pr-4 text-text-primary text-base placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all ${
+                      errors.title
+                        ? "border-error focus:border-error focus:ring-error/20"
+                        : "border-border focus:border-accent"
+                    }`}
+                  />
+                </div>
                 {errors.title && (
                   <p className="text-error text-xs mt-1.5 pl-1">
                     {errors.title}
                   </p>
+                )}
+
+                {/* Search Results Dropdown */}
+                {showResults && (
+                  <SearchDropdown
+                    isSearching={isSearching}
+                    searchResults={searchResults}
+                    onSelect={selectMovie}
+                    onClose={() => setShowResults(false)}
+                    type="movie"
+                  />
                 )}
               </div>
 
@@ -309,6 +421,26 @@ const AddMovie = () => {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Streaming Platform */}
+              <div>
+                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                  Streaming Platform
+                </label>
+                <div className="relative">
+                  <Globe
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="e.g. Netflix, Prime Video"
+                    value={values.platform}
+                    onChange={handleChange("platform")}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                  />
                 </div>
               </div>
 

@@ -381,6 +381,7 @@ const AddBook = () => {
                     searchResults={searchResults}
                     onSelect={selectBook}
                     onClose={() => setShowResults(false)}
+                    type="book"
                   />
                 )}
               </div>

@@ -5,6 +5,7 @@ export const CREATE_SERIES_MUTATION = `
       title
       creator
       poster_image
+      created_at
     }
   }
 `;
@@ -22,7 +23,13 @@ export const GET_MY_SERIES_QUERY = `
         status
         release_year
         seasons
+        episodes
+        language
+        origin_country
         platform
+        started_from
+        finished_on
+        created_at
       }
       total_count
       current_page
@@ -42,6 +49,9 @@ export const GET_SERIES_QUERY = `
       genres
       release_year
       seasons
+      episodes
+      language
+      origin_country
       status
       rating
       review
@@ -64,6 +74,9 @@ export const UPDATE_SERIES_MUTATION = `
       genres
       release_year
       seasons
+      episodes
+      language
+      origin_country
       status
       rating
       review
