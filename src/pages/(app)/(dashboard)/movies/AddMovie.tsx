@@ -10,32 +10,15 @@ import {
   LayoutList,
   Calendar,
   Globe,
+  Search,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
-import { SearchDropdown, TMDBMovie } from "../../../../@components/@smart";
+import { SearchDropdown, MultiSearchSelect, TMDBMovie } from "../../../../@components/@smart";
 import { 
   search_external_movies_api, 
   fetch_external_movie_providers_api 
 } from "../../../../@apis/movies";
-import { Search } from "lucide-react";
 
-const GENRE_OPTIONS = [
-  "Action",
-  "Adventure",
-  "Animation",
-  "Comedy",
-  "Crime",
-  "Documentary",
-  "Drama",
-  "Fantasy",
-  "Horror",
-  "Mystery",
-  "Romance",
-  "Sci-Fi",
-  "Thriller",
-  "War",
-  "Western",
-];
 
 interface AddMovieForm {
   title: string;
@@ -99,7 +82,6 @@ const AddMovie = () => {
     });
 
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,20 +92,7 @@ const AddMovie = () => {
   const [showResults, setShowResults] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleGenreToggle = (genre: string) => {
-    const currentGenres = values.genres;
-    const newGenres = currentGenres.includes(genre)
-      ? currentGenres.filter((g) => g !== genre)
-      : [...currentGenres, genre];
-    setFieldValue("genres", newGenres);
-  };
 
-  const handleGenreRemove = (genre: string) => {
-    setFieldValue(
-      "genres",
-      values.genres.filter((g) => g !== genre),
-    );
-  };
 
   const handlePosterClick = () => {
     fileInputRef.current?.click();
@@ -132,7 +101,6 @@ const AddMovie = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setRemotePosterUrl(null);
       const reader = new FileReader();
       reader.onloadend = () => setPosterPreview(reader.result as string);
       reader.readAsDataURL(file);
@@ -179,7 +147,6 @@ const AddMovie = () => {
     if (movie.poster_path) {
       const url = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
       setPosterPreview(url);
-      setRemotePosterUrl(url);
     }
 
     // Fetch Providers
@@ -443,71 +410,21 @@ const AddMovie = () => {
                 </div>
               </div>
 
-              {/* Genre */}
-              <div className="relative">
-                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                  Genres
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
-                  className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                >
-                  <span className="text-text-secondary/70">
-                    Select genres to categorize...
-                  </span>
-                  <ChevronDown
-                    size={18}
-                    className={`text-text-secondary transition-transform duration-200 ${genreDropdownOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {errors.genres && (
-                  <p className="text-error text-xs mt-1.5 pl-1">
-                    {errors.genres}
-                  </p>
-                )}
-
-                {/* Genre Dropdown */}
-                {genreDropdownOpen && (
-                  <div className="absolute z-20 top-[calc(100%+4px)] left-0 w-full bg-surface border border-border rounded-xl shadow-lg shadow-black/5 max-h-56 overflow-y-auto py-1">
-                    {GENRE_OPTIONS.map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => handleGenreToggle(genre)}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                          values.genres.includes(genre)
-                            ? "bg-accent/10 text-accent font-medium"
-                            : "text-text-primary hover:bg-bg"
-                        }`}
-                      >
-                        {genre}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Selected Genre Tags */}
-                {values.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {values.genres.map((genre) => (
-                      <span
-                        key={genre}
-                        className="inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-semibold px-3 py-1.5 rounded-lg"
-                      >
-                        {genre}
-                        <button
-                          type="button"
-                          onClick={() => handleGenreRemove(genre)}
-                          className="hover:text-error hover:bg-error/10 rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MultiSearchSelect
+                label="Genres"
+                options={Object.values(TMDB_GENRE_MAP)}
+                selected={values.genres}
+                onToggle={(genre) => {
+                  const currentGenres = values.genres;
+                  const newGenres = currentGenres.includes(genre)
+                    ? currentGenres.filter((g) => g !== genre)
+                    : [...currentGenres, genre];
+                  setFieldValue("genres", newGenres);
+                }}
+                onRemove={(genre) => setFieldValue("genres", values.genres.filter(g => g !== genre))}
+                error={errors.genres}
+                placeholder="Search & select genres..."
+              />
 
               {/* Description / Synopsis */}
               <div>

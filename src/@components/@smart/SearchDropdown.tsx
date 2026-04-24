@@ -32,6 +32,7 @@ export interface TMDBMovie {
   genre_ids: number[];
   poster_path: string | null;
   vote_average: number;
+  original_language?: string;
 }
 
 /**

@@ -13,7 +13,6 @@ import {
   Clapperboard,
   Check,
   ChevronDown,
-  X,
   Search,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
@@ -21,7 +20,7 @@ import { create_series_mutation } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import RatingInput from "../../../../@components/RatingInput";
-import { SearchDropdown, TMDBSeries, FeatureCard } from "../../../../@components/@smart";
+import { TMDBSeries, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import { 
   search_external_series_api, 
   fetch_external_series_details_api,
@@ -81,8 +80,6 @@ const AddSeries = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
-  const [genreSearch, setGenreSearch] = useState("");
   const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
 
   // Search States
@@ -245,8 +242,25 @@ const AddSeries = () => {
     setFieldValue("title", series.name);
     setFieldValue("description", series.overview || "");
     setFieldValue("releaseYear", series.first_air_date?.split("-")[0] || "");
-    setFieldValue("language", series.original_language?.toUpperCase() || "");
-    setFieldValue("origin_country", series.origin_country?.join(", ") || "");
+    if (series.original_language) {
+      try {
+        const langName = new Intl.DisplayNames(['en'], { type: 'language' }).of(series.original_language);
+        setFieldValue("language", langName || series.original_language.toUpperCase());
+      } catch {
+        setFieldValue("language", series.original_language.toUpperCase());
+      }
+    }
+
+    if (series.origin_country && series.origin_country.length > 0) {
+      try {
+        const countryNames = series.origin_country.map(code => 
+          new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code
+        );
+        setFieldValue("origin_country", countryNames.join(", "));
+      } catch {
+        setFieldValue("origin_country", series.origin_country.join(", "));
+      }
+    }
 
     if (series.genre_ids) {
       const validGenres = series.genre_ids
@@ -288,20 +302,6 @@ const AddSeries = () => {
     setShowResults(false);
   };
 
-  const handleGenreToggle = (genre: string) => {
-    const current = values.genres;
-    const next = current.includes(genre)
-      ? current.filter((g) => g !== genre)
-      : [...current, genre];
-    setFieldValue("genres", next);
-  };
-
-  const handleGenreRemove = (genre: string) => {
-    setFieldValue(
-      "genres",
-      values.genres.filter((g) => g !== genre),
-    );
-  };
 
   const showStartDate =
     values.status === "watching" ||
@@ -710,110 +710,21 @@ const AddSeries = () => {
                 )}
               </div>
 
-              {/* Genres */}
-              <div className="relative">
-                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                  Genres
-                </label>
-                <div
-                  className={`w-full bg-bg border rounded-xl flex items-center gap-2 px-4 transition-all ${
-                    errors.genres
-                      ? "border-error"
-                      : genreDropdownOpen
-                        ? "border-accent ring-2 ring-accent/20"
-                        : "border-border"
-                  }`}
-                >
-                  <Search
-                    size={14}
-                    className="text-text-secondary/50 shrink-0"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Search & select genres..."
-                    value={genreSearch}
-                    onFocus={() => setGenreDropdownOpen(true)}
-                    onChange={(e) => {
-                      setGenreSearch(e.target.value);
-                      setGenreDropdownOpen(true);
-                    }}
-                    className="flex-1 bg-transparent py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none"
-                  />
-                  <ChevronDown
-                    size={16}
-                    className={`text-text-secondary/60 shrink-0 transition-transform duration-200 ${
-                      genreDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </div>
-                {errors.genres && (
-                  <p className="text-error text-xs mt-1.5 pl-1">
-                    {errors.genres}
-                  </p>
-                )}
-                {genreDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-20"
-                      onClick={() => {
-                        setGenreDropdownOpen(false);
-                        setGenreSearch("");
-                      }}
-                    />
-                    <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden">
-                      <div className="max-h-52 overflow-y-auto py-1">
-                        {GENRE_OPTIONS.filter((g) =>
-                          g.toLowerCase().includes(genreSearch.toLowerCase()),
-                        ).length === 0 ? (
-                          <p className="text-text-secondary/60 text-xs text-center py-4 italic">
-                            No genres match "{genreSearch}"
-                          </p>
-                        ) : (
-                          GENRE_OPTIONS.filter((g) =>
-                            g.toLowerCase().includes(genreSearch.toLowerCase()),
-                          ).map((genre) => {
-                            const isSelected = values.genres.includes(genre);
-                            return (
-                              <button
-                                key={genre}
-                                type="button"
-                                onClick={() => handleGenreToggle(genre)}
-                                className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
-                                  isSelected
-                                    ? "bg-accent/10 text-accent font-semibold"
-                                    : "text-text-primary hover:bg-bg"
-                                }`}
-                              >
-                                {genre}
-                                {isSelected && <Check size={16} />}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-                {values.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {values.genres.map((genre) => (
-                      <span
-                        key={genre}
-                        className="inline-flex items-center gap-1.5 bg-accent/10 border border-accent/20 text-accent text-xs font-semibold px-3 py-1.5 rounded-lg animate-in fade-in slide-in-from-bottom-1 duration-200"
-                      >
-                        {genre}
-                        <button
-                          type="button"
-                          onClick={() => handleGenreRemove(genre)}
-                          className="hover:bg-error hover:text-white text-accent/70 rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MultiSearchSelect
+                label="Genres"
+                options={GENRE_OPTIONS}
+                selected={values.genres}
+                onToggle={(genre) => {
+                  const current = values.genres;
+                  const next = current.includes(genre)
+                    ? current.filter((g) => g !== genre)
+                    : [...current, genre];
+                  setFieldValue("genres", next);
+                }}
+                onRemove={(genre) => setFieldValue("genres", values.genres.filter(g => g !== genre))}
+                error={errors.genres}
+                placeholder="Search & select genres..."
+              />
 
               {/* Synopsis */}
               <div>
