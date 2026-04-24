@@ -45,6 +45,8 @@ export interface TMDBSeries {
   genre_ids: number[];
   poster_path: string | null;
   vote_average: number;
+  original_language?: string;
+  origin_country?: string[];
 }
 
 type SearchResult = GoogleBook | TMDBMovie | TMDBSeries;

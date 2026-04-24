@@ -4,7 +4,6 @@ import {
   ImagePlus,
   PlusCircle,
   Tv,
-  User,
   Calendar,
   Globe,
   PlayCircle,

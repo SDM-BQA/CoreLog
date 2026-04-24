@@ -102,7 +102,6 @@ const AddMovie = () => {
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
-  const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search States

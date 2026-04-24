@@ -8,7 +8,6 @@ import {
   Trash2,
   Tv,
   ChevronDown,
-  User,
   CalendarPlus,
   PlayCircle,
   CheckCircle2,

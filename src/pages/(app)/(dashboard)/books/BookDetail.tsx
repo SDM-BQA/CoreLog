@@ -27,7 +27,9 @@ import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
-import { get_genre_display } from "../../../../@utils/genres";
+import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
+import { MultiSearchSelect } from "../../../../@components/@smart";
+const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
 interface Book {
   _id: string;
@@ -88,6 +90,7 @@ const BookDetail = () => {
     rating: 0,
     description: "",
     review: "",
+    genres: [] as string[],
     isPartOfSeries: false,
     series_name: "",
     series_number: 0
@@ -166,6 +169,7 @@ const BookDetail = () => {
         rating: book.rating || 0,
         description: book.description || "",
         review: book.review || "",
+        genres: (book.genres || []).map(get_genre_display),
         started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
         finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
         isPartOfSeries: !!book.series_name,
@@ -229,6 +233,7 @@ const BookDetail = () => {
         rating: modalData.rating,
         description: modalData.description,
         review: modalData.review,
+        genres: modalData.genres.map(get_genre_key),
         started_from: modalData.started_from || undefined,
         finished_on: modalData.finished_on || undefined,
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
@@ -247,6 +252,7 @@ const BookDetail = () => {
         rating: modalData.rating,
         description: modalData.description,
         review: modalData.review,
+        genres: modalData.genres.map(get_genre_key),
         started_from: modalData.started_from || undefined,
         finished_on: modalData.finished_on || undefined,
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
@@ -276,7 +282,8 @@ const BookDetail = () => {
       finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
-      series_number: book.series_number || 0
+      series_number: book.series_number || 0,
+      genres: (book.genres || []).map(get_genre_display)
     });
     setModalError(null);
     setIsStatusModalOpen(true);
@@ -298,7 +305,8 @@ const BookDetail = () => {
       finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
-      series_number: book.series_number || 0
+      series_number: book.series_number || 0,
+      genres: (book.genres || []).map(get_genre_display)
     });
     setModalError(null);
     setIsStatusModalOpen(true);
@@ -782,6 +790,25 @@ const BookDetail = () => {
                   />
                 </div>
               </div>
+
+              <MultiSearchSelect
+                label="Genres"
+                options={GENRE_OPTIONS}
+                selected={modalData.genres}
+                onToggle={(genre) => {
+                  setModalData(prev => ({
+                    ...prev,
+                    genres: prev.genres.includes(genre) ? prev.genres.filter(x => x !== genre) : [...prev.genres, genre]
+                  }));
+                }}
+                onRemove={(genre) => {
+                  setModalData(prev => ({
+                    ...prev,
+                    genres: prev.genres.filter(x => x !== genre)
+                  }));
+                }}
+                placeholder="Search genres..."
+              />
 
               {/* Series Information */}
               <div className="mt-2 mb-4 p-4 border border-border rounded-xl bg-surface/50">
