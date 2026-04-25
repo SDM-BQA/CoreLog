@@ -15,7 +15,6 @@ import {
   Clock,
   Tag,
   Globe,
-  User,
 } from "lucide-react";
 import {
   get_movie_query,
