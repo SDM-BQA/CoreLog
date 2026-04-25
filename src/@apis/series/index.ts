@@ -38,7 +38,7 @@ export interface SeriesFilter {
     status?: string[];
     rating?: number;
     creator?: string;
-    platform?: string;
+    platforms?: string[];
     page?: number;
     limit?: number;
 }
@@ -104,6 +104,7 @@ export interface SeriesFilters {
     genres: string[];
     statuses: string[];
     creators: string[];
+    platforms: string[];
 }
 
 export const get_series_filters_query = async (): Promise<SeriesFilters> => {
