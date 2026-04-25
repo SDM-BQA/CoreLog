@@ -102,3 +102,15 @@ mutation Update_user_account($id: ID!, $input: UpdateUserInput!) {
 }
 `
 
+
+export const GET_DASHBOARD_STATS_QUERY = `
+query Get_dashboard_stats {
+  get_dashboard_stats {
+    movies
+    series
+    books
+    poems
+    journal_entries
+  }
+}
+`

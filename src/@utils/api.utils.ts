@@ -70,12 +70,14 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
 }
 
 
-export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" | "movie" = "user"): string => {
+export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" | "movie" | "poetry" | "poem" = "user"): string => {
     if (!path) {
         let defaultPath = "/profile_pic.jpg";
         if (type === "book") defaultPath = "/default_book_cover.png";
         if (type === "series") defaultPath = "/default_series_cover.png";
-        if (type === "movie") defaultPath = "/default_series_cover.png"; // Using series cover for now until movie cover is made
+        if (type === "movie") defaultPath = "/default_series_cover.png";
+        if (type === "poetry") defaultPath = "/default_poetry_cover.png";
+        if (type === "poem") defaultPath = "/default_poem_cover.png";
         return `${api_configs.server_url}${defaultPath}`;
     }
     

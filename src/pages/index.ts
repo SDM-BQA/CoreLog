@@ -18,6 +18,7 @@ import SeriesDetail from "./(app)/(dashboard)/series/SeriesDetail";
 import Journal from "./(app)/(dashboard)/journal/Journal";
 import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
 import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
+import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
 import Settings from "./(app)/(dashboard)/settings/Settings";
 import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
@@ -104,6 +105,10 @@ const router = createBrowserRouter([
             {
                 path: "poetry/add-poem",
                 Component: AddPoem,
+            },
+            {
+                path: "poetry/:id",
+                Component: PoetryDetail,
             },
             {
                 path: "settings",

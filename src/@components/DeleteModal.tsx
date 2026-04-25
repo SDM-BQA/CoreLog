@@ -7,9 +7,10 @@ interface DeleteModalProps {
   onConfirm: () => void;
   title: string;
   itemName: string;
+  isLoading?: boolean;
 }
 
-const DeleteModal = ({ isOpen, onClose, onConfirm, title, itemName }: DeleteModalProps) => {
+const DeleteModal = ({ isOpen, onClose, onConfirm, title, itemName, isLoading }: DeleteModalProps) => {
   return (
     <Modal
       isOpen={isOpen}
@@ -25,9 +26,17 @@ const DeleteModal = ({ isOpen, onClose, onConfirm, title, itemName }: DeleteModa
           </button>
           <button
             onClick={onConfirm}
-            className="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-95"
+            disabled={isLoading}
+            className="bg-red-500 hover:bg-red-600 disabled:opacity-70 disabled:cursor-not-allowed text-white text-sm font-semibold px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-95 flex items-center gap-2"
           >
-            {title}
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              title
+            )}
           </button>
         </div>
       }
