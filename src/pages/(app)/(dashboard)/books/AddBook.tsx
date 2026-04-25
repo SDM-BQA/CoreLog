@@ -67,6 +67,7 @@ const validationSchema = {
     if (!val) return "Publication year is required";
     if (parseInt(val) > new Date().getFullYear())
       return "Year cannot be in the future";
+    if (isNaN(Number(val)) || Number(val) < 1800) return "Invalid year";
     return null;
   },
   genres: (val: string[]) => (val.length > 0 ? null : "Genres is required"),

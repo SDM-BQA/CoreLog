@@ -1,29 +1,27 @@
-export const CREATE_SERIES_MUTATION = `
-  mutation CreateSeries($input: CreateSeriesInput!) {
-    create_series(input: $input) {
+export const CREATE_MOVIE_MUTATION = `
+  mutation CreateMovie($input: CreateMovieInput!) {
+    create_movie(input: $input) {
       _id
       title
-      creator
       poster_image
       created_at
     }
   }
 `;
 
-export const GET_MY_SERIES_QUERY = `
-  query GetMySeries($filter: SeriesFilter) {
-    get_my_series(filter: $filter) {
-      series {
+export const GET_MY_MOVIES_QUERY = `
+  query GetMyMovies($filter: MovieFilter) {
+    get_my_movies(filter: $filter) {
+      movies {
         _id
         title
-        creator
+        director
         poster_image
         rating
         genres
         status
         release_year
-        seasons
-        episodes
+        runtime
         language
         origin_country
         platform
@@ -39,17 +37,16 @@ export const GET_MY_SERIES_QUERY = `
   }
 `;
 
-export const GET_SERIES_QUERY = `
-  query GetSeries($id: ID!) {
-    get_series(id: $id) {
+export const GET_MOVIE_QUERY = `
+  query GetMovie($id: ID!) {
+    get_movie(id: $id) {
       _id
       title
-      creator
+      director
       description
       genres
       release_year
-      seasons
-      episodes
+      runtime
       language
       origin_country
       status
@@ -64,17 +61,16 @@ export const GET_SERIES_QUERY = `
   }
 `;
 
-export const UPDATE_SERIES_MUTATION = `
-  mutation UpdateSeries($id: ID!, $input: UpdateSeriesInput!) {
-    update_series(id: $id, input: $input) {
+export const UPDATE_MOVIE_MUTATION = `
+  mutation UpdateMovie($id: ID!, $input: UpdateMovieInput!) {
+    update_movie(id: $id, input: $input) {
       _id
       title
-      creator
+      director
       description
       genres
       release_year
-      seasons
-      episodes
+      runtime
       language
       origin_country
       status
@@ -88,19 +84,20 @@ export const UPDATE_SERIES_MUTATION = `
   }
 `;
 
-export const DELETE_SERIES_MUTATION = `
-  mutation DeleteSeries($id: ID!) {
-    delete_series(id: $id)
+export const DELETE_MOVIE_MUTATION = `
+  mutation DeleteMovie($id: ID!) {
+    delete_movie(id: $id)
   }
 `;
 
-export const GET_SERIES_FILTERS_QUERY = `
-  query GetSeriesFilters {
-    get_series_filters {
+export const GET_MOVIE_FILTERS_QUERY = `
+  query GetMovieFilters {
+    get_movie_filters {
       genres
       statuses
-      creators
+      languages
       platforms
+      directors
     }
   }
 `;

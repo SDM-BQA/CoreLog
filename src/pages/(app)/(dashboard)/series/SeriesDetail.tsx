@@ -157,8 +157,8 @@ const SeriesDetail = () => {
           description: data.description || "",
           rating: data.rating,
           review: data.review || "",
-          started_from: data.started_from || new Date().toISOString().split('T')[0],
-          finished_on: data.finished_on || new Date().toISOString().split('T')[0],
+          started_from: data.started_from ? new Date(data.started_from).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+          finished_on: data.finished_on ? new Date(data.finished_on).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
         });
       }
     } catch (error) {
@@ -175,7 +175,7 @@ const SeriesDetail = () => {
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
-    if (newStatus === "watched" || newStatus === "rewatching") {
+    if (newStatus === "watched" || newStatus === "rewatching" || newStatus === "watching") {
       setEditView("status_update");
       if (series) {
         setModalData({
@@ -192,8 +192,8 @@ const SeriesDetail = () => {
           description: series.description || "",
           rating: series.rating,
           review: series.review || "",
-          started_from: series.started_from || new Date().toISOString().split('T')[0],
-          finished_on: series.finished_on || new Date().toISOString().split('T')[0],
+          started_from: series.started_from ? new Date(series.started_from).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+          finished_on: series.finished_on ? new Date(series.finished_on).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
         });
       }
       setModalErrors({});
@@ -223,7 +223,7 @@ const SeriesDetail = () => {
 
   const handleModalSave = () => {
     if (!validateModal()) return;
-    const payload: any = { ...modalData };
+    const payload = { ...modalData };
     // Map genres to keys
     payload.genres = modalData.genres.map(get_genre_key);
     // Keep creator in sync for legacy display if needed
@@ -260,6 +260,8 @@ const SeriesDetail = () => {
       setSeries(prev => prev ? { ...prev, poster_image: imageUrl } : null);
       toast.success("Poster updated");
     } catch (error) {
+      console.log(error);
+      
       toast.error("Upload failed");
     } finally {
       setIsUploading(false);

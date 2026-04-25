@@ -627,6 +627,12 @@ const AddSeries = () => {
                             onClick={() => {
                               setFieldValue("status", status);
                               setStatusDropdownOpen(false);
+                              if ((status === "watching" || status === "rewatching") && !values.started_from) {
+                                setFieldValue("started_from", new Date().toISOString().split("T")[0]);
+                              }
+                              if (status === "watched" && !values.finished_on) {
+                                setFieldValue("finished_on", new Date().toISOString().split("T")[0]);
+                              }
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
                               values.status === status

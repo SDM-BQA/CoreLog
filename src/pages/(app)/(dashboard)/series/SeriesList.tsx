@@ -14,7 +14,7 @@ import {
   Tv,
   X,
 } from "lucide-react";
-import { get_my_series_query, SeriesFilter } from "../../../../@apis/series";
+import { get_my_series_query, get_series_filters_query, SeriesFilter } from "../../../../@apis/series";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
@@ -158,7 +158,7 @@ const SeriesList = () => {
       search: committedSearch || undefined,
       genres: genreFilter.length ? genreFilter : undefined,
       status: statusFilter.length ? statusFilter : undefined,
-      platform: platformFilter.length === 1 ? platformFilter[0] : undefined,
+      platforms: platformFilter.length ? platformFilter : undefined,
       rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
       page: currentPage,
       limit: ITEMS_PER_PAGE,
@@ -181,11 +181,10 @@ const SeriesList = () => {
 
       // Derive filter options from the user's actual series collection
       try {
-        const allSeries = await get_my_series_query({ limit: 9999 });
-        const list = allSeries.series as unknown as Series[];
-        setGenreOptions([...new Set(list.flatMap((s) => s.genres || []))]);
-        setStatusOptions([...new Set(list.map((s) => s.status))]);
-        setPlatformOptions([...new Set(list.map((s) => s.platform).filter(Boolean) as string[])]);
+        const filters = await get_series_filters_query();
+        setGenreOptions(filters.genres);
+        setStatusOptions(filters.statuses);
+        setPlatformOptions(filters.platforms);
       } catch (error) {
         console.error("Error fetching filter options:", error);
       }
