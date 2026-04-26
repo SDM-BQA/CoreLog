@@ -172,7 +172,12 @@ const PoetryList = () => {
                         <div className="flex items-center gap-3 mb-4">
                            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
                              <Clock size={12} />
-                             {new Date(poem.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                             {(() => {
+                               const date = new Date(poem.created_at);
+                               return isNaN(date.getTime()) 
+                                 ? "Unknown Date" 
+                                 : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                             })()}
                            </span>
                            <span className={`w-1.5 h-1.5 rounded-full ${poem.status === 'finished' ? 'bg-emerald-500' : poem.status === 'published' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
                         </div>

@@ -134,7 +134,7 @@ const AddPoem = () => {
         tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         cover_image: formData.cover_image || undefined,
         status: formData.status,
-        created_at: formData.created_at || undefined,
+        created_at: formData.created_at ? new Date(formData.created_at).toISOString() : undefined,
       });
       toast.success("Poem saved to your anthology");
       navigate("/dashboard/poetry");

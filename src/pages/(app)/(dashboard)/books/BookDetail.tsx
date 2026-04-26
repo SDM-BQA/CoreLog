@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { get_book_query, update_book_mutation, delete_book_mutation } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
@@ -160,10 +161,8 @@ const BookDetail = () => {
       setCurrentStatus(newStatus);
       setEditView("status_update");
       
-      const today = new Date().toLocaleDateString('en-CA');
-      const startedFrom = book.started_from 
-        ? new Date(book.started_from).toLocaleDateString('en-CA') 
-        : (newStatus === "reading" ? today : "");
+      const today = toDateInput(Date.now());
+      const startedFrom = toDateInput(book.started_from) || (newStatus === "reading" ? today : "");
 
       setModalData({
         title: book.title,
@@ -177,7 +176,7 @@ const BookDetail = () => {
         review: book.review || "",
         genres: (book.genres || []).map(get_genre_display),
         started_from: startedFrom,
-        finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : (newStatus === "read" ? today : ""),
+        finished_on: toDateInput(book.finished_on) || (newStatus === "read" ? today : ""),
         isPartOfSeries: !!book.series_name,
         series_name: book.series_name || "",
         series_number: book.series_number || 0
@@ -240,12 +239,12 @@ const BookDetail = () => {
         description: modalData.description,
         review: modalData.review,
         genres: modalData.genres.map(get_genre_key),
-        started_from: modalData.started_from || undefined,
-        finished_on: modalData.finished_on || undefined,
+        started_from: toISO(modalData.started_from),
+        finished_on: toISO(modalData.finished_on),
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
         series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
       });
-      
+
       // Update local state
       setBook({
         ...book,
@@ -259,8 +258,8 @@ const BookDetail = () => {
         description: modalData.description,
         review: modalData.review,
         genres: modalData.genres.map(get_genre_key),
-        started_from: modalData.started_from || undefined,
-        finished_on: modalData.finished_on || undefined,
+        started_from: toISO(modalData.started_from),
+        finished_on: toISO(modalData.finished_on),
         series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
         series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
       });
@@ -284,8 +283,8 @@ const BookDetail = () => {
       rating: book.rating || 0,
       description: book.description || "",
       review: book.review || "",
-      started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
-      finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+      started_from: toDateInput(book.started_from),
+      finished_on: toDateInput(book.finished_on),
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
       series_number: book.series_number || 0,
@@ -307,8 +306,8 @@ const BookDetail = () => {
       rating: book.rating || 0,
       description: book.description || "",
       review: book.review || "",
-      started_from: book.started_from ? new Date(book.started_from).toLocaleDateString('en-CA') : "",
-      finished_on: book.finished_on ? new Date(book.finished_on).toLocaleDateString('en-CA') : "",
+      started_from: toDateInput(book.started_from),
+      finished_on: toDateInput(book.finished_on),
       isPartOfSeries: !!book.series_name,
       series_name: book.series_name || "",
       series_number: book.series_number || 0,
@@ -575,11 +574,7 @@ const BookDetail = () => {
                   </span>
                   <div className="flex items-center gap-1.5 text-text-primary">
                     <CalendarPlus size={14} className="text-text-secondary" />
-                    {new Date(book.created_at || Date.now()).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDate(book.created_at || Date.now())}
                   </div>
                 </div>
 
@@ -591,11 +586,7 @@ const BookDetail = () => {
                     </span>
                     <div className="flex items-center gap-1.5 text-text-primary">
                       <PlayCircle size={14} className="text-blue-400" />
-                      {new Date(book.started_from).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDate(book.started_from)}
                     </div>
                   </div>
                 )}
@@ -608,11 +599,7 @@ const BookDetail = () => {
                     </span>
                     <div className="flex items-center gap-1.5 text-text-primary">
                       <CheckCircle2 size={14} className="text-green-400" />
-                      {new Date(book.finished_on).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDate(book.finished_on)}
                     </div>
                   </div>
                 )}

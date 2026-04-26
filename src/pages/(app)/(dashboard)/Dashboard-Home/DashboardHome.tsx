@@ -20,6 +20,7 @@ import { get_dashboard_stats_query, type DashboardStats } from "../../../../@api
 import { get_my_movies_query } from "../../../../@apis/movies";
 import { get_my_series_query } from "../../../../@apis/series";
 import { get_my_poems_query } from "../../../../@apis/poetry";
+import { get_full_image_url } from "../../../../@utils/api.utils";
 
 type MediaItem = 
   | { type: 'Movie'; title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; release_year?: string; genres?: string[] }
@@ -49,12 +50,12 @@ const DashboardHome = () => {
         ]);
 
         const allRecent: MediaItem[] = [
-          ...moviesRes.movies.map(m => ({ ...m, type: 'Movie' as const, cover: m.poster_image || '' })),
-          ...seriesRes.series.map(s => ({ ...s, type: 'Series' as const, cover: s.poster_image || '' })),
+          ...moviesRes.movies.map(m => ({ ...m, type: 'Movie' as const, cover: get_full_image_url(m.poster_image, "movie") })),
+          ...seriesRes.series.map(s => ({ ...s, type: 'Series' as const, cover: get_full_image_url(s.poster_image, "series") })),
           ...poemsRes.poems.map(p => ({ 
             ...p, 
             type: 'Poem' as const, 
-            cover: p.cover_image || 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop' 
+            cover: get_full_image_url(p.cover_image, "poem") 
           })),
         ].sort((a, b) => {
           const dateA = new Date(a.created_at || '').getTime();

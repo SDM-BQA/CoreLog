@@ -20,6 +20,7 @@ import {
 import { get_poem_query, update_poem_mutation, delete_poem_mutation, type Poem, type PoemInput } from "../../../../@apis/poetry";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { Modal } from "../../../../@components/@smart";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
@@ -100,8 +101,12 @@ const PoetryDetail = () => {
         if (data) {
           setPoem(data);
           syncModal(data);
+        } else {
+          toast.error("Poem not found");
+          navigate("/dashboard/poetry");
         }
-      } catch {
+      } catch (err) {
+        console.error("Fetch Error:", err);
         toast.error("Failed to load poem");
       } finally {
         setIsLoading(false);
@@ -111,6 +116,8 @@ const PoetryDetail = () => {
   }, [id]);
 
   const syncModal = (p: Poem) => {
+    const formattedDate = toDateInput(p.created_at);
+
     setModalData({
       title: p.title,
       content: p.content,
@@ -118,10 +125,10 @@ const PoetryDetail = () => {
       poem_type: p.poem_type,
       mood: p.mood ?? "",
       atmosphere: p.atmosphere ?? "",
-      tags: p.tags?.join(", ") ?? "",
+      tags: Array.isArray(p.tags) ? p.tags.join(", ") : "",
       cover_image: p.cover_image ?? "",
       status: p.status,
-      created_at: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : "",
+      created_at: formattedDate,
     });
   };
 
@@ -166,7 +173,7 @@ const PoetryDetail = () => {
         tags: modalData.tags ? modalData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         cover_image: modalData.cover_image || undefined,
         status: modalData.status,
-        created_at: modalData.created_at || undefined,
+        created_at: toISO(modalData.created_at),
       };
       const result = await update_poem_mutation(id, payload);
       setPoem(result);
@@ -290,7 +297,7 @@ const PoetryDetail = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Created</p>
-                    <p className="text-text-primary text-sm font-bold">{new Date(poem.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    <p className="text-text-primary text-sm font-bold">{formatDate(poem.created_at)}</p>
                   </div>
                </div>
             </div>
