@@ -13,6 +13,7 @@ import {
   Play,
   PenLine,
   ScrollText,
+  Target as TargetIcon,
 } from "lucide-react";
 import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS } from "../journal/journalData";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
@@ -20,6 +21,7 @@ import { get_dashboard_stats_query, type DashboardStats } from "../../../../@api
 import { get_my_movies_query } from "../../../../@apis/movies";
 import { get_my_series_query } from "../../../../@apis/series";
 import { get_my_poems_query } from "../../../../@apis/poetry";
+import { get_my_target_query, get_target_progress_query, type Target, type TargetProgress } from "../../../../@apis/targets";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 
 type MediaItem = 
@@ -35,12 +37,22 @@ const DashboardHome = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [recentItems, setRecentItems] = useState<MediaItem[]>([]);
   const [inProgressItems, setInProgressItems] = useState<MediaItem[]>([]);
+  const [yearlyTarget, setYearlyTarget] = useState<Target | null>(null);
+  const [yearlyProgress, setYearlyProgress] = useState<TargetProgress | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const stats = await get_dashboard_stats_query();
         setDashboardStats(stats);
+
+        const currentYear = new Date().getFullYear();
+        const [tgt, prog] = await Promise.all([
+          get_my_target_query(currentYear),
+          get_target_progress_query(currentYear),
+        ]);
+        setYearlyTarget(tgt);
+        setYearlyProgress(prog);
 
         // Fetch recent items (simplified for now)
         const [moviesRes, seriesRes, poemsRes] = await Promise.all([
@@ -175,6 +187,49 @@ const DashboardHome = () => {
             </Link>
           ))}
         </div>
+
+        {/* ── Yearly Goals Widget ── */}
+        {(yearlyTarget || yearlyProgress) && (() => {
+          const year = new Date().getFullYear();
+          const cats = [
+            { key: "movies" as const,  label: "Movies",     bar: "bg-blue-500",    text: "text-blue-500"    },
+            { key: "series" as const,  label: "Web Series", bar: "bg-purple-500",  text: "text-purple-500"  },
+            { key: "books"  as const,  label: "Books",      bar: "bg-emerald-500", text: "text-emerald-500" },
+            { key: "poems"  as const,  label: "Poetry",     bar: "bg-amber-500",   text: "text-amber-500"   },
+          ];
+          const hasAny = cats.some(c => yearlyTarget?.[c.key]);
+          if (!hasAny) return null;
+          return (
+            <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-text-primary font-bold flex items-center gap-2">
+                  <TargetIcon size={18} className="text-accent" />
+                  {year} Goals
+                </h2>
+                <Link to="/dashboard/target" className="text-accent text-xs font-bold hover:underline">View All →</Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cats.map(({ key, label, bar, text }) => {
+                  const goal = yearlyTarget?.[key];
+                  if (!goal) return null;
+                  const done = yearlyProgress?.[key] ?? 0;
+                  const pct = Math.min(100, Math.round((done / goal) * 100));
+                  return (
+                    <div key={key} className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-text-secondary text-xs font-medium">{label}</span>
+                        <span className={`text-xs font-bold ${text}`}>{done}/{goal}</span>
+                      </div>
+                      <div className="h-1.5 bg-bg border border-border rounded-full overflow-hidden">
+                        <div className={`h-full ${bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
           {/* ── Left Column: In Progress & Recent ── */}

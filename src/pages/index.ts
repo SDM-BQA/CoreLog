@@ -20,6 +20,7 @@ import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
 import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
 import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
 import Settings from "./(app)/(dashboard)/settings/Settings";
+import TargetPage from "./(app)/(dashboard)/target/TargetPage";
 import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
     return RouterProvider({ router });
@@ -113,6 +114,10 @@ const router = createBrowserRouter([
             {
                 path: "settings",
                 Component: Settings,
+            },
+            {
+                path: "target",
+                Component: TargetPage,
             },
         ],
     },

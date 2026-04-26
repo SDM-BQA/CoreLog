@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { get_my_books_query, get_book_filters_query, BookFilter } from "../../../../@apis/books";
+import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
@@ -287,6 +288,7 @@ const BooksList = () => {
           </Link>
         </div>
 
+
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8 shrink-0">
           {[
@@ -300,6 +302,8 @@ const BooksList = () => {
             </div>
           ))}
         </div>
+        
+        <TargetBanner category="books" label="read" />
 
         {/* ── Toolbar ── */}
         <div className="flex flex-col lg:flex-row gap-4 mb-6 shrink-0">

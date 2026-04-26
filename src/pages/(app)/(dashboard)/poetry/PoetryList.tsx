@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { get_my_poems_query, type Poem } from "../../../../@apis/poetry";
+import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { toast } from "react-toast";
 
@@ -102,6 +103,8 @@ const PoetryList = () => {
             New Poem
           </Link>
         </div>
+
+        <TargetBanner category="poems" label="written" />
 
         {/* Stats & Filters Row */}
         <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
