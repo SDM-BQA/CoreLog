@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { get_my_series_query, get_series_filters_query, SeriesFilter } from "../../../../@apis/series";
+import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
@@ -272,6 +273,8 @@ const SeriesList = () => {
             </div>
           ))}
         </div>
+
+        <TargetBanner category="series" label="watched" />
 
         {/* Toolbar */}
         <div className="flex flex-col lg:flex-row gap-4 mb-6 shrink-0">

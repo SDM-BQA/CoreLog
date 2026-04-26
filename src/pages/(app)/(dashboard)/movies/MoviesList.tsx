@@ -16,6 +16,7 @@ import {
   get_movie_filters_query,
   MovieFilter,
 } from "../../../../@apis/movies";
+import TargetBanner from "../../../../@components/TargetBanner";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { get_language_name } from "../../../../@utils/api.utils";
 import { FilterDropdown, MediaDisplay } from "../../../../@components/@smart";
@@ -265,6 +266,8 @@ const MoviesList = () => {
             </div>
           ))}
         </div>
+
+        <TargetBanner category="movies" label="watched" />
 
         {/* Toolbar */}
         <div className="flex flex-col lg:flex-row gap-4 mb-6 shrink-0">

@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Tv,
   ScrollText,
+  Target,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppDispatch } from "../../../@store/hooks/store.hooks";
@@ -27,6 +28,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Books", to: "/dashboard/books", icon: BookOpen },
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
       { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
+      { label: "Target", to: "/dashboard/target", icon: Target },
     ],
   },
 ];
