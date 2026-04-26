@@ -53,15 +53,34 @@ export const axios_graphql_service_no_auth = () => {
 
 export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
     if (data.errors && data.errors.length > 0) {
+        const error_message = data.errors[0].message;
+
+        // Auto logout if token is expired or invalid
+        if (error_message === "Invalid or expired token" || error_message === "Authentication required") {
+            delete_string("token");
+            delete_string("userId");
+            delete_string("refreshToken");
+            window.location.href = "/auth/login";
+        }
+
         // Return only the error message in sentence case
-        const error_message = toSentenceCase(data.errors[0].message);
-        throw new Error(error_message);
+        const formatted_message = toSentenceCase(error_message);
+        throw new Error(formatted_message);
     }
 }
 
 
-export const get_full_image_url = (path: string | undefined): string | undefined => {
-    if (!path) return undefined;
+export const get_full_image_url = (path: string | undefined, type: "book" | "user" | "series" | "movie" | "poetry" | "poem" = "user"): string => {
+    if (!path) {
+        let defaultPath = "/profile_pic.jpg";
+        if (type === "book") defaultPath = "/default_book_cover.png";
+        if (type === "series") defaultPath = "/default_series_cover.png";
+        if (type === "movie") defaultPath = "/default_series_cover.png";
+        if (type === "poetry") defaultPath = "/default_poetry_cover.png";
+        if (type === "poem") defaultPath = "/default_poem_cover.png";
+        return `${api_configs.server_url}${defaultPath}`;
+    }
+    
     if (path.startsWith("http")) return path;
 
     // Handle extension mismatch for default profile photo
@@ -71,6 +90,42 @@ export const get_full_image_url = (path: string | undefined): string | undefined
     }
 
     return `${api_configs.server_url}${correctedPath}`;
+};
+
+export const get_rating_level = (rating: number): string => {
+    if (rating === 0) return "Not Rated";
+    if (rating >= 4.8) return "Masterpiece";
+    if (rating >= 4.5) return "Excellent";
+    if (rating >= 4.0) return "Great";
+    if (rating >= 3.5) return "Good";
+    if (rating >= 3.0) return "Decent";
+    if (rating >= 2.5) return "Average";
+    if (rating >= 1.5) return "Poor";
+    return "Awful";
+};
+
+export const get_language_name = (code: string | undefined): string => {
+    if (!code) return "N/A";
+    try {
+        const langNames = new Intl.DisplayNames(['en'], { type: 'language' });
+        return langNames.of(code.toLowerCase()) || code.toUpperCase();
+    } catch (e) {
+        return code.toUpperCase();
+    }
+};
+
+export const get_country_name = (code: string | undefined): string => {
+    if (!code) return "N/A";
+    try {
+        const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+        // Handle multiple countries if separated by comma
+        return code.split(',').map(c => {
+            const trimmed = c.trim().toUpperCase();
+            return regionNames.of(trimmed) || trimmed;
+        }).join(', ');
+    } catch (e) {
+        return code.toUpperCase();
+    }
 };
 
 
