@@ -43,7 +43,7 @@ export interface BookFilter {
 }
 
 export interface BookPage {
-    books: BookInput[];
+    books: (BookInput & { _id: string; created_at: string })[];
     total_count: number;
     current_page: number;
     per_page: number;

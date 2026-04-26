@@ -23,6 +23,7 @@ import {
 } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url, get_rating_level, get_language_name, get_country_name } from "../../../../@utils/api.utils";
+import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
 import DeleteModal from "../../../../@components/DeleteModal";
@@ -157,8 +158,8 @@ const SeriesDetail = () => {
           description: data.description || "",
           rating: data.rating,
           review: data.review || "",
-          started_from: data.started_from ? new Date(data.started_from).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
-          finished_on: data.finished_on ? new Date(data.finished_on).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+          started_from: toDateInput(data.started_from) || toDateInput(Date.now()),
+          finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
         });
       }
     } catch (error) {
@@ -192,8 +193,8 @@ const SeriesDetail = () => {
           description: series.description || "",
           rating: series.rating,
           review: series.review || "",
-          started_from: series.started_from ? new Date(series.started_from).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
-          finished_on: series.finished_on ? new Date(series.finished_on).toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA'),
+          started_from: toDateInput(series.started_from) || toDateInput(Date.now()),
+          finished_on: toDateInput(series.finished_on) || toDateInput(Date.now()),
         });
       }
       setModalErrors({});
@@ -223,11 +224,13 @@ const SeriesDetail = () => {
 
   const handleModalSave = () => {
     if (!validateModal()) return;
-    const payload = { ...modalData };
-    // Map genres to keys
-    payload.genres = modalData.genres.map(get_genre_key);
-    // Keep creator in sync for legacy display if needed
-    payload.creator = `${modalData.language} (${modalData.origin_country})`;
+    const payload = {
+      ...modalData,
+      genres: modalData.genres.map(get_genre_key),
+      creator: `${modalData.language} (${modalData.origin_country})`,
+      started_from: toISO(modalData.started_from),
+      finished_on: toISO(modalData.finished_on),
+    };
     updateSeries(payload);
   };
 
@@ -284,10 +287,8 @@ const SeriesDetail = () => {
         description: series.description || "",
         rating: series.rating,
         review: series.review || "",
-        started_from:
-          series.started_from || new Date().toISOString().split("T")[0],
-        finished_on:
-          series.finished_on || new Date().toISOString().split("T")[0],
+        started_from: toDateInput(series.started_from) || toDateInput(Date.now()),
+        finished_on: toDateInput(series.finished_on) || toDateInput(Date.now()),
       });
     }
     setEditView(view);
@@ -467,12 +468,7 @@ const SeriesDetail = () => {
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Added On</span>
                 <div className="flex items-center gap-1.5 text-text-primary">
                   <CalendarPlus size={14} className="text-text-secondary" />
-                  {(() => {
-                    const date = new Date(series.created_at || Date.now());
-                    return isNaN(date.getTime()) 
-                      ? new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
-                      : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-                  })()}
+                  {formatDate(series.created_at || Date.now())}
                 </div>
               </div>
 
@@ -481,7 +477,7 @@ const SeriesDetail = () => {
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Started</span>
                   <div className="flex items-center gap-1.5 text-text-primary">
                     <PlayCircle size={14} className="text-blue-400" />
-                    {new Date(series.started_from).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                    {formatDate(series.started_from)}
                   </div>
                 </div>
               )}
@@ -491,7 +487,7 @@ const SeriesDetail = () => {
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Finished</span>
                   <div className="flex items-center gap-1.5 text-text-primary">
                     <CheckCircle2 size={14} className="text-green-400" />
-                    {new Date(series.finished_on).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                    {formatDate(series.finished_on)}
                   </div>
                 </div>
               )}

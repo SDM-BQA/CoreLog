@@ -156,12 +156,12 @@ const AddMovie = () => {
 
           const started_from =
             formValues.status !== "watchlist"
-              ? new Date(formValues.started_from).toISOString().split("T")[0]
+              ? new Date(formValues.started_from).toISOString()
               : undefined;
 
           const finished_on =
             formValues.status === "watched" || formValues.status === "rewatching"
-              ? new Date(formValues.finished_on).toISOString().split("T")[0]
+              ? new Date(formValues.finished_on).toISOString()
               : undefined;
 
           await create_movie_mutation({

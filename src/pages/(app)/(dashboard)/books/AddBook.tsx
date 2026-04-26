@@ -157,10 +157,10 @@ const AddBook = () => {
             language: formValues.language || "",
             started_from:
               formValues.status === "reading" || formValues.status === "read"
-                ? formValues.startedFrom
+                ? new Date(formValues.startedFrom).toISOString()
                 : undefined,
             finished_on:
-              formValues.status === "read" ? formValues.finishedOn : undefined,
+              formValues.status === "read" ? new Date(formValues.finishedOn).toISOString() : undefined,
             series_name: formValues.isPartOfSeries ? formValues.seriesName : undefined,
             series_number: formValues.isPartOfSeries ? formValues.seriesNumber : undefined,
           });

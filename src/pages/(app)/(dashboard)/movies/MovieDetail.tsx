@@ -24,6 +24,7 @@ import {
 } from "../../../../@apis/movies";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url, get_rating_level, get_language_name, get_country_name } from "../../../../@utils/api.utils";
+import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
 import DeleteModal from "../../../../@components/DeleteModal";
@@ -119,8 +120,8 @@ const MovieDetail = () => {
           description: data.description || "",
           rating: data.rating,
           review: data.review || "",
-          started_from: data.started_from ? new Date(data.started_from).toLocaleDateString("en-CA") : new Date().toLocaleDateString("en-CA"),
-          finished_on: data.finished_on ? new Date(data.finished_on).toLocaleDateString("en-CA") : new Date().toLocaleDateString("en-CA"),
+          started_from: toDateInput(data.started_from) || toDateInput(Date.now()),
+          finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
         });
       }
     } catch (error) {
@@ -182,8 +183,8 @@ const MovieDetail = () => {
           description: movie.description || "",
           rating: movie.rating,
           review: movie.review || "",
-          started_from: movie.started_from ? new Date(movie.started_from).toLocaleDateString("en-CA") : new Date().toLocaleDateString("en-CA"),
-          finished_on: movie.finished_on ? new Date(movie.finished_on).toLocaleDateString("en-CA") : new Date().toLocaleDateString("en-CA"),
+          started_from: toDateInput(movie.started_from) || toDateInput(Date.now()),
+          finished_on: toDateInput(movie.finished_on) || toDateInput(Date.now()),
         });
       }
       setModalErrors({});
@@ -213,7 +214,12 @@ const MovieDetail = () => {
 
   const handleModalSave = () => {
     if (!validateModal()) return;
-    const payload = { ...modalData, genres: modalData.genres.map(get_genre_key) };
+    const payload = {
+      ...modalData,
+      genres: modalData.genres.map(get_genre_key),
+      started_from: toISO(modalData.started_from),
+      finished_on: toISO(modalData.finished_on),
+    };
     updateMovie(payload);
   };
 
@@ -232,8 +238,8 @@ const MovieDetail = () => {
         description: movie.description || "",
         rating: movie.rating,
         review: movie.review || "",
-        started_from: movie.started_from || new Date().toISOString().split("T")[0],
-        finished_on: movie.finished_on || new Date().toISOString().split("T")[0],
+        started_from: toDateInput(movie.started_from) || toDateInput(Date.now()),
+        finished_on: toDateInput(movie.finished_on) || toDateInput(Date.now()),
       });
     }
     setEditView(view);
@@ -452,12 +458,7 @@ const MovieDetail = () => {
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Added On</span>
                 <div className="flex items-center gap-1.5 text-text-primary">
                   <CalendarPlus size={14} className="text-text-secondary" />
-                  {(() => {
-                    const date = new Date(movie.created_at || Date.now());
-                    return isNaN(date.getTime())
-                      ? new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
-                      : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-                  })()}
+                  {formatDate(movie.created_at || Date.now())}
                 </div>
               </div>
 
@@ -466,7 +467,7 @@ const MovieDetail = () => {
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Started</span>
                   <div className="flex items-center gap-1.5 text-text-primary">
                     <PlayCircle size={14} className="text-blue-400" />
-                    {new Date(movie.started_from).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                    {formatDate(movie.started_from)}
                   </div>
                 </div>
               )}
@@ -476,7 +477,7 @@ const MovieDetail = () => {
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Finished</span>
                   <div className="flex items-center gap-1.5 text-text-primary">
                     <CheckCircle2 size={14} className="text-green-400" />
-                    {new Date(movie.finished_on).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                    {formatDate(movie.finished_on)}
                   </div>
                 </div>
               )}
