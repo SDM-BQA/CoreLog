@@ -17,6 +17,7 @@ import AddSeries from "./(app)/(dashboard)/series/AddSeries";
 import SeriesDetail from "./(app)/(dashboard)/series/SeriesDetail";
 import Journal from "./(app)/(dashboard)/journal/Journal";
 import AddJournal from "./(app)/(dashboard)/journal/AddJournal";
+import JournalDetail from "./(app)/(dashboard)/journal/JournalDetail";
 import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
 import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
 import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
@@ -103,6 +104,10 @@ const router = createBrowserRouter([
             {
                 path: "journal/add-entry",
                 Component: AddJournal,
+            },
+            {
+                path: "journal/:id",
+                Component: JournalDetail,
             },
             {
                 path: "poetry",

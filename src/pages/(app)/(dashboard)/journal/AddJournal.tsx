@@ -204,13 +204,14 @@ const CalendarPicker = ({ value, onSelect, onClose }: {
 
 // ── Clock picker ────────────────────────────────────────────────────────────
 const CSIZE = 240;
-const CCX = 120;
-const CCY = 120;
+const CCX   = 120;
+const CCY   = 120;
 const NUM_R = 86;
-const HAND_R = 80;
+const HAND_R = 76;
 
-const cp = (index: number) => {
-  const a = (index / 12) * 2 * Math.PI - Math.PI / 2;
+// position on the clock face for a value out of `total`
+const clockPos = (val: number, total: number) => {
+  const a = (val / total) * 2 * Math.PI - Math.PI / 2;
   return { x: CCX + NUM_R * Math.cos(a), y: CCY + NUM_R * Math.sin(a),
            hx: CCX + HAND_R * Math.cos(a), hy: CCY + HAND_R * Math.sin(a) };
 };
@@ -219,17 +220,63 @@ const ClockPicker = ({ value, onChange, onClose }: {
   value: string; onChange: (v: string) => void; onClose: () => void;
 }) => {
   const [h24Init, mInit] = (value || "00:00").split(":").map(Number);
-  const [step, setStep] = useState<"h" | "m">("h");
-  const [hour, setHour]     = useState(h24Init % 12 || 12);
-  const [minute, setMinute] = useState(Math.round((mInit || 0) / 5) * 5 % 60);
-  const [ampm, setAmPm]     = useState<"AM" | "PM">(h24Init >= 12 ? "PM" : "AM");
+  const [step, setStep]   = useState<"h" | "m">("h");
+  const [hour, setHour]   = useState(h24Init % 12 || 12);
+  const [minute, setMinute] = useState(mInit || 0);
+  const [ampm, setAmPm]   = useState<"AM" | "PM">(h24Init >= 12 ? "PM" : "AM");
+  const [dragging, setDragging] = useState(false);
+  const faceRef = useRef<HTMLDivElement>(null);
 
-  const hours   = Array.from({ length: 12 }, (_, i) => i + 1);
-  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
-
-  const hand = cp(step === "h" ? hour : minute / 5);
   const dH = String(hour).padStart(2, "0");
   const dM = String(minute).padStart(2, "0");
+
+  // Hand angle: hours snap to 12 positions, minutes are free 0-59
+  const handH = clockPos(hour, 12);
+  const handM = (() => {
+    const a = (minute / 60) * 2 * Math.PI - Math.PI / 2;
+    return { hx: CCX + HAND_R * Math.cos(a), hy: CCY + HAND_R * Math.sin(a),
+             x:  CCX + NUM_R  * Math.cos(a), y:  CCY + NUM_R  * Math.sin(a) };
+  })();
+  const hand = step === "h" ? handH : handM;
+
+  const calcFromPointer = (clientX: number, clientY: number) => {
+    if (!faceRef.current) return;
+    const rect = faceRef.current.getBoundingClientRect();
+    const dx = clientX - (rect.left + CSIZE / 2);
+    const dy = clientY - (rect.top  + CSIZE / 2);
+    if (Math.sqrt(dx * dx + dy * dy) < 18) return; // ignore dead zone at center
+    const angle = Math.atan2(dy, dx) + Math.PI / 2;
+    const norm  = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    if (step === "h") {
+      const h = Math.round(norm / (2 * Math.PI) * 12);
+      setHour(h === 0 ? 12 : h);
+    } else {
+      setMinute(Math.round(norm / (2 * Math.PI) * 60) % 60);
+    }
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDragging(true);
+    calcFromPointer(e.clientX, e.clientY);
+  };
+  const onMouseMove = (e: React.MouseEvent) => { if (dragging) calcFromPointer(e.clientX, e.clientY); };
+  const onMouseUp   = (e: React.MouseEvent) => {
+    if (dragging) {
+      calcFromPointer(e.clientX, e.clientY);
+      setDragging(false);
+      if (step === "h") setStep("m");
+    }
+  };
+  const onTouchStart = (e: React.TouchEvent) => {
+    setDragging(true);
+    calcFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    calcFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+  };
+  const onTouchEnd = () => { setDragging(false); if (step === "h") setStep("m"); };
 
   const confirm = () => {
     const h = ampm === "AM" ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
@@ -237,64 +284,102 @@ const ClockPicker = ({ value, onChange, onClose }: {
     onClose();
   };
 
+  const hours5   = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minutes5 = Array.from({ length: 12 }, (_, i) => i * 5);
+
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[260px] overflow-hidden">
-      {/* Time header */}
-      <div className="bg-bg/70 px-4 py-3 flex items-center gap-1">
-        <button type="button" onClick={() => setStep("h")}
-          className={`text-3xl font-black px-2 py-0.5 rounded-xl transition-colors ${step === "h" ? "bg-accent/10 text-accent" : "text-text-secondary/50 hover:text-text-primary"}`}>
-          {dH}
-        </button>
-        <span className="text-text-secondary/40 text-2xl font-black select-none">:</span>
-        <button type="button" onClick={() => setStep("m")}
-          className={`text-3xl font-black px-2 py-0.5 rounded-xl transition-colors ${step === "m" ? "bg-accent/10 text-accent" : "text-text-secondary/50 hover:text-text-primary"}`}>
-          {dM}
-        </button>
-        <div className="ml-auto flex flex-col gap-0.5">
-          {(["AM", "PM"] as const).map(p => (
-            <button key={p} type="button" onClick={() => setAmPm(p)}
-              className={`text-[11px] font-black px-2 py-0.5 rounded-lg transition-colors ${ampm === p ? "bg-accent/10 text-accent" : "text-text-secondary/40 hover:text-text-primary"}`}>
-              {p}
-            </button>
-          ))}
+
+        {/* Time header */}
+        <div className="bg-bg/70 px-4 py-3 flex items-center gap-1">
+          <button type="button" onClick={() => setStep("h")}
+            className={`text-3xl font-black px-2 py-0.5 rounded-xl transition-colors ${step === "h" ? "bg-accent/10 text-accent" : "text-text-secondary/50 hover:text-text-primary"}`}>
+            {dH}
+          </button>
+          <span className="text-text-secondary/40 text-2xl font-black select-none">:</span>
+          <button type="button" onClick={() => setStep("m")}
+            className={`text-3xl font-black px-2 py-0.5 rounded-xl transition-colors ${step === "m" ? "bg-accent/10 text-accent" : "text-text-secondary/50 hover:text-text-primary"}`}>
+            {dM}
+          </button>
+          <div className="ml-auto flex flex-col gap-0.5">
+            {(["AM", "PM"] as const).map(p => (
+              <button key={p} type="button" onClick={() => setAmPm(p)}
+                className={`text-[11px] font-black px-2 py-0.5 rounded-lg transition-colors ${ampm === p ? "bg-accent/10 text-accent" : "text-text-secondary/40 hover:text-text-primary"}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-[9px] text-text-secondary/50 font-black uppercase tracking-widest py-1.5">
+          {step === "h" ? "Drag or tap to set hour" : "Drag or tap to set minute"}
+        </p>
+
+        {/* Clock face — interactive */}
+        <div
+          ref={faceRef}
+          className="relative mx-auto select-none touch-none cursor-pointer"
+          style={{ width: CSIZE, height: CSIZE }}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={() => setDragging(false)}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          <svg className="absolute inset-0 text-accent" width={CSIZE} height={CSIZE}>
+            {/* Track ring */}
+            <circle cx={CCX} cy={CCY} r={CCX - 8} fill="none" stroke="var(--color-border,#333)" strokeWidth="1.5" />
+            {/* Hand */}
+            <line x1={CCX} y1={CCY} x2={hand.hx} y2={hand.hy} stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+            {/* Center dot */}
+            <circle cx={CCX} cy={CCY} r={4} fill="currentColor" />
+            {/* Selection circle on hand tip */}
+            <circle cx={hand.hx} cy={hand.hy} r={16} fill="currentColor" opacity="0.18" />
+            <circle cx={hand.hx} cy={hand.hy} r={6} fill="currentColor" />
+          </svg>
+
+          {/* Number labels — reference only for minute step; clickable for hour */}
+          {step === "h"
+            ? hours5.map((val) => {
+                const pos = clockPos(val, 12);
+                const sel = val === hour;
+                return (
+                  <span
+                    key={val}
+                    style={{ position: "absolute", left: pos.x - 13, top: pos.y - 13, width: 26, height: 26 }}
+                    className={`flex items-center justify-center rounded-full text-[11px] font-bold pointer-events-none ${sel ? "text-white" : "text-text-secondary"}`}
+                  >
+                    {val}
+                  </span>
+                );
+              })
+            : minutes5.map((val, i) => {
+                const pos = clockPos(i, 12);
+                const sel = minute >= val && minute < val + 5 && !(val === 55 && minute === 0);
+                return (
+                  <span
+                    key={val}
+                    style={{ position: "absolute", left: pos.x - 13, top: pos.y - 13, width: 26, height: 26 }}
+                    className={`flex items-center justify-center rounded-full text-[11px] font-bold pointer-events-none ${sel ? "text-white" : "text-text-secondary/60"}`}
+                  >
+                    {String(val).padStart(2, "0")}
+                  </span>
+                );
+              })
+          }
+        </div>
+
+        <div className="p-3 pt-1">
+          <button type="button" onClick={confirm}
+            className="w-full py-2 rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all">
+            Confirm {dH}:{dM} {ampm}
+          </button>
         </div>
       </div>
-
-      <p className="text-center text-[9px] text-text-secondary/50 font-black uppercase tracking-widest py-1.5">
-        {step === "h" ? "Select hour" : "Select minute"}
-      </p>
-
-      {/* Clock face */}
-      <div className="relative mx-auto" style={{ width: CSIZE, height: CSIZE }}>
-        <svg className="absolute inset-0 text-accent" width={CSIZE} height={CSIZE}>
-          <circle cx={CCX} cy={CCY} r={CCX - 8} fill="none" stroke="var(--color-border, #333)" strokeWidth="1" />
-          <line x1={CCX} y1={CCY} x2={hand.hx} y2={hand.hy} stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
-          <circle cx={CCX} cy={CCY} r={4} fill="currentColor" />
-          <circle cx={hand.hx} cy={hand.hy} r={19} fill="currentColor" opacity="0.12" />
-        </svg>
-        {(step === "h" ? hours : minutes).map((val, i) => {
-          const pos = cp(step === "h" ? val : i);
-          const sel = step === "h" ? val === hour : val === minute;
-          return (
-            <button key={val} type="button"
-              onClick={() => step === "h" ? (setHour(val), setStep("m")) : setMinute(val)}
-              style={{ position: "absolute", left: pos.x - 14, top: pos.y - 14, width: 28, height: 28 }}
-              className={`flex items-center justify-center rounded-full text-[11px] font-bold z-10 transition-all ${sel ? "bg-accent text-white scale-110" : "text-text-secondary hover:text-text-primary hover:bg-white/5"}`}>
-              {step === "m" ? String(val).padStart(2, "0") : val}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="p-3 pt-1">
-        <button type="button" onClick={confirm}
-          className="w-full py-2 rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all">
-          Confirm {dH}:{dM} {ampm}
-        </button>
-      </div>
-    </div>
     </>
   );
 };
@@ -537,10 +622,10 @@ const AddJournal = () => {
         </div>
 
         {/* ── Split pane ────────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[1fr_300px] overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden custom-scrollbar">
 
           {/* LEFT — writing area */}
-          <div className="flex flex-col min-h-0 overflow-hidden">
+          <div className="lg:flex-1 lg:min-h-0 flex flex-col overflow-hidden">
 
             {/* Title */}
             <input
@@ -610,7 +695,7 @@ const AddJournal = () => {
           </div>
 
           {/* RIGHT — sidebar */}
-          <div className="border-t lg:border-t-0 lg:border-l border-border overflow-y-auto custom-scrollbar bg-surface/40">
+          <div className="border-t lg:border-t-0 lg:border-l border-border lg:w-[300px] lg:shrink-0 overflow-y-auto custom-scrollbar bg-surface/40">
             <div className="p-4 flex flex-col gap-4">
 
               {/* Type */}

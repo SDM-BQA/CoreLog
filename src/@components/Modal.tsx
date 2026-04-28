@@ -42,7 +42,7 @@ const Modal: React.FC<ModalProps> = ({
 
       {/* Modal Container */}
       <div
-        className="relative w-full bg-surface border border-border rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-zoom"
+        className="relative w-full bg-surface border border-border rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-zoom max-h-[92vh]"
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >

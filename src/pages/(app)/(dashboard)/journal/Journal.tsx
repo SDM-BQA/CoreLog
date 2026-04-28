@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import FilterDropdown from "../../../../@components/@smart/FilterDropdown";
 import {
   Calendar as CalendarIcon,
@@ -28,6 +28,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { get_my_journals_query, type Journal } from "../../../../@apis/journal";
+import { get_full_image_url } from "../../../../@utils/api.utils";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string }> = {
@@ -75,6 +76,7 @@ const fmt12h = (time?: string) => {
 
 // ── Main component ───────────────────────────────────────────────────────────
 const Journal = () => {
+  const navigate = useNavigate();
   const [journals, setJournals] = useState<Journal[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -122,7 +124,27 @@ const Journal = () => {
     });
   }, [journals, search, selectedMood, selectedType]);
 
-  const visible = filtered.slice(0, visibleCount);
+  const sortedFiltered = useMemo(() =>
+    [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [filtered]
+  );
+
+  const groupedEntries = useMemo(() => {
+    const visible = sortedFiltered.slice(0, visibleCount);
+    const groups: { key: string; label: string; entries: typeof visible }[] = [];
+    const map = new Map<string, typeof visible>();
+    visible.forEach((j) => {
+      const d = new Date(j.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!map.has(key)) {
+        const arr: typeof visible = [];
+        map.set(key, arr);
+        groups.push({ key, label: d.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), entries: arr });
+      }
+      map.get(key)!.push(j);
+    });
+    return groups;
+  }, [sortedFiltered, visibleCount]);
 
   // Mood summary
   const moodCounts = useMemo(() =>
@@ -132,14 +154,17 @@ const Journal = () => {
   const topMoods = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const moodTotal = topMoods.reduce((s, [, c]) => s + c, 0);
 
-  // Calendar
-  const calDays = useMemo(() => {
-    const set = new Set<number>();
+  // Calendar — first entry per day (for photo + title preview)
+  const calEntries = useMemo(() => {
+    const map = new Map<number, Journal>();
     journals.forEach((j) => {
       const d = new Date(j.date);
-      if (d.getFullYear() === calMonth.year && d.getMonth() === calMonth.month) set.add(d.getDate());
+      if (d.getFullYear() === calMonth.year && d.getMonth() === calMonth.month) {
+        const day = d.getDate();
+        if (!map.has(day)) map.set(day, j);
+      }
     });
-    return set;
+    return map;
   }, [journals, calMonth]);
 
   const firstDow = new Date(calMonth.year, calMonth.month, 1).getDay();
@@ -187,24 +212,47 @@ const Journal = () => {
           {/* ── Sidebar ── */}
           <div className="lg:col-span-3 flex flex-col gap-6">
 
-            {/* View switcher */}
-            <div className="bg-surface border border-border rounded-2xl p-2 flex flex-col gap-1">
-              {([
-                { id: "feed",     label: "Journal Feed", icon: BookOpen },
-                { id: "calendar", label: "Calendar",     icon: CalendarIcon },
-                { id: "trends",   label: "Insights",     icon: TrendingUp },
-              ] as const).map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setView(id)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    view === id ? "bg-accent/10 text-accent font-bold" : "text-text-secondary hover:text-text-primary hover:bg-bg/50"
-                  }`}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
+            {/* View switcher — vertical list on desktop, compact icon cards on mobile */}
+            <div className="bg-surface border border-border rounded-2xl p-2">
+              {/* Mobile: 3-column icon cards */}
+              <div className="grid grid-cols-3 gap-1 lg:hidden">
+                {([
+                  { id: "feed",     label: "Feed",     icon: BookOpen },
+                  { id: "calendar", label: "Calendar", icon: CalendarIcon },
+                  { id: "trends",   label: "Insights", icon: TrendingUp },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setView(id)}
+                    className={`flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl text-xs font-medium transition-colors ${
+                      view === id ? "bg-accent/10 text-accent font-bold" : "text-text-secondary hover:text-text-primary hover:bg-bg/50"
+                    }`}
+                  >
+                    <Icon size={17} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop: vertical list */}
+              <div className="hidden lg:flex flex-col gap-1">
+                {([
+                  { id: "feed",     label: "Journal Feed", icon: BookOpen },
+                  { id: "calendar", label: "Calendar",     icon: CalendarIcon },
+                  { id: "trends",   label: "Insights",     icon: TrendingUp },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setView(id)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      view === id ? "bg-accent/10 text-accent font-bold" : "text-text-secondary hover:text-text-primary hover:bg-bg/50"
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Type filter — dropdown on mobile, full list on desktop */}
@@ -346,8 +394,18 @@ const Journal = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-4">
-                    {visible.map((entry) => {
+                  <div className="flex flex-col gap-8">
+                    {groupedEntries.map(({ key, label, entries }) => (
+                      <div key={key} className="flex flex-col gap-3">
+
+                        {/* Month heading */}
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-text-primary text-sm font-black uppercase tracking-widest shrink-0">{label}</h2>
+                          <div className="flex-1 h-px bg-border" />
+                          <span className="text-text-secondary/50 text-[10px] shrink-0">{entries.length} entr{entries.length === 1 ? "y" : "ies"}</span>
+                        </div>
+
+                        {entries.map((entry) => {
                       const type = TYPE_MAP[entry.journal_type] ?? TYPE_MAP.other;
                       const mood = MOOD_MAP[entry.mood ?? ""];
                       const entryDate = new Date(entry.date);
@@ -355,7 +413,7 @@ const Journal = () => {
                       const TypeIcon = type.icon;
 
                       return (
-                        <div key={entry._id} className="group bg-surface border border-border rounded-2xl overflow-hidden hover:border-accent/30 transition-all shadow-sm">
+                        <Link key={entry._id} to={`/dashboard/journal/${entry._id}`} className="group bg-surface border border-border rounded-2xl overflow-hidden hover:border-accent/30 transition-all shadow-sm block">
                           <div className="p-5 sm:p-7 flex gap-5">
                             {/* Date column */}
                             <div className="shrink-0 flex flex-col items-center gap-2 w-10 text-center">
@@ -376,15 +434,9 @@ const Journal = () => {
                                 <h3 className="text-text-primary text-base sm:text-lg font-bold leading-tight group-hover:text-accent transition-colors line-clamp-1">
                                   {entry.title}
                                 </h3>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {entry.is_favorite && (
-                                    <span className="text-yellow-500"><Star size={15} fill="currentColor" /></span>
-                                  )}
-                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${type.badge}`}>
-                                    <TypeIcon size={9} />
-                                    <span className="hidden sm:inline">{type.label}</span>
-                                  </span>
-                                </div>
+                                {entry.is_favorite && (
+                                  <span className="text-yellow-500 shrink-0"><Star size={15} fill="currentColor" /></span>
+                                )}
                               </div>
 
                               {entry.description && (
@@ -406,9 +458,6 @@ const Journal = () => {
                                     {fmt12h((entry as Journal & { time?: string }).time)}
                                   </span>
                                 )}
-                                {entry.photos.length > 0 && (
-                                  <span className="text-[11px] text-text-secondary/60">{entry.photos.length} photo{entry.photos.length > 1 ? "s" : ""}</span>
-                                )}
                               </div>
 
                               {entry.tags.length > 0 && (
@@ -425,17 +474,85 @@ const Journal = () => {
                                 </div>
                               )}
                             </div>
+
+                            {/* Right column — type badge + photo grid */}
+                            <div className="shrink-0 flex flex-col items-end gap-2 min-w-[80px]">
+                              {/* Type badge */}
+                              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${type.badge}`}>
+                                <TypeIcon size={9} />
+                                {type.label}
+                              </span>
+
+                              {/* WhatsApp-style photo grid */}
+                              {entry.photos.length > 0 && (() => {
+                                const photos = entry.photos;
+                                const count = Math.min(photos.length, 4);
+                                const extra = photos.length - 4;
+
+                                // 1 photo — full square
+                                if (count === 1) return (
+                                  <div className="w-[76px] h-[76px] rounded-lg overflow-hidden">
+                                    <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
+                                  </div>
+                                );
+
+                                // 2 photos — side by side
+                                if (count === 2) return (
+                                  <div className="flex gap-0.5 w-[76px] h-[76px]">
+                                    {photos.slice(0, 2).map((p, i) => (
+                                      <div key={i} className="flex-1 overflow-hidden rounded-sm">
+                                        <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+
+                                // 3 photos — one left, two stacked right
+                                if (count === 3) return (
+                                  <div className="flex gap-0.5 w-[76px] h-[76px]">
+                                    <div className="flex-1 overflow-hidden rounded-sm">
+                                      <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-0.5">
+                                      {photos.slice(1, 3).map((p, i) => (
+                                        <div key={i} className="flex-1 overflow-hidden rounded-sm">
+                                          <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+
+                                // 4+ photos — 2×2 grid, +N on last
+                                return (
+                                  <div className="grid grid-cols-2 gap-0.5 w-[76px] h-[76px]">
+                                    {photos.slice(0, 4).map((p, i) => (
+                                      <div key={i} className="relative overflow-hidden rounded-sm">
+                                        <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                        {i === 3 && extra > 0 && (
+                                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                            <span className="text-white text-[10px] font-bold">+{extra}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </div>
-                        </div>
+                        </Link>
                       );
                     })}
+                      </div>
+                    ))}
 
-                    {visibleCount < filtered.length && (
+                    {visibleCount < sortedFiltered.length && (
                       <button
                         onClick={() => setVisibleCount((v) => v + FEED_PAGE_SIZE)}
                         className="w-full py-3 rounded-xl border border-border bg-surface text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                       >
-                        Load more ({filtered.length - visibleCount} remaining)
+                        Load more ({sortedFiltered.length - visibleCount} remaining)
                       </button>
                     )}
                   </div>
@@ -470,14 +587,30 @@ const Journal = () => {
                   ))}
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
-                    const has = calDays.has(day);
+                    const entry = calEntries.get(day);
+                    const has = !!entry;
+                    const photo = entry?.photos?.[0];
                     const isToday = new Date().getDate() === day &&
                       new Date().getMonth() === calMonth.month &&
                       new Date().getFullYear() === calMonth.year;
                     return (
-                      <div key={day} className={`bg-surface aspect-square p-2 flex flex-col items-center justify-center gap-1 transition-colors ${has ? "hover:bg-bg cursor-pointer" : ""}`}>
-                        <span className={`text-xs font-semibold ${isToday ? "text-accent font-black" : has ? "text-text-primary" : "text-text-secondary/40"}`}>{day}</span>
-                        {has && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
+                      <div key={day} onClick={() => has && entry && navigate(`/dashboard/journal/${entry._id}`)} className={`bg-surface aspect-square relative overflow-hidden transition-colors ${has ? "hover:brightness-110 cursor-pointer" : ""}`}>
+                        {photo && (
+                          <img src={get_full_image_url(photo, "user")} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                        )}
+                        <div className="relative z-10 p-1.5 flex flex-col h-full">
+                          <span className={`text-[11px] font-bold leading-none ${isToday ? "text-accent" : has ? "text-text-primary" : "text-text-secondary/30"}`}>
+                            {day}
+                          </span>
+                          {has && (
+                            <p className="text-[8px] sm:text-[9px] text-text-primary/70 mt-1 line-clamp-2 leading-tight break-words">
+                              {entry.title}
+                            </p>
+                          )}
+                          {has && !photo && (
+                            <div className="mt-auto self-end w-1.5 h-1.5 rounded-full bg-accent" />
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -486,7 +619,7 @@ const Journal = () => {
                 <div className="mt-6 flex items-center gap-3 text-xs text-text-secondary">
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-accent inline-block" /> Entry written</span>
                   <span className="flex items-center gap-1.5"><span className="text-accent font-black">·</span> Today</span>
-                  <span className="ml-auto">{calDays.size} entr{calDays.size === 1 ? "y" : "ies"} this month</span>
+                  <span className="ml-auto">{calEntries.size} entr{calEntries.size === 1 ? "y" : "ies"} this month</span>
                 </div>
               </div>
             )}
