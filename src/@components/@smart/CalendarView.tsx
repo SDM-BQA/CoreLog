@@ -18,20 +18,70 @@ export interface CalendarBook {
 
 // Palette for book spans — cycles through these colours
 const BOOK_COLORS = [
-  { bg: "bg-violet-500/80",  border: "border-violet-400", text: "text-white", dot: "bg-violet-400"  },
-  { bg: "bg-sky-500/80",     border: "border-sky-400",    text: "text-white", dot: "bg-sky-400"     },
-  { bg: "bg-emerald-500/80", border: "border-emerald-400",text: "text-white", dot: "bg-emerald-400" },
-  { bg: "bg-amber-500/80",   border: "border-amber-400",  text: "text-white", dot: "bg-amber-400"   },
-  { bg: "bg-rose-500/80",    border: "border-rose-400",   text: "text-white", dot: "bg-rose-400"    },
-  { bg: "bg-pink-500/80",    border: "border-pink-400",   text: "text-white", dot: "bg-pink-400"    },
-  { bg: "bg-teal-500/80",    border: "border-teal-400",   text: "text-white", dot: "bg-teal-400"    },
-  { bg: "bg-orange-500/80",  border: "border-orange-400", text: "text-white", dot: "bg-orange-400"  },
+  {
+    bg: "bg-violet-500/80",
+    border: "border-violet-400",
+    text: "text-white",
+    dot: "bg-violet-400",
+  },
+  {
+    bg: "bg-sky-500/80",
+    border: "border-sky-400",
+    text: "text-white",
+    dot: "bg-sky-400",
+  },
+  {
+    bg: "bg-emerald-500/80",
+    border: "border-emerald-400",
+    text: "text-white",
+    dot: "bg-emerald-400",
+  },
+  {
+    bg: "bg-amber-500/80",
+    border: "border-amber-400",
+    text: "text-white",
+    dot: "bg-amber-400",
+  },
+  {
+    bg: "bg-rose-500/80",
+    border: "border-rose-400",
+    text: "text-white",
+    dot: "bg-rose-400",
+  },
+  {
+    bg: "bg-pink-500/80",
+    border: "border-pink-400",
+    text: "text-white",
+    dot: "bg-pink-400",
+  },
+  {
+    bg: "bg-teal-500/80",
+    border: "border-teal-400",
+    text: "text-white",
+    dot: "bg-teal-400",
+  },
+  {
+    bg: "bg-orange-500/80",
+    border: "border-orange-400",
+    text: "text-white",
+    dot: "bg-orange-400",
+  },
 ];
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 interface BookWithDates extends CalendarBook {
@@ -47,20 +97,28 @@ interface CalendarViewProps {
   type?: "book" | "series";
 }
 
-function getBooksForDay(booksWithDates: BookWithDates[], day: Date): BookWithDates[] {
-  const d = new Date(day); d.setHours(12, 0, 0, 0);
+function getBooksForDay(
+  booksWithDates: BookWithDates[],
+  day: Date,
+): BookWithDates[] {
+  const d = new Date(day);
+  d.setHours(12, 0, 0, 0);
   return booksWithDates.filter((b) => {
     if (!b.start) return false;
-    const start = new Date(b.start); start.setHours(0, 0, 0, 0);
-    
+    const start = new Date(b.start);
+    start.setHours(0, 0, 0, 0);
+
     // For 'not_finished' items without an end date, only show on the start date
     if (!b.end && b.status === "not_finished") {
-        return isSameDay(d, start);
+      return isSameDay(d, start);
     }
-    
+
     const end = b.end ? new Date(b.end) : null;
-    if (end) { end.setHours(23, 59, 59, 0); return d >= start && d <= end; }
-    
+    if (end) {
+      end.setHours(23, 59, 59, 0);
+      return d >= start && d <= end;
+    }
+
     // Ongoing items (reading/watching) without an end date prolong to the current day
     const today = new Date();
     today.setHours(23, 59, 59, 0);
@@ -69,9 +127,11 @@ function getBooksForDay(booksWithDates: BookWithDates[], day: Date): BookWithDat
 }
 
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() &&
+  return (
+    a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+    a.getDate() === b.getDate()
+  );
 }
 
 export default function CalendarView({
@@ -80,7 +140,9 @@ export default function CalendarView({
   type = "book",
 }: CalendarViewProps) {
   const today = new Date();
-  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [viewDate, setViewDate] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1),
+  );
   const [hoveredBook, setHoveredBook] = useState<string | null>(null);
 
   const year = viewDate.getFullYear();
@@ -99,20 +161,22 @@ export default function CalendarView({
     const lastDay = new Date(year, month + 1, 0);
     return booksWithDates.filter((b) => {
       if (!b.start) return false;
-      
+
       // If it's not finished and has no end date, it's a single day event
       if (!b.end && b.status === "not_finished") {
         return b.start <= lastDay && b.start >= firstDay;
       }
-      
+
       const end = b.end ?? new Date();
       return b.start <= lastDay && end >= firstDay;
     });
   }, [booksWithDates, year, month]);
 
   const colorMap = useMemo(() => {
-    const map: Record<string, typeof BOOK_COLORS[0]> = {};
-    booksWithDates.forEach((b, i) => { map[b._id] = BOOK_COLORS[i % BOOK_COLORS.length]; });
+    const map: Record<string, (typeof BOOK_COLORS)[0]> = {};
+    booksWithDates.forEach((b, i) => {
+      map[b._id] = BOOK_COLORS[i % BOOK_COLORS.length];
+    });
     return map;
   }, [booksWithDates]);
 
@@ -120,13 +184,17 @@ export default function CalendarView({
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (Date | null)[] = [
     ...Array(firstWeekday).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+    ...Array.from(
+      { length: daysInMonth },
+      (_, i) => new Date(year, month, i + 1),
+    ),
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
   const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
-  const goToday  = () => setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+  const goToday = () =>
+    setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
 
   return (
     <div className="flex flex-col gap-6 pb-8">
@@ -145,12 +213,18 @@ export default function CalendarView({
           </button>
         </div>
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={prevMonth}
-            className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors">
+          <button
+            type="button"
+            onClick={prevMonth}
+            className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors"
+          >
             <ChevronLeft size={16} />
           </button>
-          <button type="button" onClick={nextMonth}
-            className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors">
+          <button
+            type="button"
+            onClick={nextMonth}
+            className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors"
+          >
             <ChevronRight size={16} />
           </button>
         </div>
@@ -168,7 +242,9 @@ export default function CalendarView({
                 onMouseEnter={() => setHoveredBook(b._id)}
                 onMouseLeave={() => setHoveredBook(null)}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${c.border} ${
-                  hoveredBook === b._id ? `${c.bg} ${c.text}` : "bg-surface text-text-secondary hover:text-text-primary"
+                  hoveredBook === b._id
+                    ? `${c.bg} ${c.text}`
+                    : "bg-surface text-text-secondary hover:text-text-primary"
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
@@ -182,7 +258,10 @@ export default function CalendarView({
       {/* ── Day Names ── */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAYS.map((d) => (
-          <div key={d} className="text-center text-[11px] font-bold text-text-secondary/60 uppercase tracking-widest py-1">
+          <div
+            key={d}
+            className="text-center text-[11px] font-bold text-text-secondary/60 uppercase tracking-widest py-1"
+          >
             {d}
           </div>
         ))}
@@ -191,7 +270,8 @@ export default function CalendarView({
       {/* ── Grid ── */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} className="aspect-square" />;
+          if (!day)
+            return <div key={`empty-${idx}`} className="aspect-square" />;
           const isToday = isSameDay(day, today);
           const dayBooks = getBooksForDay(booksWithDates, day);
           const MAX_VISIBLE = 3;
@@ -200,21 +280,29 @@ export default function CalendarView({
             <div
               key={day.toISOString()}
               className={`relative min-h-[80px] sm:min-h-[96px] p-1.5 rounded-xl border flex flex-col gap-1 transition-colors ${
-                isToday ? "border-accent/50 bg-accent/5" : "border-border/50 bg-surface hover:border-border"
+                isToday
+                  ? "border-accent/50 bg-accent/5"
+                  : "border-border/50 bg-surface hover:border-border"
               }`}
             >
-              <span className={`text-xs font-bold self-start w-6 h-6 flex items-center justify-center rounded-full ${
-                isToday ? "bg-accent text-text-primary" : "text-text-secondary"
-              }`}>
+              <span
+                className={`text-xs font-bold self-start w-6 h-6 flex items-center justify-center rounded-full ${
+                  isToday
+                    ? "bg-accent text-text-primary"
+                    : "text-text-secondary"
+                }`}
+              >
                 {day.getDate()}
               </span>
 
               {dayBooks.slice(0, MAX_VISIBLE).map((b) => {
                 const c = colorMap[b._id];
                 const isStart = b.start ? isSameDay(b.start, day) : false;
-                const isEnd   = b.end   
-                                  ? isSameDay(b.end,   day) 
-                                  : (b.status === "not_finished" ? isStart : false);
+                const isEnd = b.end
+                  ? isSameDay(b.end, day)
+                  : b.status === "not_finished"
+                    ? isStart
+                    : false;
                 const isHovered = hoveredBook === b._id;
                 return (
                   <Link
@@ -224,21 +312,28 @@ export default function CalendarView({
                     onMouseEnter={() => setHoveredBook(b._id)}
                     onMouseLeave={() => setHoveredBook(null)}
                     className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold truncate transition-all border ${c.border} ${c.bg} ${c.text} ${
-                      isHovered ? "opacity-100 scale-[1.02] shadow-md" : "opacity-80"
+                      isHovered
+                        ? "opacity-100 scale-[1.02] shadow-md"
+                        : "opacity-80"
                     } ${isStart ? "rounded-l-full" : ""} ${isEnd ? "rounded-r-full" : ""}`}
                   >
                     {isStart && (
                       <img
                         src={get_full_image_url(b.cover_image, type)}
                         alt=""
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
                         className="w-3 h-4 sm:w-3.5 sm:h-5 object-cover rounded shrink-0"
                       />
                     )}
-                    {isStart
-                      ? <span className="truncate hidden sm:block">{b.title}</span>
-                      : <span className="w-full" />
-                    }
+                    {isStart ? (
+                      <span className="truncate hidden sm:block">
+                        {b.title}
+                      </span>
+                    ) : (
+                      <span className="w-full" />
+                    )}
                   </Link>
                 );
               })}
@@ -263,10 +358,14 @@ export default function CalendarView({
               <BookOpen size={28} className="text-text-secondary/30" />
             )}
           </div>
-          <p className="text-text-primary font-semibold">No {type === "series" ? "watching" : "reading"} activity this month</p>
+          <p className="text-text-primary font-semibold">
+            No {type === "series" ? "watching" : "reading"} activity this month
+          </p>
           <p className="text-text-secondary text-sm max-w-xs">
-            {type === "series" ? "Series" : "Books"} with <span className="text-accent font-medium">Started From</span> or{" "}
-            <span className="text-accent font-medium">Finished On</span> dates will appear here.
+            {type === "series" ? "Series" : "Books"} with{" "}
+            <span className="text-accent font-medium">Started From</span> or{" "}
+            <span className="text-accent font-medium">Finished On</span> dates
+            will appear here.
           </p>
         </div>
       )}
