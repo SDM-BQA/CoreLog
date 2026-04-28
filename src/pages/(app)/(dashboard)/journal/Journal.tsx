@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import FilterDropdown from "../../../../@components/@smart/FilterDropdown";
 import {
   Calendar as CalendarIcon,
   Search,
@@ -102,6 +103,14 @@ const Journal = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (typeDropRef.current && !typeDropRef.current.contains(e.target as Node)) setTypeOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // Filter
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -198,8 +207,18 @@ const Journal = () => {
               ))}
             </div>
 
-            {/* Type filter */}
-            <div className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3">
+            {/* Type filter — dropdown on mobile, full list on desktop */}
+            <div className="lg:hidden">
+              <FilterDropdown
+                label="Filter by Type"
+                options={Object.keys(TYPE_MAP) as string[]}
+                selected={selectedType ? [selectedType] : []}
+                onSelect={(val) => setSelectedType(selectedType === val ? null : val)}
+                renderOption={(val) => TYPE_MAP[val]?.label ?? val}
+              />
+            </div>
+
+            <div className="hidden lg:flex bg-surface border border-border rounded-2xl p-4 flex-col gap-3">
               <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Filter by Type</p>
               <div className="flex flex-col gap-1">
                 <button
@@ -249,8 +268,8 @@ const Journal = () => {
               </div>
             )}
 
-            {/* Quote */}
-            <div className="bg-gradient-to-br from-surface to-bg border border-border rounded-2xl p-6 relative overflow-hidden group">
+            {/* Quote — desktop only (mobile version is rendered after main content) */}
+            <div className="hidden lg:block bg-gradient-to-br from-surface to-bg border border-border rounded-2xl p-6 relative overflow-hidden group">
               <Quote className="absolute -top-2 -right-2 text-accent/5 opacity-20" size={100} />
               <div className="relative z-10">
                 <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
@@ -548,6 +567,20 @@ const Journal = () => {
               </div>
             )}
 
+          </div>
+
+          {/* Quote — mobile only, shown after main content */}
+          <div className="lg:hidden bg-gradient-to-br from-surface to-bg border border-border rounded-2xl p-6 relative overflow-hidden">
+            <Quote className="absolute -top-2 -right-2 text-accent/5 opacity-20" size={100} />
+            <div className="relative z-10">
+              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
+                <Quote size={14} className="text-accent" />
+              </div>
+              <p className="text-text-primary text-sm italic leading-relaxed">
+                "Journaling is like whispering to oneself and listening at the same time."
+              </p>
+              <p className="text-text-secondary text-[10px] mt-3 font-bold uppercase tracking-widest">— Mina Murray</p>
+            </div>
           </div>
         </div>
       </div>
