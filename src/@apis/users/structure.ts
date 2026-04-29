@@ -63,6 +63,12 @@ mutation Send_otp($email: String!) {
 }
 `
 
+export const SEND_JOURNAL_PIN_RESET_OTP_MUTATION = `
+mutation Send_journal_pin_reset_otp($email: String!) {
+  send_journal_pin_reset_otp(email: $email)
+}
+`
+
 export const VERIFY_OTP_MUTATION = `
 mutation Verify_otp($email: String!, $otp: String!) {
   verify_otp(email: $email, otp: $otp)
