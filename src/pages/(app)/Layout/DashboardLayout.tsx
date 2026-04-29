@@ -6,7 +6,7 @@ const DashboardLayout = () => {
   return (
     <div className="bg-bg h-screen flex flex-row overflow-hidden">
       <DashboardSidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-hidden flex flex-col">
         <Outlet />
       </main>
       <ToastContainer delay={3000} />
