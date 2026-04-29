@@ -1,27 +1,90 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { useForm } from "../../../../@hooks/Form/useForm";
-import { 
-  validateName, 
-  validateLastName, 
-  validatePhone, 
+import {
+  validateName,
+  validateLastName,
+  validatePhone,
   validateGender,
   validateAvatar
 } from "../../../../@validator/auth.validator";
 import { update_user_account_mutation, upload_image_api } from "../../../../@apis/users";
 import { update_user } from "../../../../@store/slices/user/user.slice";
 import { toast } from "react-toast";
+import { useJournalLock } from "../journal/useJournalLock";
 
-import { 
-  User, 
-  Bell, 
-  Shield, 
-  Palette, 
-  Database, 
+import {
+  User,
+  Bell,
+  Shield,
+  Palette,
+  Database,
   Lock,
-  ChevronRight
+  ChevronRight,
+  BookLock,
+  Fingerprint,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  KeyRound,
 } from "lucide-react";
+
+// ── PIN OTP input (4 boxes) ───────────────────────────────────────────────────
+const PinInput = ({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) => {
+  const refs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
+
+  const handleKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !value[i] && i > 0) refs[i - 1].current?.focus();
+  };
+
+  const handleInput = (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const ch = e.target.value.replace(/\D/g, "").slice(-1);
+    const arr = value.split("").slice(0, 4);
+    arr[i] = ch;
+    const next = arr.join("").slice(0, 4);
+    onChange(next);
+    if (ch && i < 3) refs[i + 1].current?.focus();
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">{label}</label>
+      <div className="flex gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <input
+            key={i}
+            ref={refs[i]}
+            type="password"
+            inputMode="numeric"
+            maxLength={1}
+            value={value[i] || ""}
+            onChange={(e) => handleInput(i, e)}
+            onKeyDown={(e) => handleKey(i, e)}
+            disabled={disabled}
+            className="w-12 h-12 text-center text-lg font-bold bg-bg border border-border rounded-xl text-text-primary focus:outline-none focus:border-accent transition-colors disabled:opacity-40"
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
@@ -29,6 +92,57 @@ const Settings = () => {
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // ── Journal lock ──────────────────────────────────────────────────────────
+  const journalLock = useJournalLock();
+  const [lockPanel, setLockPanel] = useState<"none" | "change" | "remove">("none");
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin]         = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [lockError, setLockError]   = useState("");
+  const [lockLoading, setLockLoading] = useState(false);
+  const [bioLoading, setBioLoading]   = useState(false);
+
+  const closeLockPanel = useCallback(() => {
+    setLockPanel("none");
+    setCurrentPin(""); setNewPin(""); setConfirmPin(""); setLockError("");
+  }, []);
+
+  const handleChangePin = useCallback(async () => {
+    if (currentPin.length < 4) return setLockError("Enter your current 4-digit PIN.");
+    if (newPin.length < 4)     return setLockError("Enter a new 4-digit PIN.");
+    if (newPin !== confirmPin)  return setLockError("New PINs don't match.");
+    if (newPin === currentPin)  return setLockError("New PIN must be different from current PIN.");
+    setLockLoading(true);
+    setLockError("");
+    const ok = await journalLock.changePin(currentPin, newPin);
+    setLockLoading(false);
+    if (ok) { toast.success("PIN changed successfully!"); closeLockPanel(); }
+    else    { setLockError("Current PIN is incorrect."); setCurrentPin(""); }
+  }, [currentPin, newPin, confirmPin, journalLock, closeLockPanel]);
+
+  const handleRemoveLock = useCallback(async () => {
+    if (currentPin.length < 4) return setLockError("Enter your current 4-digit PIN to confirm.");
+    setLockLoading(true);
+    setLockError("");
+    const ok = await journalLock.changePin(currentPin, currentPin); // verify PIN
+    setLockLoading(false);
+    if (ok) { journalLock.resetLock(); toast.success("Journal lock removed."); closeLockPanel(); }
+    else    { setLockError("Incorrect PIN."); setCurrentPin(""); }
+  }, [currentPin, journalLock, closeLockPanel]);
+
+  const handleToggleBiometric = useCallback(async () => {
+    setBioLoading(true);
+    if (journalLock.hasBiometric) {
+      journalLock.removeBiometric();
+      toast.success("Fingerprint removed.");
+    } else {
+      const ok = await journalLock.registerBiometric();
+      if (ok) toast.success("Fingerprint registered!");
+      else    toast.error("Could not register fingerprint. Try again.");
+    }
+    setBioLoading(false);
+  }, [journalLock]);
 
   const {
     values,
@@ -285,15 +399,155 @@ const Settings = () => {
                 </form>
               )}
 
-              {activeTab !== "profile" && (
+              {/* ── Privacy & Security ── */}
+              {activeTab === "privacy" && (
+                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div>
+                    <h2 className="text-text-primary text-lg font-bold">Privacy &amp; Security</h2>
+                    <p className="text-text-secondary text-sm mt-1">Manage your journal lock and biometric access.</p>
+                  </div>
+
+                  {/* Journal Lock card */}
+                  <div className="bg-bg border border-border rounded-2xl overflow-hidden">
+
+                    {/* Header row */}
+                    <div className="flex items-center gap-4 p-5 border-b border-border">
+                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                        <BookLock size={18} className="text-accent" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-text-primary text-sm font-bold">Journal Lock</p>
+                        <p className="text-text-secondary text-xs mt-0.5">Protect your journal entries with a PIN</p>
+                      </div>
+                      {journalLock.hasPin ? (
+                        <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                          <CheckCircle2 size={11} /> Enabled
+                        </span>
+                      ) : (
+                        <span className="text-text-secondary/50 text-xs bg-surface border border-border px-3 py-1 rounded-full">
+                          Not set up
+                        </span>
+                      )}
+                    </div>
+
+                    {journalLock.hasPin ? (
+                      <>
+                        {/* Change PIN row */}
+                        <button
+                          onClick={() => { closeLockPanel(); setLockPanel(lockPanel === "change" ? "none" : "change"); }}
+                          className="w-full flex items-center gap-4 px-5 py-4 hover:bg-surface/50 transition-colors border-b border-border text-left"
+                        >
+                          <KeyRound size={15} className="text-text-secondary shrink-0" />
+                          <span className="flex-1 text-sm text-text-primary">Change PIN</span>
+                          <ChevronRight size={14} className={`text-text-secondary transition-transform ${lockPanel === "change" ? "rotate-90" : ""}`} />
+                        </button>
+
+                        {/* Change PIN panel */}
+                        {lockPanel === "change" && (
+                          <div className="px-5 py-5 border-b border-border bg-surface/30 flex flex-col gap-4">
+                            <PinInput label="Current PIN" value={currentPin} onChange={v => { setCurrentPin(v); setLockError(""); }} disabled={lockLoading} />
+                            <PinInput label="New PIN"     value={newPin}     onChange={v => { setNewPin(v);     setLockError(""); }} disabled={lockLoading} />
+                            <PinInput label="Confirm New PIN" value={confirmPin} onChange={v => { setConfirmPin(v); setLockError(""); }} disabled={lockLoading} />
+                            {lockError && (
+                              <p className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                                <AlertCircle size={12} /> {lockError}
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleChangePin}
+                                disabled={lockLoading || currentPin.length < 4 || newPin.length < 4 || confirmPin.length < 4}
+                                className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-5 py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+                              >
+                                {lockLoading && <Loader2 size={13} className="animate-spin" />}
+                                Save New PIN
+                              </button>
+                              <button onClick={closeLockPanel} className="px-5 py-2.5 rounded-xl text-sm text-text-secondary border border-border hover:text-text-primary transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Fingerprint row — only when device supports it */}
+                        {journalLock.biometricSupported && (
+                          <button
+                            onClick={handleToggleBiometric}
+                            disabled={bioLoading}
+                            className="w-full flex items-center gap-4 px-5 py-4 hover:bg-surface/50 transition-colors border-b border-border text-left disabled:opacity-60"
+                          >
+                            <Fingerprint size={15} className="text-text-secondary shrink-0" />
+                            <span className="flex-1 text-sm text-text-primary">Fingerprint / Face ID</span>
+                            {bioLoading ? (
+                              <Loader2 size={14} className="animate-spin text-text-secondary" />
+                            ) : journalLock.hasBiometric ? (
+                              <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
+                                <CheckCircle2 size={11} /> On
+                              </span>
+                            ) : (
+                              <span className="text-text-secondary/50 text-xs">Off</span>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Remove lock row */}
+                        <button
+                          onClick={() => { closeLockPanel(); setLockPanel(lockPanel === "remove" ? "none" : "remove"); }}
+                          className="w-full flex items-center gap-4 px-5 py-4 hover:bg-rose-500/5 transition-colors text-left"
+                        >
+                          <Trash2 size={15} className="text-rose-400 shrink-0" />
+                          <span className="flex-1 text-sm text-rose-400">Remove Lock</span>
+                          <ChevronRight size={14} className={`text-rose-400/60 transition-transform ${lockPanel === "remove" ? "rotate-90" : ""}`} />
+                        </button>
+
+                        {/* Remove lock panel */}
+                        {lockPanel === "remove" && (
+                          <div className="px-5 py-5 bg-rose-500/5 flex flex-col gap-4">
+                            <p className="text-text-secondary text-xs">Enter your current PIN to confirm removing the journal lock.</p>
+                            <PinInput label="Current PIN" value={currentPin} onChange={v => { setCurrentPin(v); setLockError(""); }} disabled={lockLoading} />
+                            {lockError && (
+                              <p className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                                <AlertCircle size={12} /> {lockError}
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleRemoveLock}
+                                disabled={lockLoading || currentPin.length < 4}
+                                className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+                              >
+                                {lockLoading && <Loader2 size={13} className="animate-spin" />}
+                                Remove Lock
+                              </button>
+                              <button onClick={closeLockPanel} className="px-5 py-2.5 rounded-xl text-sm text-text-secondary border border-border hover:text-text-primary transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="px-5 py-5 flex flex-col gap-3">
+                        <p className="text-text-secondary text-sm">No PIN set up yet. Go to your journal to set one up.</p>
+                        <a href="/dashboard/journal" className="inline-flex items-center gap-2 text-accent text-sm font-bold hover:underline">
+                          <BookLock size={14} /> Set up Journal Lock
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Other placeholder tabs ── */}
+              {activeTab !== "profile" && activeTab !== "privacy" && (
                 <div className="py-20 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in zoom-in-95 duration-300">
-                   <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
-                      <Lock size={32} />
-                   </div>
-                   <div>
-                     <h3 className="text-text-primary font-bold">{settingsOptions.find(o => o.id === activeTab)?.label} placeholder</h3>
-                     <p className="text-text-secondary text-sm mt-1">This section is currently under development.</p>
-                   </div>
+                  <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+                    <Lock size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-text-primary font-bold">{settingsOptions.find(o => o.id === activeTab)?.label}</h3>
+                    <p className="text-text-secondary text-sm mt-1">This section is currently under development.</p>
+                  </div>
                 </div>
               )}
 

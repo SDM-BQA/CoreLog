@@ -1,6 +1,6 @@
 import { axios_graphql_service_auth, axios_graphql_service_no_auth, check_graphql_error } from "../../@utils/api.utils"
 import { api_configs } from "../../@configs/api.configs"
-import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION, GET_DASHBOARD_STATS_QUERY } from "./structure"
+import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION, GET_DASHBOARD_STATS_QUERY, SEND_JOURNAL_PIN_RESET_OTP_MUTATION } from "./structure"
 
 export const get_dashboard_stats_query = async (): Promise<DashboardStats> => {
     const service = axios_graphql_service_auth()
@@ -118,6 +118,18 @@ export const create_user_account_mutation = async (input: CreateUserAccountMutat
     })
     check_graphql_error(data)
     return data.data.create_user_account
+}
+
+export const send_journal_pin_reset_otp_mutation = async (email: string) => {
+    const service = axios_graphql_service_no_auth()
+    const { data } = await service({
+        data: {
+            query: SEND_JOURNAL_PIN_RESET_OTP_MUTATION,
+            variables: { email }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.send_journal_pin_reset_otp
 }
 
 export const send_otp_mutation = async (email: string) => {

@@ -69,6 +69,9 @@ const MOODS = [
   { value: "overwhelmed", label: "Overwhelmed", emoji: "😵" },
   { value: "content",     label: "Content",     emoji: "☺️" },
   { value: "confused",    label: "Confused",    emoji: "🤔" },
+  { value: "wonderful",   label: "Wonderful",   emoji: "🤗" },
+  { value: "neutral",     label: "Neutral",     emoji: "😐" },
+  { value: "bad",         label: "Bad",         emoji: "😞" },
 ];
 
 const TYPE_COLOR: Record<string, string> = {

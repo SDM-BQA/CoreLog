@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import type { JournalLockAPI } from "./useJournalLock";
 import FilterDropdown from "../../../../@components/@smart/FilterDropdown";
 import {
   Calendar as CalendarIcon,
@@ -26,6 +27,8 @@ import {
   Moon,
   Lightbulb,
   MoreHorizontal,
+  Lock,
+  Fingerprint,
 } from "lucide-react";
 import { get_my_journals_query, type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
@@ -44,6 +47,9 @@ const MOOD_MAP: Record<string, { emoji: string; color: string }> = {
   overwhelmed: { emoji: "😵", color: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
   content:     { emoji: "☺️", color: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
   confused:    { emoji: "🤔", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  wonderful:   { emoji: "🤗", color: "bg-yellow-500/10 text-yellow-300 border-yellow-400/20" },
+  neutral:     { emoji: "😐", color: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20" },
+  bad:         { emoji: "😞", color: "bg-stone-500/10 text-stone-400 border-stone-500/20" },
 };
 
 const TYPE_MAP: Record<string, { icon: React.ElementType; label: string; badge: string; dot: string }> = {
@@ -77,6 +83,14 @@ const fmt12h = (time?: string) => {
 // ── Main component ───────────────────────────────────────────────────────────
 const Journal = () => {
   const navigate = useNavigate();
+  const { lock, hasBiometric, biometricSupported, registerBiometric } = useOutletContext<JournalLockAPI>();
+  const [registeringBio, setRegisteringBio] = useState(false);
+
+  const handleRegisterBiometric = useCallback(async () => {
+    setRegisteringBio(true);
+    await registerBiometric();
+    setRegisteringBio(false);
+  }, [registerBiometric]);
   const [journals, setJournals] = useState<Journal[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -197,13 +211,34 @@ const Journal = () => {
               {loading ? "Loading entries…" : `${journals.length} entr${journals.length === 1 ? "y" : "ies"} · Reflect, record, and remember.`}
             </p>
           </div>
-          <Link
-            to="/dashboard/journal/add-entry"
-            className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-6 py-3 rounded-xl text-sm font-bold shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] w-fit"
-          >
-            <Plus size={18} strokeWidth={3} />
-            Write New Entry
-          </Link>
+          <div className="flex items-center gap-3">
+            {biometricSupported && !hasBiometric && (
+              <button
+                onClick={handleRegisterBiometric}
+                disabled={registeringBio}
+                title="Set up fingerprint unlock"
+                className="flex items-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-accent hover:border-accent/30 transition-colors disabled:opacity-50"
+              >
+                {registeringBio ? <Loader2 size={15} className="animate-spin" /> : <Fingerprint size={15} />}
+                <span className="hidden sm:inline">Set up Fingerprint</span>
+              </button>
+            )}
+            <button
+              onClick={lock}
+              title="Lock journal"
+              className="flex items-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:border-accent/30 transition-colors"
+            >
+              <Lock size={15} />
+              <span className="hidden sm:inline">Lock</span>
+            </button>
+            <Link
+              to="/dashboard/journal/add-entry"
+              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-6 py-3 rounded-xl text-sm font-bold shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] w-fit"
+            >
+              <Plus size={18} strokeWidth={3} />
+              Write New Entry
+            </Link>
+          </div>
         </div>
 
         {/* ── Layout Grid ── */}
