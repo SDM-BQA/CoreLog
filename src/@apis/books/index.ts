@@ -1,5 +1,5 @@
 import { axios_graphql_service_auth, check_graphql_error } from "../../@utils/api.utils"
-import { CREATE_BOOK_MUTATION, GET_MY_BOOKS_QUERY, GET_BOOK_QUERY, UPDATE_BOOK_MUTATION, DELETE_BOOK_MUTATION, GET_BOOK_FILTERS_QUERY } from "./structure"
+import { CREATE_BOOK_MUTATION, GET_MY_BOOKS_QUERY, GET_BOOK_QUERY, UPDATE_BOOK_MUTATION, DELETE_BOOK_MUTATION, GET_BOOK_FILTERS_QUERY, GET_BOOK_LOGS_QUERY, ADD_BOOK_LOG_MUTATION, DELETE_BOOK_LOG_MUTATION } from "./structure"
 
 export interface BookInput {
     title: string;
@@ -133,4 +133,48 @@ export const search_external_books_api = async (query: string) => {
         console.error("Network error fetching books:", error);
         return [];
     }
+}
+
+export interface BookLog {
+    _id: string;
+    book_id: string;
+    date: string;
+    pages_read: number;
+    current_page: number;
+    note?: string;
+    created_at: string;
+}
+
+export interface BookLogInput {
+    date: string;
+    pages_read: number;
+    current_page: number;
+    note?: string;
+}
+
+export const get_book_logs_query = async (book_id: string): Promise<BookLog[]> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: GET_BOOK_LOGS_QUERY, variables: { book_id } }
+    })
+    check_graphql_error(data)
+    return data.data.get_book_logs
+}
+
+export const add_book_log_mutation = async (book_id: string, input: BookLogInput): Promise<BookLog> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: ADD_BOOK_LOG_MUTATION, variables: { book_id, input } }
+    })
+    check_graphql_error(data)
+    return data.data.add_book_log
+}
+
+export const delete_book_log_mutation = async (id: string): Promise<boolean> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: DELETE_BOOK_LOG_MUTATION, variables: { id } }
+    })
+    check_graphql_error(data)
+    return data.data.delete_book_log
 }

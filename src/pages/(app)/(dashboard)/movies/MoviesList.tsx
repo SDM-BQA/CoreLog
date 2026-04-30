@@ -230,23 +230,23 @@ const MoviesList = () => {
   };
 
   return (
-    <div className="bg-bg flex-1 flex flex-col min-h-0">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 h-full flex flex-col">
+    <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-4 sm:py-8 flex flex-col">
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-3 sm:mb-6">
           <div>
-            <h1 className="text-text-primary text-3xl font-bold tracking-tight font-inter">
+            <h1 className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight font-inter">
               My Collection
             </h1>
-            <p className="text-text-secondary text-sm mt-1">
+            <p className="text-text-secondary text-sm mt-1 hidden sm:block">
               Manage and explore your personal library of{" "}
               <span className="text-accent font-semibold">{stats.total}</span> movies
             </p>
           </div>
           <Link
             to="/dashboard/movies/add-movie"
-            className="inline-flex items-center gap-2 bg-accent hover:bg-accent/80 text-text-primary text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-accent hover:bg-accent/80 text-text-primary text-xs sm:text-sm font-semibold px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg transition-colors shrink-0"
           >
             <Plus size={16} />
             Add Movie
@@ -254,15 +254,15 @@ const MoviesList = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8 shrink-0">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-8 shrink-0">
           {[
             { label: "Total Collection", value: stats.total },
             { label: "Watched", value: stats.watched },
             { label: "On Watchlist", value: stats.watchlist },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-surface border border-border p-5 rounded-2xl flex flex-col justify-center shadow-sm">
-              <h3 className="text-text-secondary text-sm font-medium mb-1">{label}</h3>
-              <span className="text-text-primary text-3xl font-bold tracking-tight">{value}</span>
+            <div key={label} className="bg-surface border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-center shadow-sm">
+              <h3 className="text-text-secondary text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate">{label}</h3>
+              <span className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight">{value}</span>
             </div>
           ))}
         </div>
@@ -390,8 +390,8 @@ const MoviesList = () => {
         </div>
 
         {/* Content + Pagination */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 flex-1 min-h-0">
-          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar pr-2">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="flex-1 flex flex-col pr-2">
             <MediaDisplay
               items={movies.map((movie) => ({
                 _id: movie._id,

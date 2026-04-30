@@ -19,8 +19,13 @@ import {
   CheckCircle2,
   Camera,
   Library,
+  TrendingUp,
+  Plus,
+  X,
+  NotebookPen,
+  Flame,
 } from "lucide-react";
-import { get_book_query, update_book_mutation, delete_book_mutation } from "../../../../@apis/books";
+import { get_book_query, update_book_mutation, delete_book_mutation, get_book_logs_query, add_book_log_mutation, delete_book_log_mutation, type BookLog } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { upload_image_api } from "../../../../@apis/users";
@@ -76,6 +81,13 @@ const BookDetail = () => {
   const [currentStatus, setCurrentStatus] = useState<string>("want_to_read");
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Reading log state
+  const [logs, setLogs] = useState<BookLog[]>([]);
+  const [logFormOpen, setLogFormOpen] = useState(false);
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState("");
+  const [logForm, setLogForm] = useState({ date: "", current_page: "", note: "" });
   
   // Modal State
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -105,11 +117,15 @@ const BookDetail = () => {
       if (!id) return;
       try {
         setIsLoading(true);
-        const data = await get_book_query(id);
+        const [data, logsData] = await Promise.all([
+          get_book_query(id),
+          get_book_logs_query(id),
+        ]);
         if (data) {
           setBook(data);
           setCurrentStatus(data.status);
         }
+        setLogs(logsData ?? []);
       } catch (error) {
         console.error("Error fetching book:", error);
       } finally {
@@ -349,6 +365,60 @@ const BookDetail = () => {
     } catch (error) {
       console.error("Error deleting book:", error);
       toast.error("Failed to delete the book.");
+    }
+  };
+
+  const latestPage = logs.length > 0 ? logs[logs.length - 1].current_page : 0;
+  const clampedPage = book?.page_count ? Math.min(latestPage, book.page_count) : latestPage;
+  const progressPct = book?.page_count ? Math.min(100, Math.round((clampedPage / book.page_count) * 100)) : 0;
+  const bookCompleted = !!(book?.page_count && latestPage === book.page_count);
+
+  const openLogForm = () => {
+    const today = new Date().toISOString().split("T")[0];
+    setLogForm({ date: today, current_page: clampedPage > 0 ? String(clampedPage) : "", note: "" });
+    setLogError("");
+    setLogFormOpen(true);
+  };
+
+  const handleSaveLog = async () => {
+    if (!book) return;
+    const pageNum = parseInt(logForm.current_page);
+    if (!logForm.date) { setLogError("Please select a date."); return; }
+    if (!logForm.current_page || isNaN(pageNum) || pageNum <= 0) { setLogError("Enter a valid page number."); return; }
+    if (pageNum <= clampedPage) { setLogError(`Must be greater than your current position (page ${clampedPage}).`); return; }
+    if (book.page_count && pageNum > book.page_count) { setLogError(`Cannot exceed the book's total pages (${book.page_count}).`); return; }
+
+    setLogError("");
+    setLogSaving(true);
+    try {
+      const newLog = await add_book_log_mutation(book._id, {
+        date: logForm.date,
+        pages_read: pageNum - clampedPage,
+        current_page: pageNum,
+        note: logForm.note || undefined,
+      });
+      const updatedLogs = [...logs, newLog].sort((a, b) => a.date.localeCompare(b.date));
+      setLogs(updatedLogs);
+      setLogFormOpen(false);
+      toast.success("Progress logged!");
+
+      if (book.page_count && pageNum >= book.page_count) {
+        setTimeout(() => {
+          handleStatusChange({ target: { value: "read" } } as React.ChangeEvent<HTMLSelectElement>);
+        }, 400);
+      }
+    } catch {
+      toast.error("Failed to save log entry.");
+    }
+    setLogSaving(false);
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    try {
+      await delete_book_log_mutation(logId);
+      setLogs(prev => prev.filter(l => l._id !== logId));
+    } catch {
+      toast.error("Failed to delete log entry.");
     }
   };
 
@@ -668,6 +738,200 @@ const BookDetail = () => {
               </p>
             </div>
           </section>
+        )}
+
+        {/* ── Reading Log ── */}
+        {(currentStatus === "reading" || currentStatus === "read" || currentStatus === "not_finished") && (
+        <section>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-text-primary text-lg font-bold flex items-center gap-2">
+              <TrendingUp size={20} className="text-text-secondary" />
+              Reading Log
+            </h2>
+            {currentStatus === "reading" && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={openLogForm}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 transition-colors"
+                >
+                  <Plus size={13} /> Log Session
+                </button>
+                <button
+                  onClick={() => handleStatusChange({ target: { value: "read" } } as React.ChangeEvent<HTMLSelectElement>)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <CheckCircle2 size={13} /> Finished
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          {logs.length > 0 && book.page_count && book.page_count > 0 && (
+            <div className="bg-surface border border-border rounded-2xl p-5 mb-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary text-sm font-medium flex items-center gap-1.5">
+                  <NotebookPen size={14} /> Progress
+                </span>
+                <span className="text-text-primary text-sm font-bold">
+                  Page {clampedPage}{" "}
+                  <span className="text-text-secondary font-normal">of {book.page_count}</span>
+                </span>
+              </div>
+              <div className="relative w-full h-2.5 bg-border/40 rounded-full overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-text-secondary">
+                <div className="flex gap-4">
+                  <span className="flex items-center gap-1.5">
+                    <Flame size={12} className="text-orange-400" />
+                    {logs.length} update{logs.length !== 1 ? "s" : ""}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen size={12} className="text-blue-400" />
+                    {Math.max(0, book.page_count - clampedPage)} pages remaining
+                  </span>
+                </div>
+                <span className="text-accent font-bold text-sm">{progressPct}%</span>
+              </div>
+            </div>
+          )}
+
+          {/* Log form */}
+          {currentStatus === "reading" && logFormOpen && (
+            <div className="mb-5 bg-surface border border-accent/30 rounded-2xl overflow-hidden shadow-lg shadow-accent/5">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 bg-accent/5">
+                <span className="text-text-primary text-sm font-semibold flex items-center gap-2">
+                  <NotebookPen size={15} className="text-accent" /> New Reading Session
+                </span>
+                <button onClick={() => setLogFormOpen(false)} className="text-text-secondary hover:text-text-primary p-1 rounded-lg hover:bg-bg transition-colors">
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="p-5 flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70 mb-1.5 block">Date</label>
+                    <input type="date" value={logForm.date}
+                      onChange={e => { setLogForm(f => ({ ...f, date: e.target.value })); setLogError(""); }}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70 mb-1.5 block">
+                      Read up to page
+                      {book.page_count ? <span className="font-normal opacity-50 ml-1">/ {book.page_count}</span> : null}
+                    </label>
+                    <input type="number" min={clampedPage + 1} max={book.page_count || undefined}
+                      placeholder={clampedPage > 0 ? `> ${clampedPage}` : "e.g. 50"}
+                      value={logForm.current_page}
+                      onChange={e => { setLogForm(f => ({ ...f, current_page: e.target.value })); setLogError(""); }}
+                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70 mb-1.5 block">
+                    Note <span className="font-normal normal-case opacity-60">(optional)</span>
+                  </label>
+                  <textarea rows={2} placeholder="Quick thoughts, a favourite quote, bookmark…" value={logForm.note}
+                    onChange={e => setLogForm(f => ({ ...f, note: e.target.value }))}
+                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-3 text-text-primary text-sm placeholder:text-text-secondary/40 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none" />
+                </div>
+                {logError && (
+                  <p className="flex items-center gap-1.5 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                    <span className="shrink-0">⚠</span> {logError}
+                  </p>
+                )}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={() => { setLogFormOpen(false); setLogError(""); }}
+                    className="px-4 py-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-bg">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveLog} disabled={logSaving}
+                    className="px-5 py-2 text-xs font-semibold rounded-xl bg-accent hover:bg-accent/90 text-background transition-colors disabled:opacity-50 shadow-sm shadow-accent/20">
+                    {logSaving ? "Saving…" : "Save Progress"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Log entries */}
+          {logs.length === 0 ? (
+            <div className="bg-surface border border-border rounded-2xl p-10 flex flex-col items-center gap-3 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-border/30 flex items-center justify-center">
+                <BookOpen size={26} className="text-text-secondary/30" />
+              </div>
+              <p className="text-text-secondary/60 text-sm font-medium">No progress logged yet</p>
+              {currentStatus === "reading" && (
+                <p className="text-text-secondary/40 text-xs">Use "Log Session" to update your reading position day by day.</p>
+              )}
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-[19px] top-4 bottom-4 w-px bg-border/60" />
+              <div className="flex flex-col gap-3">
+                {/* Finished end-marker — shown at top since list is newest-first */}
+                {bookCompleted && (
+                  <div className="flex items-center gap-4">
+                    <div className="shrink-0 w-10 h-10 rounded-full border-2 bg-emerald-500 border-emerald-400 flex items-center justify-center z-10 shadow-lg shadow-emerald-500/30">
+                      <BookOpen size={14} className="text-white" />
+                    </div>
+                    <div className="flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-5 py-3 flex items-center gap-3">
+                      <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                      <span className="text-emerald-400 text-sm font-semibold">You've finished the book!</span>
+                    </div>
+                  </div>
+                )}
+                {[...logs].reverse().map((log, i) => {
+                  const isLatest = i === 0;
+                  return (
+                    <div key={log._id} className="flex items-start gap-4 group">
+                      <div className={`shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center z-10 transition-colors ${
+                        isLatest && bookCompleted ? "bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30"
+                        : isLatest ? "bg-accent border-accent/50 shadow-md shadow-accent/20"
+                        : "bg-surface border-border group-hover:border-accent/40"
+                      }`}>
+                        <BookOpen size={14} className={isLatest ? "text-background" : "text-text-secondary"} />
+                      </div>
+                      <div className="flex-1 min-w-0 bg-surface border border-border rounded-2xl px-5 py-4 hover:border-accent/20 transition-colors group/card">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center flex-wrap gap-2 mb-2">
+                              <span className="text-text-primary text-sm font-semibold">
+                                {new Date(log.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                              {isLatest && !bookCompleted && (
+                                <span className="text-[10px] font-bold uppercase tracking-wider bg-accent/10 text-accent px-2 py-0.5 rounded-full">Latest</span>
+                              )}
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent/10 px-2.5 py-1 rounded-full">
+                              Up to page {log.current_page}
+                            </span>
+                            {log.note && (
+                              <p className="mt-2.5 text-text-secondary text-xs leading-relaxed italic border-l-2 border-accent/30 pl-3">
+                                {log.note}
+                              </p>
+                            )}
+                          </div>
+                          {currentStatus === "reading" && (
+                            <button onClick={() => handleDeleteLog(log._id)}
+                              className="opacity-0 group-hover/card:opacity-100 text-text-secondary/30 hover:text-rose-400 transition-all p-1.5 rounded-lg hover:bg-rose-500/5 shrink-0 mt-0.5">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
         )}
       </div>
       {/* Read Status Modal */}
