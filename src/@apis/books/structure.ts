@@ -121,3 +121,37 @@ query Get_book_filters {
   }
 }
 `
+
+export const GET_BOOK_LOGS_QUERY = `
+query Get_book_logs($book_id: ID!) {
+  get_book_logs(book_id: $book_id) {
+    _id
+    book_id
+    date
+    pages_read
+    current_page
+    note
+    created_at
+  }
+}
+`
+
+export const ADD_BOOK_LOG_MUTATION = `
+mutation Add_book_log($book_id: ID!, $input: BookLogInput!) {
+  add_book_log(book_id: $book_id, input: $input) {
+    _id
+    book_id
+    date
+    pages_read
+    current_page
+    note
+    created_at
+  }
+}
+`
+
+export const DELETE_BOOK_LOG_MUTATION = `
+mutation Delete_book_log($id: ID!) {
+  delete_book_log(id: $id)
+}
+`
