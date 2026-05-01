@@ -15,12 +15,18 @@ import {
   Clapperboard,
   Tag,
   Globe,
+  Film,
 } from "lucide-react";
-import { 
-  get_series_query, 
-  update_series_mutation, 
-  delete_series_mutation 
+import {
+  get_series_query,
+  update_series_mutation,
+  delete_series_mutation,
+  get_series_logs_query,
+  add_series_log_mutation,
+  delete_series_log_mutation,
+  type SeriesLog,
 } from "../../../../@apis/series";
+import MediaLog from "../../../../@components/MediaLog";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url, get_rating_level, get_language_name, get_country_name } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
@@ -101,6 +107,8 @@ const SeriesDetail = () => {
 
   const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
 
+  const [seriesLogs, setSeriesLogs] = useState<SeriesLog[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateModal = () => {
@@ -141,7 +149,10 @@ const SeriesDetail = () => {
     if (!id) return;
     try {
       setIsLoading(true);
-      const data = await get_series_query(id);
+      const [data, logsData] = await Promise.all([
+        get_series_query(id),
+        get_series_logs_query(id),
+      ]);
       if (data) {
         setSeries(data as unknown as Series);
         setModalData({
@@ -162,6 +173,7 @@ const SeriesDetail = () => {
           finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
         });
       }
+      setSeriesLogs(logsData ?? []);
     } catch (error) {
       console.error("Error fetching series:", error);
       toast.error("Failed to load series details");
@@ -269,6 +281,28 @@ const SeriesDetail = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const latestEpisode = seriesLogs.length > 0 ? seriesLogs[seriesLogs.length - 1].current_episode : 0;
+  const clampedEpisode = series?.episodes ? Math.min(latestEpisode, series.episodes) : latestEpisode;
+
+  const handleAddSeriesLog = async (entry: { date: string; position: number; note?: string }) => {
+    if (!id) return;
+    const newLog = await add_series_log_mutation(id, {
+      date: entry.date,
+      episodes_watched: entry.position - clampedEpisode,
+      current_episode: entry.position,
+      note: entry.note,
+    });
+    const updatedLogs = [...seriesLogs, newLog].sort((a, b) => a.date.localeCompare(b.date));
+    setSeriesLogs(updatedLogs);
+    toast.success("Progress logged!");
+  };
+
+  const handleDeleteSeriesLog = async (logId: string) => {
+    await delete_series_log_mutation(logId);
+    setSeriesLogs(prev => prev.filter(l => l._id !== logId));
+    toast.success("Log entry removed.");
   };
 
   const openEdit = (view: typeof editView) => {
@@ -559,6 +593,22 @@ const SeriesDetail = () => {
                 </p>
               </div>
             </section>
+          )}
+
+          {/* Watch Log */}
+          {(series.status === "watching" || series.status === "rewatching" || series.status === "watched" || series.status === "not_finished") && (
+            <MediaLog
+              status={series.status}
+              activeStatuses={["watching", "rewatching"]}
+              unitLabel="episode"
+              unitIcon={<Film size={14} />}
+              completedLabel="You've finished the series!"
+              total={series.episodes ?? 0}
+              logs={seriesLogs.map(l => ({ _id: l._id, date: l.date, position: l.current_episode, note: l.note }))}
+              onAdd={handleAddSeriesLog}
+              onDelete={handleDeleteSeriesLog}
+              onFinish={() => handleStatusChange({ target: { value: "watched" } } as React.ChangeEvent<HTMLSelectElement>)}
+            />
           )}
         </div>
       </div>

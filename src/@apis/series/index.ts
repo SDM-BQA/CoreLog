@@ -1,5 +1,5 @@
 import { axios_graphql_service_auth, check_graphql_error } from "../../@utils/api.utils"
-import { CREATE_SERIES_MUTATION, GET_MY_SERIES_QUERY, GET_SERIES_QUERY, UPDATE_SERIES_MUTATION, DELETE_SERIES_MUTATION, GET_SERIES_FILTERS_QUERY } from "./structure"
+import { CREATE_SERIES_MUTATION, GET_MY_SERIES_QUERY, GET_SERIES_QUERY, UPDATE_SERIES_MUTATION, DELETE_SERIES_MUTATION, GET_SERIES_FILTERS_QUERY, GET_SERIES_LOGS_QUERY, ADD_SERIES_LOG_MUTATION, DELETE_SERIES_LOG_MUTATION } from "./structure"
 
 export interface SeriesInput {
     title: string;
@@ -114,6 +114,51 @@ export const get_series_filters_query = async (): Promise<SeriesFilters> => {
     })
     check_graphql_error(data)
     return data.data.get_series_filters
+}
+
+export interface SeriesLog {
+    _id: string;
+    series_id: string;
+    user_id: string;
+    date: string;
+    episodes_watched: number;
+    current_episode: number;
+    note?: string;
+    created_at?: string;
+}
+
+export interface SeriesLogInput {
+    date: string;
+    episodes_watched: number;
+    current_episode: number;
+    note?: string;
+}
+
+export const get_series_logs_query = async (series_id: string): Promise<SeriesLog[]> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: GET_SERIES_LOGS_QUERY, variables: { series_id } }
+    })
+    check_graphql_error(data)
+    return data.data.get_series_logs
+}
+
+export const add_series_log_mutation = async (series_id: string, input: SeriesLogInput): Promise<SeriesLog> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: ADD_SERIES_LOG_MUTATION, variables: { series_id, input } }
+    })
+    check_graphql_error(data)
+    return data.data.add_series_log
+}
+
+export const delete_series_log_mutation = async (id: string): Promise<boolean> => {
+    const service = axios_graphql_service_auth()
+    const { data } = await service({
+        data: { query: DELETE_SERIES_LOG_MUTATION, variables: { id } }
+    })
+    check_graphql_error(data)
+    return data.data.delete_series_log
 }
 
 export const search_external_series_api = async (query: string) => {

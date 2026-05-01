@@ -19,6 +19,7 @@ import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { get_dashboard_stats_query, type DashboardStats } from "../../../../@apis/users";
 import { get_my_movies_query } from "../../../../@apis/movies";
 import { get_my_series_query } from "../../../../@apis/series";
+import { get_my_books_query } from "../../../../@apis/books";
 import { get_my_poems_query } from "../../../../@apis/poetry";
 import { get_my_journals_query } from "../../../../@apis/journal";
 import { get_my_target_query, get_target_progress_query, type Target, type TargetProgress } from "../../../../@apis/targets";
@@ -67,12 +68,13 @@ const DashboardHome = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [s, tgt, prog, movRes, serRes, poeRes, jrnRes] = await Promise.all([
+        const [s, tgt, prog, movRes, serRes, bookRes, poeRes, jrnRes] = await Promise.all([
           get_dashboard_stats_query(),
           get_my_target_query(new Date().getFullYear()),
           get_target_progress_query(new Date().getFullYear()),
           get_my_movies_query({ limit: 8 }),
           get_my_series_query({ limit: 8 }),
+          get_my_books_query({ limit: 8 }),
           get_my_poems_query({ limit: 8 }),
           get_my_journals_query({ limit: 1, page: 1 }),
         ]);
@@ -84,6 +86,7 @@ const DashboardHome = () => {
         const all: MediaItem[] = [
           ...movRes.movies.map(m => ({ ...m, type: "Movie"  as const, cover: get_full_image_url(m.poster_image, "movie") })),
           ...serRes.series.map(s => ({ ...s, type: "Series" as const, cover: get_full_image_url(s.poster_image, "series") })),
+          ...bookRes.books.map(b => ({ ...b, type: "Book"   as const, cover: get_full_image_url(b.cover_image, "book") })),
           ...poeRes.poems.map(p => ({ ...p, type: "Poem"   as const, cover: get_full_image_url(p.cover_image, "poem") })),
         ].sort((a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime());
 
@@ -288,8 +291,10 @@ const DashboardHome = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-text-primary text-sm font-semibold truncate">{item.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className={`text-[10px] font-bold ${s.text}`}>{item.type}</span>
+                            <span className="text-text-secondary/30">·</span>
+                            <span className="text-[10px] font-semibold text-text-secondary capitalize">{item.status.replace(/_/g, " ")}</span>
                             <span className="text-text-secondary/30">·</span>
                             <span className="text-text-secondary/60 text-[10px]">
                               {new Date(item.created_at || "").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}

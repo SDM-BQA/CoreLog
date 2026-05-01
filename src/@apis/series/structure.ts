@@ -104,3 +104,39 @@ export const GET_SERIES_FILTERS_QUERY = `
     }
   }
 `;
+
+export const GET_SERIES_LOGS_QUERY = `
+  query GetSeriesLogs($series_id: ID!) {
+    get_series_logs(series_id: $series_id) {
+      _id
+      series_id
+      user_id
+      date
+      episodes_watched
+      current_episode
+      note
+      created_at
+    }
+  }
+`;
+
+export const ADD_SERIES_LOG_MUTATION = `
+  mutation AddSeriesLog($series_id: ID!, $input: SeriesLogInput!) {
+    add_series_log(series_id: $series_id, input: $input) {
+      _id
+      series_id
+      user_id
+      date
+      episodes_watched
+      current_episode
+      note
+      created_at
+    }
+  }
+`;
+
+export const DELETE_SERIES_LOG_MUTATION = `
+  mutation DeleteSeriesLog($id: ID!) {
+    delete_series_log(id: $id)
+  }
+`;
