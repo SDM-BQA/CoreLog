@@ -10,8 +10,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
-  BookOpen,
   Library,
   X,
 } from "lucide-react";
@@ -19,7 +17,7 @@ import { get_my_books_query, get_book_filters_query, BookFilter } from "../../..
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
-import { FilterDropdown, CalendarView } from "../../../../@components/@smart";
+import { FilterDropdown, CalendarView, MediaDisplay } from "../../../../@components/@smart";
 
 export interface Book {
   _id: string;
@@ -520,143 +518,34 @@ const BooksList = () => {
                     </div>
                   );
                 })()
-          ) : books.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-4">
-                <BookOpen className="text-text-secondary/40" size={32} />
-              </div>
-              <p className="text-text-primary font-semibold text-lg">No books found</p>
-              <p className="text-text-secondary text-sm mt-1 max-w-sm mb-4">
-                {hasFilters
-                  ? "Try adjusting your search or clear filters."
-                  : "Start building your reading collection."}
-              </p>
-              {hasFilters && (
-                <button onClick={clearFilters} className="text-accent text-sm font-semibold hover:underline">
-                  Clear all filters & search
-                </button>
-              )}
-            </div>
-          ) : viewMode === "grid" ? (
-            <div key={`${currentPage}-${committedSearch}`} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8 animate-reveal">
-              {books.map((book) => (
-                <Link
-                  to={`/dashboard/books/${book._id}`}
-                  key={book._id}
-                  className="group flex flex-col gap-3 cursor-pointer"
-                >
-                  <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 transform group-hover:-translate-y-2 border border-border/40 group-hover:border-accent/40 bg-surface">
-                    <img
-                      src={get_full_image_url(book.cover_image, "book")}
-                      alt={book.title}
-                      onError={(e) => { (e.target as HTMLImageElement).src = get_full_image_url(undefined, "book"); }}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    
-                    {/* Status Badge Overlay */}
-                    <div className="absolute top-3 left-3 z-10">
-                      <span className={`text-[9px] font-black px-2 py-1 rounded-md border backdrop-blur-md shadow-lg uppercase tracking-widest ${
-                        book.status === "read" ? "bg-green-500/20 text-green-400 border-green-500/30" :
-                        book.status === "reading" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
-                        book.status === "want_to_read" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
-                        "bg-red-500/20 text-red-400 border-red-500/30"
-                      }`}>
-                        {STATUS_MAP[book.status].split(' ')[0]}
-                      </span>
-                    </div>
-
-                    {/* View Details Overlay */}
-                    <div className="absolute inset-0 bg-bg/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[3px]">
-                      <div className="bg-accent text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-xl shadow-accent/20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                        View Details
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5 mt-1 px-1">
-                    <h3 className="text-text-primary text-[15px] font-bold font-inter leading-tight line-clamp-1 group-hover:text-accent transition-colors">
-                      {book.title}
-                    </h3>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-text-secondary text-[11px] font-medium truncate flex-1 uppercase tracking-tight">
-                        {book.author}
-                      </p>
-                      <div className="flex items-center gap-1 bg-accent/5 px-1.5 py-0.5 rounded-md border border-accent/10 shrink-0">
-                        <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-white text-xs font-black">
-                          {book.rating.toFixed(1)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
           ) : (
-            <div key={`${currentPage}-${committedSearch}`} className="flex flex-col gap-3 pb-8 animate-reveal">
-              {books.map((book) => (
-                <Link
-                  to={`/dashboard/books/${book._id}`}
-                  key={book._id}
-                  className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
-                >
-                  <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-xl overflow-hidden border border-border shadow-md">
-                    <img
-                      src={get_full_image_url(book.cover_image, "book")}
-                      alt={book.title}
-                      onError={(e) => { (e.target as HTMLImageElement).src = get_full_image_url(undefined, "book"); }}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0 pr-4">
-                    <h3 className="text-text-primary font-bold text-base md:text-lg leading-tight mb-1 truncate group-hover:text-accent transition-colors">
-                      {book.title}
-                    </h3>
-                    <p className="text-text-secondary text-sm font-medium flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-text-secondary/30" />
-                      {book.author}
-                    </p>
-                  </div>
-                  <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
-                    <div className="flex flex-wrap gap-1.5">
-                      {book.genres?.map((g) => (
-                        <span
-                          key={g}
-                          className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
-                        >
-                          {get_genre_display(g)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5 w-24 sm:w-32 md:w-36 shrink-0">
-                    <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-1 rounded-lg border border-accent/10">
-                      <Star className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 fill-yellow-400 text-yellow-400" />
-                      <span className="text-white text-sm sm:text-lg md:text-xl font-black">{book.rating.toFixed(1)}</span>
-                    </div>
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-lg border uppercase tracking-widest ${
-                      book.status === "read" ? "bg-green-500/10 text-green-400 border-green-500/20" :
-                      book.status === "reading" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                      book.status === "want_to_read" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
-                      "bg-red-500/10 text-red-400 border-red-500/20"
-                    }`}>
-                      {STATUS_MAP[book.status]}
-                    </span>
-                  </div>
-                  <button
-                    className="p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-bg transition-colors z-10"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-                </Link>
-              ))}
-            </div>
+            <MediaDisplay
+              items={books.map((book) => ({
+                _id: book._id,
+                title: book.title,
+                subtitle: book.author,
+                image: book.cover_image,
+                rating: book.rating,
+                status: book.status,
+                genres: book.genres,
+                year: book.publication_year,
+              }))}
+              type="book"
+              viewMode={viewMode === "grid" || viewMode === "list" ? viewMode : "grid"}
+              isLoading={isLoading}
+              hasFilters={hasFilters}
+              onClearFilters={clearFilters}
+              statusMap={STATUS_MAP}
+              getGenreDisplay={get_genre_display}
+              itemsPerPage={ITEMS_PER_PAGE}
+              pageKey={`${currentPage}-${committedSearch}`}
+            />
           )}
           </div>
 
           {/* ── Pagination — hidden in calendar and series view ── */}
           {!isLoading && total > 0 && viewMode !== "calendar" && viewMode !== "series" && (
-            <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0">
+            <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0 lg:sticky lg:top-8 lg:self-start">
               
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
                 Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
