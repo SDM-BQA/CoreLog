@@ -8,6 +8,7 @@ export interface SeriesInput {
     genres: string[];
     release_year: string;
     seasons: number;
+    seasons_watched?: number;
     episodes: number;
     language: string;
     origin_country: string;

@@ -23,6 +23,7 @@ export const GET_MY_SERIES_QUERY = `
         status
         release_year
         seasons
+        seasons_watched
         episodes
         language
         origin_country
@@ -49,6 +50,7 @@ export const GET_SERIES_QUERY = `
       genres
       release_year
       seasons
+      seasons_watched
       episodes
       language
       origin_country
@@ -74,6 +76,7 @@ export const UPDATE_SERIES_MUTATION = `
       genres
       release_year
       seasons
+      seasons_watched
       episodes
       language
       origin_country

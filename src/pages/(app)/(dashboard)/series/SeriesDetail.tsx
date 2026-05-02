@@ -44,6 +44,7 @@ interface Series {
   genres: string[];
   release_year: string;
   seasons: number;
+  seasons_watched: number;
   episodes: number;
   language: string;
   origin_country: string;
@@ -92,6 +93,7 @@ const SeriesDetail = () => {
     creator: "",
     release_year: "",
     seasons: 1,
+    seasons_watched: 0,
     episodes: 0,
     language: "",
     origin_country: "",
@@ -126,6 +128,10 @@ const SeriesDetail = () => {
     }
 
     if (editView === "all" || editView === "status_update") {
+      if (modalData.status === "watched" || modalData.status === "rewatching") {
+        if (modalData.seasons_watched < 0) errors.seasons_watched = "Cannot be negative";
+        if (modalData.seasons_watched > modalData.seasons) errors.seasons_watched = "Cannot exceed total seasons";
+      }
       const today = new Date();
       today.setHours(23, 59, 59, 999);
       
@@ -160,6 +166,7 @@ const SeriesDetail = () => {
           creator: data.creator,
           release_year: data.release_year,
           seasons: data.seasons,
+          seasons_watched: data.seasons_watched || 0,
           episodes: data.episodes || 0,
           language: data.language || "",
           origin_country: data.origin_country || "",
@@ -312,6 +319,7 @@ const SeriesDetail = () => {
         creator: series.creator,
         release_year: series.release_year,
         seasons: series.seasons,
+        seasons_watched: series.seasons_watched || 0,
         episodes: series.episodes || 0,
         language: series.language || "",
         origin_country: series.origin_country || "",
@@ -478,7 +486,7 @@ const SeriesDetail = () => {
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Seasons</span>
                 <div className="flex items-center gap-1.5 text-text-primary">
                   <Clapperboard size={14} className="text-text-secondary" />
-                  {series.seasons}
+                  {series.seasons_watched > 0 && series.seasons_watched < series.seasons ? `${series.seasons_watched} / ${series.seasons}` : series.seasons}
                 </div>
               </div>
 
@@ -682,6 +690,13 @@ const SeriesDetail = () => {
                   <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Episodes</label>
                   <input type="number" value={modalData.episodes} onChange={e => setModalData({...modalData, episodes: parseInt(e.target.value) || 0})} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none" />
                 </div>
+                {(modalData.status === "watched" || modalData.status === "rewatching") && (
+                   <div>
+                     <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Seasons Watched</label>
+                     <input type="number" value={modalData.seasons_watched} onChange={e => setModalData({...modalData, seasons_watched: parseInt(e.target.value) || 0})} className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.seasons_watched ? "border-error focus:border-error focus:ring-error/20" : "border-border focus:border-accent"}`} />
+                     {modalErrors.seasons_watched && <p className="text-error text-xs mt-1.5 pl-1">{modalErrors.seasons_watched}</p>}
+                   </div>
+                 )}
               </div>
               <div className="grid grid-cols-1 gap-4">
                 <div>
@@ -741,6 +756,20 @@ const SeriesDetail = () => {
                     className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.finished_on ? "border-error" : "border-border"}`} 
                   />
                   {modalErrors.finished_on && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.finished_on}</p>}
+                </div>
+              )}
+              
+              {/* Seasons Watched - Shown for status updates */}
+              {editView === "status_update" && (modalData.status === "watched" || modalData.status === "rewatching") && (
+                <div>
+                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Seasons Watched</label>
+                  <input 
+                    type="number" 
+                    value={modalData.seasons_watched} 
+                    onChange={e => setModalData({...modalData, seasons_watched: parseInt(e.target.value) || 0})} 
+                    className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.seasons_watched ? "border-error" : "border-border"}`} 
+                  />
+                  {modalErrors.seasons_watched && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.seasons_watched}</p>}
                 </div>
               )}
             </div>

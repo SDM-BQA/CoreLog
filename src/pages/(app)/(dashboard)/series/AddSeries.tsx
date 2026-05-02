@@ -40,6 +40,7 @@ interface AddSeriesForm {
   review: string;
   releaseYear: string;
   seasons: string;
+  seasons_watched: string;
   episodes: string;
   platform: string;
   rating: number;
@@ -100,6 +101,7 @@ const AddSeries = () => {
         review: "",
         releaseYear: "",
         seasons: "1",
+        seasons_watched: "0",
         episodes: "0",
         platform: "",
         rating: 0,
@@ -123,6 +125,14 @@ const AddSeries = () => {
         status: (val) => (val ? null : "Status is required"),
         seasons: (val) =>
           parseInt(val) > 0 ? null : "Must be at least 1 season",
+        seasons_watched: (val, formValues) => {
+          if (formValues.status !== "watched" && formValues.status !== "rewatching") return null;
+          const watched = parseInt(val) || 0;
+          const total = parseInt(formValues.seasons) || 0;
+          if (watched < 0) return "Cannot be negative";
+          if (watched > total) return "Cannot exceed total seasons";
+          return null;
+        },
         rating: (val, formValues) =>
           formValues.status === "watched" || formValues.status === "rewatching"
             ? val > 0
@@ -179,6 +189,7 @@ const AddSeries = () => {
             genres: formValues.genres.map(get_genre_key),
             release_year: formValues.releaseYear,
             seasons: parseInt(formValues.seasons) || 1,
+            seasons_watched: parseInt(formValues.seasons_watched) || 0,
             episodes: parseInt(formValues.episodes) || 0,
             language: formValues.language,
             origin_country: formValues.origin_country,
@@ -632,6 +643,7 @@ const AddSeries = () => {
                               }
                               if (status === "watched" && !values.finished_on) {
                                 setFieldValue("finished_on", new Date().toISOString().split("T")[0]);
+                                setFieldValue("seasons_watched", values.seasons);
                               }
                             }}
                             className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
@@ -710,6 +722,37 @@ const AddSeries = () => {
                     {errors.finished_on && (
                       <p className="text-error text-xs mt-1.5 pl-1">
                         {errors.finished_on}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Seasons Watched */}
+                {(values.status === "watched" || values.status === "rewatching") && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                      Seasons Watched
+                    </label>
+                    <div className="relative">
+                      <CheckCircle2
+                        size={18}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
+                      />
+                      <input
+                        type="number"
+                        placeholder="How many seasons?"
+                        value={values.seasons_watched}
+                        onChange={handleChange("seasons_watched")}
+                        className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all ${
+                          errors.seasons_watched
+                            ? "border-error focus:border-error focus:ring-error/20"
+                            : "border-border"
+                        }`}
+                      />
+                    </div>
+                    {errors.seasons_watched && (
+                      <p className="text-error text-xs mt-1.5 pl-1">
+                        {errors.seasons_watched}
                       </p>
                     )}
                   </div>
