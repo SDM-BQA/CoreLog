@@ -7,6 +7,7 @@ import {
   Plus,
   LayoutGrid,
   List as ListIcon,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   X,
@@ -19,7 +20,7 @@ import {
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { get_language_name } from "../../../../@utils/api.utils";
-import { FilterDropdown, MediaDisplay } from "../../../../@components/@smart";
+import { FilterDropdown, MediaDisplay, CalendarView } from "../../../../@components/@smart";
 
 export interface Movie {
   _id: string;
@@ -66,12 +67,16 @@ const MoviesList = () => {
   const [platformOptions, setPlatformOptions] = useState<string[]>([]);
   // const [directorOptions, setDirectorOptions] = useState<string[]>([]);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">(
-    (searchParams.get("view") as "grid" | "list") || "grid"
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar">(
+    (searchParams.get("view") as any) || "grid"
   );
   const [currentPage, setCurrentPage] = useState(
     Number(searchParams.get("page")) || 1
   );
+
+  // All movies for calendar view (unpaginated)
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [committedSearch, setCommittedSearch] = useState(searchParams.get("search") || "");
@@ -177,11 +182,28 @@ const MoviesList = () => {
     fetchMeta();
   }, []);
 
+  // Fetch ALL movies (no pagination) when calendar view is active
+  useEffect(() => {
+    if (viewMode !== "calendar") return;
+    const fetchAll = async () => {
+      setIsCalendarLoading(true);
+      try {
+        const result = await get_my_movies_query({ limit: 1000 });
+        setAllMovies(result.movies as unknown as Movie[]);
+      } catch (error) {
+        console.error("Error fetching all movies for calendar:", error);
+      } finally {
+        setIsCalendarLoading(false);
+      }
+    };
+    fetchAll();
+  }, [viewMode]);
+
   // Sync state from URL on back/forward navigation
   useEffect(() => {
     const page = Number(searchParams.get("page")) || 1;
     const search = searchParams.get("search") || "";
-    const view = (searchParams.get("view") as "grid" | "list") || "grid";
+    const view = (searchParams.get("view") as any) || "grid";
     const genres = searchParams.get("genres")?.split(",").filter(Boolean) || [];
     const status = searchParams.get("status")?.split(",").filter(Boolean) || [];
     const rating = searchParams.get("rating")?.split(",").map(Number).filter(Boolean) || [];
@@ -357,7 +379,7 @@ const MoviesList = () => {
         {/* View Toggle */}
         <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6 shrink-0">
           <div className="flex items-center gap-6 relative">
-            {(["grid", "list"] as const).map((mode) => (
+            {(["grid", "list", "calendar"] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -365,15 +387,15 @@ const MoviesList = () => {
                   viewMode === mode ? "text-accent" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
-                {mode === "grid" ? <LayoutGrid size={16} /> : <ListIcon size={16} />}
-                {mode === "grid" ? "Grid" : "List"}
+                {mode === "grid" ? <LayoutGrid size={16} /> : mode === "list" ? <ListIcon size={16} /> : <CalendarDays size={16} />}
+                {mode === "grid" ? "Grid" : mode === "list" ? "List" : "Calendar"}
               </button>
             ))}
             <div
               className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-in-out rounded-full"
               style={{
-                left: viewMode === "grid" ? "0px" : "70px",
-                width: viewMode === "grid" ? "54px" : "50px",
+                left: viewMode === "grid" ? "0px" : viewMode === "list" ? "70px" : "146px",
+                width: viewMode === "grid" ? "54px" : viewMode === "list" ? "50px" : "88px",
               }}
             />
           </div>
@@ -392,31 +414,53 @@ const MoviesList = () => {
         {/* Content + Pagination */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           <div className="flex-1 flex flex-col pr-2">
-            <MediaDisplay
-              items={movies.map((movie) => ({
-                _id: movie._id,
-                title: movie.title,
-                subtitle: movie.language ? get_language_name(movie.language) : "",
-                image: movie.poster_image,
-                rating: movie.rating,
-                status: movie.status,
-                genres: movie.genres,
-                year: movie.release_year,
-              }))}
-              type="movie"
-              viewMode={viewMode}
-              isLoading={isLoading}
-              hasFilters={hasFilters}
-              onClearFilters={clearFilters}
-              statusMap={STATUS_MAP}
-              getGenreDisplay={get_genre_display}
-              itemsPerPage={ITEMS_PER_PAGE}
-              pageKey={`${currentPage}-${committedSearch}`}
-            />
+            {viewMode === "calendar" ? (
+              isCalendarLoading ? (
+                <div className="animate-pulse flex flex-col gap-4">
+                  <div className="h-10 bg-surface rounded-xl w-1/4" />
+                  <div className="h-[400px] bg-surface rounded-xl w-full" />
+                </div>
+              ) : (
+                <CalendarView
+                  books={allMovies.map((m) => ({
+                    _id: m._id,
+                    title: m.title,
+                    cover_image: m.poster_image,
+                    started_from: m.started_from,
+                    finished_on: m.finished_on,
+                    status: m.status,
+                  }))}
+                  type="movie"
+                  detailBasePath="/dashboard/movies"
+                />
+              )
+            ) : (
+              <MediaDisplay
+                items={movies.map((movie) => ({
+                  _id: movie._id,
+                  title: movie.title,
+                  subtitle: movie.language ? get_language_name(movie.language) : "",
+                  image: movie.poster_image,
+                  rating: movie.rating,
+                  status: movie.status,
+                  genres: movie.genres,
+                  year: movie.release_year,
+                }))}
+                type="movie"
+                viewMode={viewMode}
+                isLoading={isLoading}
+                hasFilters={hasFilters}
+                onClearFilters={clearFilters}
+                statusMap={STATUS_MAP}
+                getGenreDisplay={get_genre_display}
+                itemsPerPage={ITEMS_PER_PAGE}
+                pageKey={`${currentPage}-${committedSearch}`}
+              />
+            )}
           </div>
 
           {/* Pagination */}
-          {!isLoading && total > 0 && (
+          {!isLoading && total > 0 && viewMode !== "calendar" && (
             <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0">
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
                 Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
