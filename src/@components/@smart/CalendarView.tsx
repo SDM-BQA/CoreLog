@@ -97,52 +97,61 @@ interface CalendarViewProps {
   type?: "book" | "series" | "movie";
 }
 
+function isOngoingStatus(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase().trim();
+  // These are the explicitly active statuses
+  if (s === "reading" || s === "watching" || s === "rewatching") return true;
+  
+  // These are NOT active statuses
+  const finishedStatuses = ["read", "watched", "not_finished", "watchlist", "want_to_read"];
+  if (finishedStatuses.includes(s)) return false;
+
+  // Fallback: if it's not a finished status, and it has a start date but no end date, 
+  // it might be a custom status or something else we should treat as active.
+  return true;
+}
+
 function getBooksForDay(
   booksWithDates: BookWithDates[],
   day: Date,
 ): BookWithDates[] {
-  const d = new Date(day);
-  d.setHours(12, 0, 0, 0);
+  const d = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12, 0, 0);
+
+  const now = new Date();
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
   return booksWithDates.filter((b) => {
+    const isOngoing = isOngoingStatus(b.status);
+    
     // 1. Both dates present: Show on all days in the range
     if (b.start && b.end) {
-      const start = new Date(b.start);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(b.end);
-      end.setHours(23, 59, 59, 0);
+      const start = new Date(b.start.getFullYear(), b.start.getMonth(), b.start.getDate(), 0, 0, 0);
+      const end = new Date(b.end.getFullYear(), b.end.getMonth(), b.end.getDate(), 23, 59, 59, 999);
       return d >= start && d <= end;
     }
 
     // 2. Only start date present
     if (b.start && !b.end) {
-      const start = new Date(b.start);
-      start.setHours(0, 0, 0, 0);
+      const start = new Date(b.start.getFullYear(), b.start.getMonth(), b.start.getDate(), 0, 0, 0);
 
       // If it's an ongoing status, show from start until today
-      const isOngoing =
-        b.status === "reading" ||
-        b.status === "watching" ||
-        b.status === "rewatching";
       if (isOngoing) {
-        const today = new Date();
-        today.setHours(23, 59, 59, 0);
-        return d >= start && d <= today;
+        return d >= start && d <= endOfToday;
       }
 
-      // Otherwise (e.g. 'not_finished' or 'read' without finished date), only show on start date
+      // Otherwise (completed/dropped without finished date), only show on start date
       return isSameDay(d, start);
     }
 
     // 3. Only end date present: Show only on end date
     if (!b.start && b.end) {
-      const end = new Date(b.end);
-      end.setHours(0, 0, 0, 0);
+      const end = new Date(b.end.getFullYear(), b.end.getMonth(), b.end.getDate(), 0, 0, 0);
       return isSameDay(d, end);
     }
 
     return false;
-  });
+  }).sort((a, b) => a._id.localeCompare(b._id));
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -178,16 +187,15 @@ export default function CalendarView({
   const booksThisMonth = useMemo(() => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
+
     return booksWithDates.filter((b) => {
-      if (!b.start) return false;
+      const start = b.start;
+      const end = b.end || (isOngoingStatus(b.status) ? new Date() : null);
 
-      // If it's not finished and has no end date, it's a single day event
-      if (!b.end && b.status === "not_finished") {
-        return b.start <= lastDay && b.start >= firstDay;
-      }
-
-      const end = b.end ?? new Date();
-      return b.start <= lastDay && end >= firstDay;
+      if (start && end) return start <= lastDay && end >= firstDay;
+      if (start && !end) return start <= lastDay && start >= firstDay;
+      if (!start && b.end) return b.end <= lastDay && b.end >= firstDay;
+      return false;
     });
   }, [booksWithDates, year, month]);
 
@@ -316,12 +324,8 @@ export default function CalendarView({
 
               {dayBooks.slice(0, MAX_VISIBLE).map((b) => {
                 const c = colorMap[b._id];
-                const isStart = b.start ? isSameDay(new Date(b.start), day) : (b.end ? isSameDay(new Date(b.end), day) : false);
-                
-                // For ongoing items, isEnd is true only on today
-                // For completed items, isEnd is true on finished_on
-                const isOngoing = b.status === "reading" || b.status === "watching" || b.status === "rewatching";
-                const isEnd = b.end ? isSameDay(new Date(b.end), day) : (isOngoing ? isToday : isStart);
+                const isStart = b.start ? isSameDay(b.start, day) : (b.end ? isSameDay(b.end, day) : false);
+                const isEnd = b.end ? isSameDay(b.end, day) : (isOngoingStatus(b.status) ? isToday : true);
                 
                 const isHovered = hoveredBook === b._id;
                 const isFirstDayOfWeek = idx % 7 === 0;
@@ -334,11 +338,11 @@ export default function CalendarView({
                     title={b.title}
                     onMouseEnter={() => setHoveredBook(b._id)}
                     onMouseLeave={() => setHoveredBook(null)}
-                    className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold truncate transition-all border ${c.border} ${c.bg} ${c.text} ${
+                    className={`relative flex items-center gap-1 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold truncate transition-all border ${c.border} ${c.bg} ${c.text} ${
                       isHovered
-                        ? "opacity-100 scale-[1.02] shadow-md"
+                        ? "opacity-100 scale-[1.02] shadow-md z-10"
                         : "opacity-80"
-                    } ${isStart ? "rounded-l-full" : "border-l-0"} ${isEnd ? "rounded-r-full" : "border-r-0"}`}
+                    } ${isStart ? "rounded-l-full ml-0.5" : "rounded-l-none border-l-0"} ${isEnd ? "rounded-r-full mr-0.5" : "rounded-r-none border-r-0"}`}
                   >
                     {showTitle && (
                       <img
@@ -382,13 +386,10 @@ export default function CalendarView({
             )}
           </div>
           <p className="text-text-primary font-semibold">
-            No {type === "series" ? "watching" : type === "movie" ? "watched" : "reading"} activity this month
+            No {type === "series" ? "Web Series" : type === "movie" ? "Movie" : "Book"} activity this month
           </p>
           <p className="text-text-secondary text-sm max-w-xs">
-            {type === "series" ? "Series" : type === "movie" ? "Movies" : "Books"} with{" "}
-            <span className="text-accent font-medium">Started From</span> or{" "}
-            <span className="text-accent font-medium">Finished On</span> dates
-            will appear here.
+            Items with <span className="text-accent font-medium">Started From</span> or <span className="text-accent font-medium">Finished On</span> dates will appear here.
           </p>
         </div>
       )}
