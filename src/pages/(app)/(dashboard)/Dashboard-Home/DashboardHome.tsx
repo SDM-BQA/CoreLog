@@ -1,330 +1,383 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Film,
   BookOpen,
   Tv,
   Plus,
-  Clock,
-  TrendingUp,
   ChevronRight,
   Star,
-  PlusCircle,
   Play,
   PenLine,
   ScrollText,
+  Target as TargetIcon,
+  Layers,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
-import { DUMMY_MOVIES, type Movie } from "../movies/moviesData";
-import { booksData, type Book } from "../books/booksData";
-import { DUMMY_SERIES, type Series } from "../series/seriesData";
-import { DUMMY_JOURNAL_ENTRIES, MOOD_EMOJIS } from "../journal/journalData";
-import { myPoetryData } from "../poetry/poetryData";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
+import { get_dashboard_stats_query, type DashboardStats } from "../../../../@apis/users";
+import { get_my_movies_query } from "../../../../@apis/movies";
+import { get_my_series_query } from "../../../../@apis/series";
+import { get_my_books_query } from "../../../../@apis/books";
+import { get_my_poems_query } from "../../../../@apis/poetry";
+import { get_my_journals_query } from "../../../../@apis/journal";
+import { get_my_target_query, get_target_progress_query, type Target, type TargetProgress } from "../../../../@apis/targets";
+import { get_full_image_url } from "../../../../@utils/api.utils";
 
-type MediaItem = 
-  | (Movie & { type: 'Movie'; cover: string })
-  | (Series & { type: 'Series'; cover: string })
-  | (Book & { type: 'Book'; cover: string })
-  | { type: 'Poem'; title: string; dateCreated: string; status: string; mood: string; id: string; cover?: string; rating?: number };
+type MediaItem =
+  | { type: "Movie";  title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; genres?: string[] }
+  | { type: "Series"; title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; total_seasons?: number }
+  | { type: "Book";   title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; author?: string }
+  | { type: "Poem";   title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; mood?: string };
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const TYPE_STYLE: Record<string, { badge: string; bar: string; text: string; bg: string }> = {
+  Movie:  { badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",   bar: "bg-blue-500",    text: "text-blue-400",    bg: "bg-blue-500/10" },
+  Series: { badge: "bg-violet-500/10 text-violet-400 border-violet-500/20", bar: "bg-violet-500", text: "text-violet-400", bg: "bg-violet-500/10" },
+  Book:   { badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", bar: "bg-emerald-500", text: "text-emerald-400", bg: "bg-emerald-500/10" },
+  Poem:   { badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",  bar: "bg-amber-500",   text: "text-amber-400",   bg: "bg-amber-500/10" },
+};
+
+const itemPath = (item: MediaItem) =>
+  item.type === "Movie"  ? `/dashboard/movies/${item._id}`  :
+  item.type === "Series" ? `/dashboard/series/${item._id}`  :
+  item.type === "Poem"   ? `/dashboard/poetry/${item._id}`  :
+  `/dashboard/books/${item._id}`;
+
+const timeGreeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+};
+
+const fmtDate = () =>
+  new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
+
+// ── Component ─────────────────────────────────────────────────────────────────
 const DashboardHome = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const { user } = useAppSelector((state) => state.user);  
+  const { user } = useAppSelector((state) => state.user);
 
-  // Stats
-  const stats = [
-    { label: "Movies", count: DUMMY_MOVIES.length, icon: Film, color: "text-blue-500", bg: "bg-blue-500/10", to: "/dashboard/movies" },
-    { label: "Web Series", count: DUMMY_SERIES.length, icon: Tv, color: "text-purple-500", bg: "bg-purple-500/10", to: "/dashboard/series" },
-    { label: "Books", count: booksData.length, icon: BookOpen, color: "text-emerald-500", bg: "bg-emerald-500/10", to: "/dashboard/books" },
-    { label: "Poetry", count: myPoetryData.length, icon: ScrollText, color: "text-amber-500", bg: "bg-amber-500/10", to: "/dashboard/poetry" },
-    { label: "Journal", count: DUMMY_JOURNAL_ENTRIES.length, icon: PenLine, color: "text-pink-500", bg: "bg-pink-500/10", to: "/dashboard/journal" },
+  const [stats,          setStats]          = useState<DashboardStats | null>(null);
+  const [journalCount,   setJournalCount]   = useState(0);
+  const [recentItems,    setRecentItems]    = useState<MediaItem[]>([]);
+  const [inProgressItems,setInProgressItems]= useState<MediaItem[]>([]);
+  const [yearlyTarget,   setYearlyTarget]   = useState<Target | null>(null);
+  const [yearlyProgress, setYearlyProgress] = useState<TargetProgress | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [s, tgt, prog, movRes, serRes, bookRes, poeRes, jrnRes] = await Promise.all([
+          get_dashboard_stats_query(),
+          get_my_target_query(new Date().getFullYear()),
+          get_target_progress_query(new Date().getFullYear()),
+          get_my_movies_query({ limit: 8 }),
+          get_my_series_query({ limit: 8 }),
+          get_my_books_query({ limit: 8 }),
+          get_my_poems_query({ limit: 8 }),
+          get_my_journals_query({ limit: 1, page: 1 }),
+        ]);
+        setStats(s);
+        setJournalCount(jrnRes.total_count);
+        setYearlyTarget(tgt);
+        setYearlyProgress(prog);
+
+        const all: MediaItem[] = [
+          ...movRes.movies.map(m => ({ ...m, type: "Movie"  as const, cover: get_full_image_url(m.poster_image, "movie") })),
+          ...serRes.series.map(s => ({ ...s, type: "Series" as const, cover: get_full_image_url(s.poster_image, "series") })),
+          ...bookRes.books.map(b => ({ ...b, type: "Book"   as const, cover: get_full_image_url(b.cover_image, "book") })),
+          ...poeRes.poems.map(p => ({ ...p, type: "Poem"   as const, cover: get_full_image_url(p.cover_image, "poem") })),
+        ].sort((a, b) => new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime());
+
+        setRecentItems(all.slice(0, 6));
+        setInProgressItems(
+          all.filter(i => ["watching", "reading", "draft", "rewatching"].includes(i.status)).slice(0, 5)
+        );
+      } catch (e) {
+        console.error("Dashboard fetch error:", e);
+      }
+    })();
+  }, []);
+
+  const totalItems = useMemo(() =>
+    (stats?.movies ?? 0) + (stats?.series ?? 0) + (stats?.books ?? 0) +
+    (stats?.poems ?? 0) + journalCount,
+    [stats, journalCount]
+  );
+
+  const statCards = [
+    { label: "Movies",   count: stats?.movies          ?? 0, icon: Film,       color: "text-blue-400",    bg: "bg-blue-500/10",    border: "hover:border-blue-500/40",   to: "/dashboard/movies"  },
+    { label: "Series",   count: stats?.series          ?? 0, icon: Tv,         color: "text-violet-400",  bg: "bg-violet-500/10",  border: "hover:border-violet-500/40", to: "/dashboard/series"  },
+    { label: "Books",    count: stats?.books           ?? 0, icon: BookOpen,   color: "text-emerald-400", bg: "bg-emerald-500/10", border: "hover:border-emerald-500/40",to: "/dashboard/books"   },
+    { label: "Poetry",   count: stats?.poems           ?? 0, icon: ScrollText, color: "text-amber-400",   bg: "bg-amber-500/10",   border: "hover:border-amber-500/40",  to: "/dashboard/poetry"  },
+    { label: "Journal",  count: journalCount,                 icon: PenLine,    color: "text-pink-400",    bg: "bg-pink-500/10",    border: "hover:border-pink-500/40",   to: "/dashboard/journal" },
   ];
 
-  // Recently Added (Mix of all)
-  const recentlyAdded: MediaItem[] = [
-    ...DUMMY_MOVIES.slice(0, 2).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
-    ...DUMMY_SERIES.slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
-    ...booksData.slice(0, 1).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
-    ...myPoetryData.slice(0, 1).map(p => ({ ...p, type: 'Poem' as const, cover: 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop' as string, rating: 5 as number })),
-  ].sort((a, b) => {
-    const dateA = new Date((a as any).addedOn || (a as any).dateCreated || '').getTime();
-    const dateB = new Date((b as any).addedOn || (b as any).dateCreated || '').getTime();
-    return dateB - dateA;
-  }) as MediaItem[];
+  const goalCats = [
+    { key: "movies" as const,  label: "Movies",     bar: "bg-blue-500" },
+    { key: "series" as const,  label: "Web Series", bar: "bg-violet-500" },
+    { key: "books"  as const,  label: "Books",      bar: "bg-emerald-500" },
+    { key: "poems"  as const,  label: "Poetry",     bar: "bg-amber-500" },
+  ].filter(c => yearlyTarget?.[c.key]);
 
-  // Currently Watching/Reading (Simplified logic for dummy data)
-  const inProgress: MediaItem[] = [
-     ...DUMMY_MOVIES.filter(m => m.status === "Rewatching").slice(0, 1).map(m => ({ ...m, type: 'Movie' as const, cover: m.poster })),
-     ...DUMMY_SERIES.filter(s => s.status === "Watching").slice(0, 1).map(s => ({ ...s, type: 'Series' as const, cover: s.poster })),
-     ...booksData.filter(b => b.status === "Reading").slice(0, 1).map(b => ({ ...b, type: 'Book' as const, cover: b.coverImage })),
-     ...myPoetryData.filter(p => p.status === "Draft").slice(0, 1).map(p => ({ ...p, type: 'Poem' as const, cover: 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop' as string })),
-  ] as MediaItem[];
+  const hasGoals = goalCats.length > 0;
+  const year = new Date().getFullYear();
 
   return (
-    <div className="bg-bg flex-1 overflow-y-auto">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 flex flex-col gap-10">
-        
-        {/* ── Welcome Header ── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-text-primary text-3xl font-bold tracking-tight font-inter">
-              Welcome back, {user?.first_name || user?.user_name || "User"}! 
+    <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 flex flex-col gap-8">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-text-secondary text-sm">{fmtDate()}</p>
+            <h1 className="text-text-primary text-3xl font-black tracking-tight">
+              {timeGreeting()}, {user?.first_name || user?.user_name || "there"} 👋
             </h1>
-            <p className="text-text-secondary text-base mt-1">
-              Here's a breakdown of your personal media universe.
+            <p className="text-text-secondary text-sm mt-0.5">
+              {totalItems > 0
+                ? `You've logged ${totalItems} entr${totalItems === 1 ? "y" : "ies"} across your collection.`
+                : "Start building your personal media universe."}
             </p>
           </div>
 
-          {/* Universal Add Button */}
-          <div className="relative">
+          {/* Add button */}
+          <div className="relative shrink-0">
             <button
-              onClick={() => setIsAddOpen(!isAddOpen)}
-              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-6 py-3 rounded-xl text-sm font-bold shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              onClick={() => setIsAddOpen(v => !v)}
+              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-5 py-3 rounded-xl text-sm font-bold shadow-lg shadow-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Plus size={20} strokeWidth={3} />
+              <Plus size={18} strokeWidth={3} />
               Add To Collection
             </button>
-
             {isAddOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsAddOpen(false)} />
-                <div className="absolute right-0 top-[calc(100%+12px)] w-56 bg-surface border border-border rounded-2xl shadow-2xl z-50 overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-200">
-                   <Link to="/dashboard/movies/add-movie" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                        <Film size={16} className="text-blue-500" />
+                <div className="absolute right-0 top-[calc(100%+10px)] w-52 bg-surface border border-border rounded-2xl shadow-2xl z-50 overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-200">
+                  {[
+                    { to: "/dashboard/movies/add-movie",  icon: Film,       label: "Add Movie",        color: "text-blue-400",   bg: "bg-blue-500/10" },
+                    { to: "/dashboard/series/add-series", icon: Tv,         label: "Add Web Series",   color: "text-violet-400", bg: "bg-violet-500/10" },
+                    { to: "/dashboard/books/add-book",    icon: BookOpen,   label: "Add Book",         color: "text-emerald-400",bg: "bg-emerald-500/10" },
+                    { to: "/dashboard/poetry/add-poem",   icon: ScrollText, label: "Compose Poem",     color: "text-amber-400",  bg: "bg-amber-500/10" },
+                    { to: "/dashboard/journal",           icon: PenLine,    label: "Add Journal Entry",color: "text-pink-400",   bg: "bg-pink-500/10" },
+                  ].map(({ to, icon: Icon, label, color, bg }) => (
+                    <Link key={to} to={to} onClick={() => setIsAddOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg transition-colors">
+                      <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+                        <Icon size={14} className={color} />
                       </div>
-                      <span className="text-sm font-semibold text-text-primary">Add Movie</span>
-                   </Link>
-                   <Link to="/dashboard/series/add-series" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
-                      <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                        <Tv size={16} className="text-purple-500" />
-                      </div>
-                      <span className="text-sm font-semibold text-text-primary">Add Web Series</span>
-                   </Link>
-                   <Link to="/dashboard/books/add-book" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                        <BookOpen size={16} className="text-emerald-500" />
-                      </div>
-                      <span className="text-sm font-semibold text-text-primary">Add Book</span>
-                   </Link>
-                   <Link to="/dashboard/journal" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
-                      <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                        <PenLine size={16} className="text-pink-500" />
-                      </div>
-                      <span className="text-sm font-semibold text-text-primary">Add Journal Entry</span>
-                   </Link>
-                   <Link to="/dashboard/poetry/add-poem" className="flex items-center gap-3 px-4 py-3 hover:bg-bg transition-colors" onClick={() => setIsAddOpen(false)}>
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <ScrollText size={16} className="text-amber-500" />
-                      </div>
-                      <span className="text-sm font-semibold text-text-primary">Compose Poem</span>
-                   </Link>
+                      <span className="text-sm font-medium text-text-primary">{label}</span>
+                    </Link>
+                  ))}
                 </div>
               </>
             )}
           </div>
         </div>
 
-        {/* ── Stats Grid ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat) => (
-            <Link 
-              key={stat.label} 
-              to={stat.to}
-              className="bg-surface border border-border rounded-2xl p-6 flex items-center gap-5 hover:border-accent/40 transition-all group"
-            >
-              <div className={`w-14 h-14 rounded-2xl ${stat.bg} flex items-center justify-center shrink-0`}>
-                <stat.icon size={26} className={stat.color} />
+        {/* ── Stats row ──────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {statCards.map((s) => (
+            <Link key={s.label} to={s.to}
+              className={`group bg-surface border border-border ${s.border} rounded-2xl p-5 flex flex-col gap-4 transition-all hover:shadow-md`}>
+              <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center`}>
+                <s.icon size={18} className={s.color} />
               </div>
               <div>
-                <p className="text-text-secondary text-sm font-medium tracking-wide uppercase">{stat.label}</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-text-primary text-3xl font-bold">{stat.count}</span>
-                  <span className="text-text-secondary text-xs">Items</span>
-                </div>
+                <p className="text-text-primary text-3xl font-black leading-none">{s.count}</p>
+                <p className="text-text-secondary text-xs font-bold uppercase tracking-widest mt-1.5">{s.label}</p>
               </div>
-              <ChevronRight size={20} className="ml-auto text-text-secondary/40 group-hover:text-accent transition-colors" />
+              <ArrowRight size={14} className="text-text-secondary/20 group-hover:text-accent group-hover:translate-x-0.5 transition-all mt-auto" />
             </Link>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
-          {/* ── Left Column: In Progress & Recent ── */}
-          <div className="xl:col-span-2 flex flex-col gap-10">
-            
-            {/* ── In Progress Section ── */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-text-primary text-xl font-bold flex items-center gap-2">
-                  <Clock size={22} className="text-accent" />
-                  Continue Your Journey
-                </h2>
-                <span className="text-text-secondary text-xs uppercase font-bold tracking-widest">In Progress</span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {inProgress.map((item, idx) => (
-                  <div key={idx} className="bg-surface border border-border rounded-2xl p-4 flex gap-4 hover:border-accent/30 transition-colors">
-                    <div className="w-20 aspect-[2/3] rounded-lg overflow-hidden shrink-0 border border-border/50">
-                      <img src={item.cover || 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop'} alt={item.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="py-1 flex flex-col justify-between">
-                      <div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          item.type === 'Movie' ? 'bg-blue-500/10 text-blue-500' :
-                          item.type === 'Series' ? 'bg-purple-500/10 text-purple-500' :
-                          item.type === 'Book' ? 'bg-emerald-500/10 text-emerald-500' :
-                          'bg-amber-500/10 text-amber-500'
-                        }`}>
-                          {item.type}
-                        </span>
-                        <h3 className="text-text-primary font-bold text-sm mt-2 line-clamp-1">{item.title}</h3>
-                        <p className="text-text-secondary text-xs mt-1">
-                          {item.type === 'Series' 
-                            ? `${(item as any).seasons} Seasons` 
-                            : item.type === 'Book' 
-                              ? (item as any).author 
-                              : item.type === 'Poem'
-                                ? (item as any).mood
-                                : 'Recently Started'}
-                        </p>
+        {/* ── Main grid ──────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+          {/* ── Left column ─────────────────────────────────────────────── */}
+          <div className="xl:col-span-8 flex flex-col gap-6">
+
+            {/* Yearly Goals */}
+            {hasGoals && (
+              <div className="bg-surface border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-text-primary text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                    <TargetIcon size={15} className="text-accent" />
+                    {year} Goals
+                  </h2>
+                  <Link to="/dashboard/target" className="flex items-center gap-1 text-accent text-xs font-bold hover:underline">
+                    View all <ChevronRight size={12} />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {goalCats.map(({ key, label, bar }) => {
+                    const goal = yearlyTarget![key]!;
+                    const done = yearlyProgress?.[key] ?? 0;
+                    const pct  = Math.min(100, Math.round((done / goal) * 100));
+                    return (
+                      <div key={key} className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-text-primary text-sm font-semibold">{label}</span>
+                          <span className="text-text-secondary text-xs tabular-nums">
+                            <span className="text-text-primary font-bold">{done}</span> / {goal}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-bg border border-border rounded-full overflow-hidden">
+                          <div className={`h-full ${bar} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-text-secondary/50 text-[10px]">{pct}% complete</p>
                       </div>
-                      <button className="flex items-center gap-2 text-accent text-xs font-bold hover:underline mt-2">
-                        <Play size={12} fill="currentColor" />
-                        Resume {item.type === 'Book' ? 'Reading' : item.type === 'Poem' ? 'Drafting' : 'Watching'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
-            </section>
+            )}
 
-            {/* ── Quick Activity Section ── */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-text-primary text-xl font-bold flex items-center gap-2">
-                  <PlusCircle size={22} className="text-accent" />
-                  New Additions
-                </h2>
-                <Link to="/dashboard/movies" className="text-accent text-xs font-bold hover:underline">View All</Link>
+            {/* In Progress */}
+            {inProgressItems.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-text-primary text-sm font-black uppercase tracking-widest">Continue Watching / Reading</h2>
+                  <span className="text-text-secondary/40 text-[10px] font-bold uppercase tracking-widest">{inProgressItems.length} active</span>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-1 custom-scrollbar">
+                  {inProgressItems.map((item, i) => {
+                    const s = TYPE_STYLE[item.type];
+                    return (
+                      <Link key={i} to={itemPath(item)}
+                        className="group shrink-0 w-[130px] flex flex-col gap-2.5">
+                        <div className="w-full aspect-[2/3] rounded-xl overflow-hidden border border-border/50 bg-surface relative">
+                          {item.cover
+                            ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            : <div className={`w-full h-full ${s.bg} flex items-center justify-center`}><Layers size={28} className={s.text} /></div>
+                          }
+                          {/* Resume overlay */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                            <div className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                              <Play size={14} className="text-background fill-background ml-0.5" />
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <span className={`inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${s.badge} mb-1`}>{item.type}</span>
+                          <p className="text-text-primary text-xs font-semibold leading-tight line-clamp-2">{item.title}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              
-              <div className="bg-surface border border-border rounded-2xl divide-y divide-border overflow-hidden">
-                {recentlyAdded.map((item, idx) => (
-                  <div key={idx} className="p-4 flex items-center gap-4 hover:bg-bg/40 transition-colors group">
-                    <div className="w-12 h-16 rounded-md overflow-hidden shrink-0">
-                      <img src={item.cover || 'https://images.unsplash.com/photo-1455391394557-45741ebb19b1?q=80&w=300&auto=format&fit=crop'} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                       <h4 className="text-text-primary font-bold text-sm truncate">{item.title}</h4>
-                       <p className="text-text-secondary text-xs flex items-center gap-2 mt-1">
-                          <span className={`${
-                            item.type === 'Movie' ? 'text-blue-500' :
-                            item.type === 'Series' ? 'text-purple-500' :
-                            item.type === 'Book' ? 'text-emerald-500' :
-                            'text-amber-500'
-                          } font-semibold`}>{item.type}</span>
-                          <span>•</span>
-                          <span>Added {new Date((item as any).addedOn || (item as any).dateCreated || '').toLocaleDateString()}</span>
-                       </p>
-                    </div>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                       <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                       <span className="text-text-primary text-xs font-bold">{item.rating || 'N/A'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+            )}
 
-            {/* ── Recent Journal Entries ── */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-text-primary text-xl font-bold flex items-center gap-2">
-                  <PenLine size={22} className="text-pink-500" />
-                  Latest Reflections
-                </h2>
-                <Link to="/dashboard/journal" className="text-accent text-xs font-bold hover:underline">Open Journal</Link>
+            {/* Recent additions */}
+            {recentItems.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-text-primary text-sm font-black uppercase tracking-widest">New Additions</h2>
+                </div>
+                <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
+                  {recentItems.map((item, i) => {
+                    const s = TYPE_STYLE[item.type];
+                    return (
+                      <Link key={i} to={itemPath(item)}
+                        className="flex items-center gap-4 px-5 py-3.5 hover:bg-bg/50 transition-colors group">
+                        <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0 border border-border/50 bg-bg">
+                          {item.cover
+                            ? <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                            : <div className={`w-full h-full ${s.bg} flex items-center justify-center`}><Layers size={14} className={s.text} /></div>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-text-primary text-sm font-semibold truncate">{item.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className={`text-[10px] font-bold ${s.text}`}>{item.type}</span>
+                            <span className="text-text-secondary/30">·</span>
+                            <span className="text-[10px] font-semibold text-text-secondary capitalize">{item.status.replace(/_/g, " ")}</span>
+                            <span className="text-text-secondary/30">·</span>
+                            <span className="text-text-secondary/60 text-[10px]">
+                              {new Date(item.created_at || "").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            </span>
+                          </div>
+                        </div>
+                        {item.rating ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Star size={11} className="fill-yellow-400 text-yellow-400" />
+                            <span className="text-text-primary text-xs font-bold">{item.rating}</span>
+                          </div>
+                        ) : (
+                          <ChevronRight size={14} className="text-text-secondary/20 group-hover:text-accent transition-colors shrink-0" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {DUMMY_JOURNAL_ENTRIES.slice(0, 2).map((entry) => (
-                  <div key={entry.id} className="bg-surface border border-border rounded-2xl p-5 hover:border-pink-500/30 transition-colors group">
-                     <div className="flex items-start justify-between mb-3">
-                        <span className="text-2xl">{MOOD_EMOJIS[entry.mood]}</span>
-                        <span className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">
-                          {new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </span>
-                     </div>
-                     <h4 className="text-text-primary font-bold text-sm mb-2 group-hover:text-pink-500 transition-colors line-clamp-1">{entry.title}</h4>
-                     <p className="text-text-secondary text-xs line-clamp-2 leading-relaxed mb-4">{entry.content}</p>
-                     <div className="flex flex-wrap gap-1.5">
-                        {entry.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-[9px] font-bold text-pink-500/70 bg-pink-500/5 px-2 py-0.5 rounded-full border border-pink-500/10">#{tag}</span>
-                        ))}
-                     </div>
-                  </div>
-                ))}
+            )}
+
+            {/* Empty state */}
+            {!inProgressItems.length && !recentItems.length && (
+              <div className="bg-surface border border-border rounded-2xl p-16 flex flex-col items-center justify-center text-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+                  <Sparkles size={28} className="text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-text-primary font-bold">Your collection is empty</h3>
+                  <p className="text-text-secondary text-sm mt-1">Start adding movies, books, series or poems.</p>
+                </div>
+                <button onClick={() => setIsAddOpen(true)}
+                  className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-5 py-2.5 rounded-xl text-sm font-bold transition-colors">
+                  <Plus size={16} />
+                  Add Your First Item
+                </button>
               </div>
-            </section>
- 
-            {/* ── Recent Poetry Section ── */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-text-primary text-xl font-bold flex items-center gap-2">
-                  <ScrollText size={22} className="text-amber-500" />
-                  Recent Poetry
-                </h2>
-                <Link to="/dashboard/poetry" className="text-accent text-xs font-bold hover:underline">View Studio</Link>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {myPoetryData.slice(0, 2).map((poem) => (
-                  <div key={poem.id} className="bg-surface border border-border rounded-2xl p-5 hover:border-amber-500/30 transition-colors group relative overflow-hidden">
-                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold text-amber-500/70 border border-amber-500/20 px-2 py-0.5 rounded-full bg-amber-500/5">{poem.mood}</span>
-                        <span className="text-text-secondary text-[10px] font-bold uppercase tracking-widest">
-                          {new Date(poem.dateCreated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </span>
-                     </div>
-                     <h4 className="text-text-primary font-bold text-sm mb-2 group-hover:text-amber-500 transition-colors line-clamp-1">{poem.title}</h4>
-                     <p className="text-text-secondary text-xs italic font-serif line-clamp-2 leading-relaxed">{poem.content}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+            )}
           </div>
 
-          {/* ── Right Column: Insights & Trends ── */}
-          <div className="flex flex-col gap-6">
-             <div className="bg-surface border border-border rounded-3xl p-8 flex flex-col items-center text-center">
-                <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-6">
-                  <TrendingUp size={36} className="text-accent" />
-                </div>
-                <h3 className="text-text-primary text-lg font-bold">Personal Insights</h3>
-                <p className="text-text-secondary text-sm mt-2 leading-relaxed">
-                  You've reached <span className="text-accent font-bold">85%</span> of your monthly reading goal. Keep it up!
-                </p>
-                <div className="w-full h-2 bg-bg border border-border rounded-full mt-6 overflow-hidden">
-                   <div className="h-full bg-accent w-[85%] rounded-full shadow-[0_0_12px_rgba(var(--accent-rgb),0.5)]" />
-                </div>
-                <button className="w-full mt-8 py-3 bg-bg border border-border rounded-xl text-text-primary text-sm font-semibold hover:border-accent/40 transition-colors">
-                  View Full Analytics
-                </button>
-             </div>
+          {/* ── Right column ────────────────────────────────────────────── */}
+          <div className="xl:col-span-4 flex flex-col gap-4">
 
-             <div className="bg-gradient-to-br from-accent to-accent/80 rounded-3xl p-8 text-background shadow-xl shadow-accent/20">
-                <h3 className="text-xl font-bold mb-2 font-inter">CoreLog Premium</h3>
-                <p className="text-background/80 text-sm mb-6 leading-relaxed">
-                  Get absolute access to advanced stats, public profile and API integrations.
-                </p>
-                <Link to="/pricing" className="block w-full py-3 bg-background text-accent text-center rounded-xl text-sm font-bold shadow-lg">
-                  Explore Plans
+            {/* Quick navigation */}
+            <div className="bg-surface border border-border rounded-2xl p-2 flex flex-col gap-0.5">
+              {[
+                { to: "/dashboard/movies",  icon: Film,       label: "Movies",    color: "text-blue-400",    bg: "bg-blue-500/10" },
+                { to: "/dashboard/series",  icon: Tv,         label: "Series",    color: "text-violet-400",  bg: "bg-violet-500/10" },
+                { to: "/dashboard/books",   icon: BookOpen,   label: "Books",     color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                { to: "/dashboard/poetry",  icon: ScrollText, label: "Poetry",    color: "text-amber-400",   bg: "bg-amber-500/10" },
+                { to: "/dashboard/journal", icon: PenLine,    label: "Journal",   color: "text-pink-400",    bg: "bg-pink-500/10" },
+                { to: "/dashboard/target",  icon: TargetIcon, label: "Goals",     color: "text-accent",      bg: "bg-accent/10" },
+              ].map(({ to, icon: Icon, label, color, bg }) => (
+                <Link key={to} to={to}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-bg transition-colors group">
+                  <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+                    <Icon size={13} className={color} />
+                  </div>
+                  <span className="text-text-secondary text-sm font-medium flex-1 group-hover:text-text-primary transition-colors">{label}</span>
+                  <ChevronRight size={13} className="text-text-secondary/20 group-hover:text-accent transition-colors" />
                 </Link>
-             </div>
+              ))}
+            </div>
+
+            {/* Premium card */}
+            <div className="bg-gradient-to-br from-accent to-accent/70 rounded-2xl p-6 flex flex-col gap-3 shadow-lg shadow-accent/20">
+              <div className="w-9 h-9 rounded-xl bg-background/20 flex items-center justify-center">
+                <Sparkles size={16} className="text-background" />
+              </div>
+              <div>
+                <h3 className="text-background text-base font-black">CoreLog Premium</h3>
+                <p className="text-background/70 text-xs mt-1 leading-relaxed">
+                  Advanced stats, public profile, and API integrations.
+                </p>
+              </div>
+              <Link to="/pricing"
+                className="mt-1 w-full py-2.5 bg-background text-accent text-center rounded-xl text-sm font-bold hover:bg-background/90 transition-colors">
+                Explore Plans
+              </Link>
+            </div>
+
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -16,9 +16,14 @@ import SeriesList from "./(app)/(dashboard)/series/SeriesList";
 import AddSeries from "./(app)/(dashboard)/series/AddSeries";
 import SeriesDetail from "./(app)/(dashboard)/series/SeriesDetail";
 import Journal from "./(app)/(dashboard)/journal/Journal";
+import AddJournal from "./(app)/(dashboard)/journal/AddJournal";
+import JournalDetail from "./(app)/(dashboard)/journal/JournalDetail";
+import JournalLayout from "./(app)/(dashboard)/journal/JournalLayout";
 import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
 import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
+import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
 import Settings from "./(app)/(dashboard)/settings/Settings";
+import TargetPage from "./(app)/(dashboard)/target/TargetPage";
 import { Pricing } from "./(app)/Pricing";
 const Pages = () => {
     return RouterProvider({ router });
@@ -95,7 +100,12 @@ const router = createBrowserRouter([
             },
             {
                 path: "journal",
-                Component: Journal,
+                Component: JournalLayout,
+                children: [
+                    { index: true, Component: Journal },
+                    { path: "add-entry", Component: AddJournal },
+                    { path: ":id", Component: JournalDetail },
+                ],
             },
             {
                 path: "poetry",
@@ -106,8 +116,16 @@ const router = createBrowserRouter([
                 Component: AddPoem,
             },
             {
+                path: "poetry/:id",
+                Component: PoetryDetail,
+            },
+            {
                 path: "settings",
                 Component: Settings,
+            },
+            {
+                path: "target",
+                Component: TargetPage,
             },
         ],
     },

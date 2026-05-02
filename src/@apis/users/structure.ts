@@ -63,6 +63,12 @@ mutation Send_otp($email: String!) {
 }
 `
 
+export const SEND_JOURNAL_PIN_RESET_OTP_MUTATION = `
+mutation Send_journal_pin_reset_otp($email: String!) {
+  send_journal_pin_reset_otp(email: $email)
+}
+`
+
 export const VERIFY_OTP_MUTATION = `
 mutation Verify_otp($email: String!, $otp: String!) {
   verify_otp(email: $email, otp: $otp)
@@ -102,3 +108,15 @@ mutation Update_user_account($id: ID!, $input: UpdateUserInput!) {
 }
 `
 
+
+export const GET_DASHBOARD_STATS_QUERY = `
+query Get_dashboard_stats {
+  get_dashboard_stats {
+    movies
+    series
+    books
+    poems
+    journal_entries
+  }
+}
+`
