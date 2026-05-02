@@ -203,6 +203,7 @@ const SeriesDetail = () => {
           creator: series.creator,
           release_year: series.release_year,
           seasons: series.seasons,
+          seasons_watched: series.seasons_watched || series.seasons,
           episodes: series.episodes || 0,
           language: series.language || "",
           origin_country: series.origin_country || "",

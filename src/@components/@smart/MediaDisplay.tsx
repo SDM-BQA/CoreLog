@@ -133,118 +133,154 @@ export const MediaDisplay = ({
 
   const basePath = `/dashboard/${DETAIL_PATH[type]}`;
 
-  if (viewMode === "grid") {
-    return (
-      <div
-        key={pageKey}
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8 animate-reveal"
-      >
-        {items.map((item) => (
-          <Link
-            key={item._id}
-            to={`${basePath}/${item._id}`}
-            className="group flex flex-col gap-3 cursor-pointer"
-          >
-            <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 transform group-hover:-translate-y-2 border border-border/40 group-hover:border-accent/40 bg-surface">
-              <img
-                src={get_full_image_url(item.image, type)}
-                alt={item.title}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = get_full_image_url(undefined, type);
-                }}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-              />
-              <div className="absolute top-3 left-3 z-10">
-                <span
-                  className={`text-[9px] font-black px-2 py-1 rounded-md border backdrop-blur-md shadow-lg uppercase tracking-widest ${getStatusStyle(item.status)}`}
-                >
-                  {(statusMap[item.status] || item.status).split(" ")[0]}
-                </span>
-              </div>
-              <div className="absolute inset-0 bg-bg/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[3px]">
-                <div className="bg-accent text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-xl shadow-accent/20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                  View Details
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 mt-1 px-1">
-              <h3 className="text-text-primary text-[15px] font-bold font-inter leading-tight line-clamp-1 group-hover:text-accent transition-colors">
-                {item.title}
-              </h3>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-text-secondary text-[11px] font-medium truncate flex-1 uppercase tracking-tight">
-                  {item.subtitle}
-                </p>
-                <div className="flex items-center gap-1 bg-accent/5 px-1.5 py-0.5 rounded-md border border-accent/10 shrink-0">
-                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                  <span className="text-white text-xs font-black">{item.rating.toFixed(1)}</span>
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    );
-  }
+  // Group items by status
+  const groupedItems = items.reduce((acc, item) => {
+    const status = item.status || "unknown";
+    if (!acc[status]) acc[status] = [];
+    acc[status].push(item);
+    return acc;
+  }, {} as Record<string, MediaItem[]>);
+
+  // Define status order (Watching first, then Watched/Read, then others)
+  const statusOrder = ["watching", "reading", "rewatching", "watchlist", "want_to_read", "watched", "read", "not_finished"];
+  const sortedStatuses = Object.keys(groupedItems).sort((a, b) => {
+    const indexA = statusOrder.indexOf(a.toLowerCase());
+    const indexB = statusOrder.indexOf(b.toLowerCase());
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   return (
-    <div key={pageKey} className="flex flex-col gap-3 pb-8 animate-reveal">
-      {items.map((item) => (
-        <Link
-          key={item._id}
-          to={`${basePath}/${item._id}`}
-          className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
-        >
-          <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-xl overflow-hidden border border-border shadow-md">
-            <img
-              src={get_full_image_url(item.image, type)}
-              alt={item.title}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = get_full_image_url(undefined, type);
-              }}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            />
-          </div>
-          <div className="flex-1 min-w-0 pr-4">
-            <h3 className="text-text-primary font-bold text-base md:text-lg leading-tight mb-1 truncate group-hover:text-accent transition-colors">
-              {item.title}
-            </h3>
-            <p className="text-text-secondary text-sm font-medium flex items-center gap-2">
-              <span className="w-1 h-1 rounded-full bg-text-secondary/30" />
-              {item.subtitle}
-              {item.year && (
-                <>
-                  <span className="text-text-secondary/30 text-xs">·</span>
-                  <span className="text-text-secondary text-xs">{item.year}</span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
-            <div className="flex flex-wrap gap-1.5">
-              {item.genres?.slice(0, 3).map((g) => (
-                <span
-                  key={g}
-                  className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
-                >
-                  {getGenreDisplay(g)}
+    <div key={pageKey} className="flex flex-col gap-10 pb-8 animate-reveal">
+      {sortedStatuses.map((status) => {
+        const statusItems = groupedItems[status];
+        const statusLabel = statusMap[status] || status;
+
+        return (
+          <div key={status} className="flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-text-secondary/60 flex items-center gap-3 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-accent/40" />
+                {statusLabel}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface border border-border/50 text-text-secondary/40 ml-1">
+                  {statusItems.length}
                 </span>
-              ))}
+              </h3>
+              <div className="h-[1px] flex-1 bg-gradient-to-r from-border/50 to-transparent" />
             </div>
+
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6">
+                {statusItems.map((item) => (
+                  <Link
+                    key={item._id}
+                    to={`${basePath}/${item._id}`}
+                    className="group flex flex-col gap-3 cursor-pointer"
+                  >
+                    <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 transform group-hover:-translate-y-2 border border-border/40 group-hover:border-accent/40 bg-surface">
+                      <img
+                        src={get_full_image_url(item.image, type)}
+                        alt={item.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = get_full_image_url(undefined, type);
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute top-3 left-3 z-10">
+                        <span
+                          className={`text-[9px] font-black px-2 py-1 rounded-md border backdrop-blur-md shadow-lg uppercase tracking-widest ${getStatusStyle(item.status)}`}
+                        >
+                          {(statusMap[item.status] || item.status).split(" ")[0]}
+                        </span>
+                      </div>
+                      <div className="absolute inset-0 bg-bg/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[3px]">
+                        <div className="bg-accent text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-xl shadow-accent/20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          View Details
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 mt-1 px-1">
+                      <h3 className="text-text-primary text-[15px] font-bold font-inter leading-tight line-clamp-1 group-hover:text-accent transition-colors">
+                        {item.title}
+                      </h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-text-secondary text-[11px] font-medium truncate flex-1 uppercase tracking-tight">
+                          {item.subtitle}
+                        </p>
+                        <div className="flex items-center gap-1 bg-accent/5 px-1.5 py-0.5 rounded-md border border-accent/10 shrink-0">
+                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                          <span className="text-white text-xs font-black">{item.rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {statusItems.map((item) => (
+                  <Link
+                    key={item._id}
+                    to={`${basePath}/${item._id}`}
+                    className="group flex items-center gap-4 bg-surface border border-border p-3 rounded-xl shadow-sm hover:shadow-md hover:border-accent/40 transition-all cursor-pointer"
+                  >
+                    <div className="relative aspect-[2/3] w-[52px] shrink-0 rounded-xl overflow-hidden border border-border shadow-md">
+                      <img
+                        src={get_full_image_url(item.image, type)}
+                        alt={item.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = get_full_image_url(undefined, type);
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-4">
+                      <h3 className="text-text-primary font-bold text-base md:text-lg leading-tight mb-1 truncate group-hover:text-accent transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-text-secondary text-sm font-medium flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-text-secondary/30" />
+                        {item.subtitle}
+                        {item.year && (
+                          <>
+                            <span className="text-text-secondary/30 text-xs">·</span>
+                            <span className="text-text-secondary text-xs">{item.year}</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <div className="hidden sm:flex flex-col items-start w-48 shrink-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.genres?.slice(0, 3).map((g) => (
+                          <span
+                            key={g}
+                            className="text-[10px] uppercase font-bold text-white bg-white/10 border border-white/10 px-2 py-0.5 rounded-full tracking-wider group-hover:bg-white/15 transition-colors"
+                          >
+                            {getGenreDisplay(g)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 w-24 sm:w-32 md:w-36 shrink-0">
+                      <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-1 rounded-lg border border-accent/10">
+                        <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" />
+                        <span className="text-white text-sm sm:text-lg font-black">{item.rating.toFixed(1)}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-widest ${getStatusStyle(item.status)}`}
+                      >
+                        {statusMap[item.status] || item.status}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex flex-col items-end gap-1.5 w-24 sm:w-32 md:w-36 shrink-0">
-            <div className="flex items-center gap-1.5 bg-accent/5 px-2 py-1 rounded-lg border border-accent/10">
-              <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" />
-              <span className="text-white text-sm sm:text-lg font-black">{item.rating.toFixed(1)}</span>
-            </div>
-            <span
-              className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-widest ${getStatusStyle(item.status)}`}
-            >
-              {statusMap[item.status] || item.status}
-            </span>
-          </div>
-        </Link>
-      ))}
+        );
+      })}
     </div>
   );
 };

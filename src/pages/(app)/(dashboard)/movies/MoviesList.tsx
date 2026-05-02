@@ -461,7 +461,7 @@ const MoviesList = () => {
 
           {/* Pagination */}
           {!isLoading && total > 0 && viewMode !== "calendar" && (
-            <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0">
+            <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0 lg:sticky lg:top-8 lg:self-start">
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
                 Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
               </p>
