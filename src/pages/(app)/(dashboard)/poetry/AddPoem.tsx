@@ -19,6 +19,7 @@ import {
 import { create_poem_mutation } from "../../../../@apis/poetry";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
 
 const LANGUAGES = [
@@ -189,36 +190,20 @@ const AddPoem = () => {
 
               {/* Language + Type row */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-text-secondary text-xs font-bold uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                    <Globe size={12} />
-                    Language
-                  </label>
-                  <select
-                    value={formData.language}
-                    onChange={(e) => set("language", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-sm text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    {LANGUAGES.map((l) => (
-                      <option key={l.code} value={l.code}>{l.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-text-secondary text-xs font-bold uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                    <BookOpen size={12} />
-                    Poem Type
-                  </label>
-                  <select
-                    value={formData.poem_type}
-                    onChange={(e) => set("poem_type", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-sm text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    {POEM_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Language"
+                  value={formData.language}
+                  options={LANGUAGES.map(l => ({ value: l.code, label: l.label }))}
+                  onChange={(val) => set("language", val)}
+                  icon={Globe}
+                />
+                <Select
+                  label="Poem Type"
+                  value={formData.poem_type}
+                  options={POEM_TYPES.map(t => ({ value: t, label: t }))}
+                  onChange={(val) => set("poem_type", val)}
+                  icon={BookOpen}
+                />
               </div>
 
               <div className="space-y-2">
@@ -310,39 +295,21 @@ const AddPoem = () => {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Smile size={12} />
-                    Current Mood
-                  </label>
-                  <select
-                    value={formData.mood}
-                    onChange={(e) => set("mood", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="">Select mood...</option>
-                    {MOODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Current Mood"
+                  value={formData.mood}
+                  options={[{ value: "", label: "Select mood..." }, ...MOODS.map(m => ({ value: m, label: m }))]}
+                  onChange={(val) => set("mood", val)}
+                  icon={Smile}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Wind size={12} />
-                    Atmosphere
-                  </label>
-                  <select
-                    value={formData.atmosphere}
-                    onChange={(e) => set("atmosphere", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="">Select atmosphere...</option>
-                    {ATMOSPHERES.map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Atmosphere"
+                  value={formData.atmosphere}
+                  options={[{ value: "", label: "Select atmosphere..." }, ...ATMOSPHERES.map(a => ({ value: a, label: a }))]}
+                  onChange={(val) => set("atmosphere", val)}
+                  icon={Wind}
+                />
 
                 <div className="space-y-1.5">
                   <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
@@ -359,21 +326,17 @@ const AddPoem = () => {
                   <p className="text-text-secondary/40 text-[10px] pl-1">Comma separated</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Save size={12} />
-                    Manuscript Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => set("status", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="finished">Finished</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
+                <Select
+                  label="Manuscript Status"
+                  value={formData.status}
+                  options={[
+                    { value: "draft", label: "Draft" },
+                    { value: "finished", label: "Finished" },
+                    { value: "published", label: "Published" }
+                  ]}
+                  onChange={(val) => set("status", val)}
+                  icon={Save}
+                />
               </div>
 
               <button

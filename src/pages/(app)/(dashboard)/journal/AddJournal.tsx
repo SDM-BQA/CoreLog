@@ -41,6 +41,7 @@ import {
 import { create_journal_mutation } from "../../../../@apis/journal";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
 
 const JOURNAL_TYPES = [
@@ -761,23 +762,13 @@ const AddJournal = () => {
 
               <div className="h-px bg-border" />
 
-              {/* Mood */}
-              <div className="space-y-1.5">
-                <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
-                  <Smile size={12} /> Mood
-                  {currentMood && <span className="font-normal normal-case ml-1">{currentMood.emoji}</span>}
-                </label>
-                <select
-                  value={meta.mood}
-                  onChange={(e) => setM("mood", e.target.value)}
-                  className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none transition-colors cursor-pointer ${ac.ring}`}
-                >
-                  <option value="">Select mood…</option>
-                  {MOODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.emoji} {m.label}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Mood"
+                value={meta.mood}
+                options={[{ value: "", label: "Select mood…" }, ...MOODS.map(m => ({ value: m.value, label: `${m.emoji} ${m.label}` }))]}
+                onChange={(val) => setM("mood", val)}
+                icon={Smile}
+              />
 
               {/* Location */}
               <div className="space-y-1.5">

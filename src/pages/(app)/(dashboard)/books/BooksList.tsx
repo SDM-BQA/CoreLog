@@ -138,7 +138,11 @@ const BooksList = () => {
   }, [currentPage, committedSearch, viewMode, genreFilter, statusFilter, ratingFilter, authorFilter, setSearchParams]);
 
   const hasFilters =
-    genreFilter.length > 0 || ratingFilter.length > 0 || statusFilter.length > 0 || authorFilter.length > 0 || committedSearch;
+    genreFilter.length > 0 ||
+    ratingFilter.length > 0 ||
+    statusFilter.length > 0 ||
+    authorFilter.length > 0 ||
+    !!committedSearch;
 
 
   // ── Fetch books from server ──────────────────────────────

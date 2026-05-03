@@ -56,7 +56,7 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
         const error_message = data.errors[0].message;
 
         // Auto logout if token is expired or invalid
-        if (error_message === "Invalid or expired token" || error_message === "Authentication required") {
+        if (error_message === "Invalid or expired token" || error_message === "Authentication required" || error_message === "User not found") {
             delete_string("token");
             delete_string("userId");
             delete_string("refreshToken");

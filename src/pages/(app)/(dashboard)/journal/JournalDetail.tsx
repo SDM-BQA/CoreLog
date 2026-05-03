@@ -16,6 +16,7 @@ import {
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { upload_image_api } from "../../../../@apis/users";
 import { Modal } from "../../../../@components/@smart";
+import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
 
@@ -49,7 +50,7 @@ const TYPE_MAP: Record<string, { icon: React.ElementType; label: string; badge: 
 };
 
 const JOURNAL_TYPES = Object.entries(TYPE_MAP).map(([value, { label, icon }]) => ({ value, label, icon }));
-const MOODS_LIST = Object.entries(MOOD_MAP).map(([value, { emoji }]) => ({ value, emoji }));
+const MOODS_LIST = Object.entries(MOOD_MAP).map(([value, { emoji }]) => ({ value, label: `${emoji} ${value.charAt(0).toUpperCase() + value.slice(1)}` }));
 
 const fmt12h = (time?: string) => {
   if (!time) return "";
@@ -245,7 +246,6 @@ const JournalDetail = () => {
   const mood    = journal.mood ? MOOD_MAP[journal.mood] : null;
   const TypeIcon = type.icon;
   const words   = wordCount(journal.content);
-  const entryDate = new Date(journal.date);
   const hasPhotos = journal.photos?.length > 0;
 
   return (
@@ -536,31 +536,18 @@ const JournalDetail = () => {
 
           {/* Right */}
           <div className="flex flex-col gap-4">
-            <div className="space-y-1.5">
-              <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Type</label>
-              <select
-                value={editData.journal_type}
-                onChange={(e) => setE("journal_type", e.target.value)}
-                className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
-              >
-                {JOURNAL_TYPES.map(({ value, label }) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Mood</label>
-              <select
-                value={editData.mood}
-                onChange={(e) => setE("mood", e.target.value)}
-                className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
-              >
-                <option value="">None</option>
-                {MOODS_LIST.map(({ value, emoji }) => (
-                  <option key={value} value={value}>{emoji} {value.charAt(0).toUpperCase() + value.slice(1)}</option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Type"
+              value={editData.journal_type}
+              options={JOURNAL_TYPES}
+              onChange={(val) => setE("journal_type", val)}
+            />
+            <Select
+              label="Mood"
+              value={editData.mood}
+              options={[{ value: "", label: "None" }, ...MOODS_LIST]}
+              onChange={(val) => setE("mood", val)}
+            />
             <div className="space-y-1.5">
               <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Location</label>
               <input
@@ -600,7 +587,7 @@ const JournalDetail = () => {
             </div>
             <button
               type="button"
-              onClick={() => setE("is_favorite", !editData.is_favorite as unknown as string)}
+              onClick={() => setE("is_favorite", !editData.is_favorite)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${
                 editData.is_favorite
                   ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"

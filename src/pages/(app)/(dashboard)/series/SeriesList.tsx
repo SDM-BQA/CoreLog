@@ -160,7 +160,7 @@ const SeriesList = () => {
     ratingFilter.length > 0 ||
     statusFilter.length > 0 ||
     platformFilter.length > 0 ||
-    committedSearch;
+    !!committedSearch;
 
   const fetchSeries = useCallback(async (filter: SeriesFilter) => {
     setIsLoading(true);

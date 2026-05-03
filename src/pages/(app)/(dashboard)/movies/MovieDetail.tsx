@@ -7,7 +7,6 @@ import {
   Pencil,
   Trash2,
   Film,
-  ChevronDown,
   CalendarPlus,
   PlayCircle,
   CheckCircle2,
@@ -27,6 +26,7 @@ import { get_full_image_url, get_rating_level, get_language_name, get_country_na
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
+import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { toast } from "react-toast";
@@ -68,6 +68,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
+const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }));
 
 const MovieDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -379,21 +380,14 @@ const MovieDetail = () => {
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
-              <div className="relative inline-flex items-center">
-                <BookmarkCheck size={14} className={`absolute left-3 pointer-events-none ${STATUS_COLORS[movie.status].split(" ")[0]}`} />
-                <select
-                  value={movie.status}
-                  onChange={handleStatusChange}
-                  className="appearance-none cursor-pointer pl-9 pr-8 py-2 text-sm font-semibold rounded-lg bg-surface border border-border hover:bg-surface-hover transition-colors outline-none focus:ring-2 focus:ring-accent/50 text-text-primary"
-                >
-                  {Object.entries(STATUS_MAP).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 pointer-events-none text-text-secondary" />
-              </div>
+              <Select
+                value={movie.status}
+                options={STATUS_OPTIONS}
+                onChange={(val) => handleStatusChange({ target: { value: val } } as React.ChangeEvent<HTMLSelectElement>)}
+                icon={BookmarkCheck}
+                className="w-[180px]"
+              />
 
               <div className="h-6 w-px bg-border hidden sm:block" />
 
@@ -599,14 +593,12 @@ const MovieDetail = () => {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Status</label>
-                  <select value={modalData.status} onChange={(e) => setModalData({ ...modalData, status: e.target.value })} className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none appearance-none cursor-pointer">
-                    {Object.entries(STATUS_MAP).map(([val, label]) => (
-                      <option key={val} value={val}>{label}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Status"
+                  value={modalData.status}
+                  options={STATUS_OPTIONS}
+                  onChange={(val) => setModalData({ ...modalData, status: val })}
+                />
                 <div>
                   <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Year</label>
                   <input type="text" placeholder="YYYY" value={modalData.release_year} onChange={(e) => setModalData({ ...modalData, release_year: e.target.value })} className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.release_year ? "border-error" : "border-border"}`} />

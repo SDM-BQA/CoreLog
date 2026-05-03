@@ -22,6 +22,7 @@ import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { Modal } from "../../../../@components/@smart";
+import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
 
@@ -473,69 +474,41 @@ const PoetryDetail = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Language</label>
-                <select
-                  value={modalData.language}
-                  onChange={(e) => setM("language", e.target.value)}
-                  className="w-full bg-bg border border-border rounded-lg py-2.5 px-3 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>{l.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Form</label>
-                <select
-                  value={modalData.poem_type}
-                  onChange={(e) => setM("poem_type", e.target.value)}
-                  className="w-full bg-bg border border-border rounded-lg py-2.5 px-3 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-                >
-                  {POEM_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Language"
+                value={modalData.language}
+                options={LANGUAGES.map(l => ({ value: l.code, label: l.label }))}
+                onChange={(val) => setM("language", val)}
+              />
+              <Select
+                label="Form"
+                value={modalData.poem_type}
+                options={POEM_TYPES.map(t => ({ value: t, label: t }))}
+                onChange={(val) => setM("poem_type", val)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Mood</label>
-                <select
-                  value={modalData.mood}
-                  onChange={(e) => setM("mood", e.target.value)}
-                  className="w-full bg-bg border border-border rounded-lg py-2.5 px-3 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-                >
-                  <option value="">None</option>
-                  {MOODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Atmosphere</label>
-                <select
-                  value={modalData.atmosphere}
-                  onChange={(e) => setM("atmosphere", e.target.value)}
-                  className="w-full bg-bg border border-border rounded-lg py-2.5 px-3 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-                >
-                  <option value="">None</option>
-                  {ATMOSPHERES.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
+              <Select
+                label="Mood"
+                value={modalData.mood}
+                options={[{ value: "", label: "None" }, ...MOODS.map(m => ({ value: m, label: m }))]}
+                onChange={(val) => setM("mood", val)}
+              />
+              <Select
+                label="Atmosphere"
+                value={modalData.atmosphere}
+                options={[{ value: "", label: "None" }, ...ATMOSPHERES.map(a => ({ value: a, label: a }))]}
+                onChange={(val) => setM("atmosphere", val)}
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Status</label>
-              <select
-                value={modalData.status}
-                onChange={(e) => setM("status", e.target.value)}
-                className="w-full bg-bg border border-border rounded-lg py-2.5 px-3 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-              >
-                <option value="draft">Draft</option>
-                <option value="finished">Finished</option>
-                <option value="published">Published</option>
-              </select>
-            </div>
+            <Select
+              label="Status"
+              value={modalData.status}
+              options={Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }))}
+              onChange={(val) => setM("status", val)}
+            />
 
             <div className="space-y-1.5">
               <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Tags</label>

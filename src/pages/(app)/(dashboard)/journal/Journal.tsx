@@ -119,13 +119,6 @@ const Journal = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (typeDropRef.current && !typeDropRef.current.contains(e.target as Node)) setTypeOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
 
   // Filter
   const filtered = useMemo(() => {
