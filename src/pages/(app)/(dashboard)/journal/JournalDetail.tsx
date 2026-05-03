@@ -410,13 +410,13 @@ const JournalDetail = () => {
               {journal.created_at && (
                 <div className="flex justify-between text-xs">
                   <span className="text-text-secondary">Created</span>
-                  <span className="text-text-primary font-medium">{fmtShort(journal.created_at)}</span>
+                  <span className="text-text-primary font-medium">{formatDate(journal.created_at)}</span>
                 </div>
               )}
               {journal.updated_at && journal.updated_at !== journal.created_at && (
                 <div className="flex justify-between text-xs">
                   <span className="text-text-secondary">Updated</span>
-                  <span className="text-text-primary font-medium">{fmtShort(journal.updated_at)}</span>
+                  <span className="text-text-primary font-medium">{formatDate(journal.updated_at)}</span>
                 </div>
               )}
             </div>
