@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDate } from "../@utils/date.utils";
 import {
   TrendingUp,
   Plus,
@@ -243,7 +244,7 @@ const MediaLog = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center flex-wrap gap-2 mb-2">
                           <span className="text-text-primary text-sm font-semibold">
-                            {new Date(log.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                            {formatDate(log.date)}
                           </span>
                           {isLatest && !isCompleted && (
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-accent/10 text-accent px-2 py-0.5 rounded-full">Latest</span>

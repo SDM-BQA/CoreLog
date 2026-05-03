@@ -23,6 +23,7 @@ import {
 import { useCreateBookMutation } from "../../../../@store/api/books.api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
+import { toISO } from "../../../../@utils/date.utils";
 import { GoogleBook, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import RatingInput from "../../../../@components/RatingInput";
 import Select from "../../../../@components/@ui/Select";
@@ -155,11 +156,11 @@ const AddBook = () => {
             language: formValues.language || "",
             started_from:
               (formValues.status === "reading" || formValues.status === "read") && formValues.startedFrom
-                ? new Date(formValues.startedFrom).toISOString()
+                ? toISO(formValues.startedFrom)
                 : undefined,
             finished_on:
               formValues.status === "read" && formValues.finishedOn
-                ? new Date(formValues.finishedOn).toISOString()
+                ? toISO(formValues.finishedOn)
                 : undefined,
             series_name: formValues.isPartOfSeries ? formValues.seriesName : undefined,
             series_number: formValues.isPartOfSeries ? formValues.seriesNumber : undefined,

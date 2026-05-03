@@ -19,6 +19,7 @@ import {
 import { upload_image_api } from "../../../../@apis/users";
 import { useCreatePoemMutation } from "../../../../@store/api/poetry.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { toISO } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
 
@@ -134,7 +135,7 @@ const AddPoem = () => {
         tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         cover_image: formData.cover_image || undefined,
         status: formData.status,
-        created_at: formData.created_at ? new Date(formData.created_at).toISOString() : undefined,
+        created_at: formData.created_at ? toISO(formData.created_at) : undefined,
       }).unwrap();
       toast.success("Poem saved to your anthology");
       navigate("/dashboard/poetry");

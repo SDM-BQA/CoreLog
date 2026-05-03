@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { formatDate, formatDayMonth } from "../../../../@utils/date.utils";
 import { useGetJournalsListQuery } from "../../../../@store/api/journal.api";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ const Journal = () => {
       if (!map.has(key)) {
         const arr: typeof visible = [];
         map.set(key, arr);
-        groups.push({ key, label: d.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), entries: arr });
+        groups.push({ key, label: d.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" }), entries: arr });
       }
       map.get(key)!.push(j);
     });
@@ -168,7 +169,7 @@ const Journal = () => {
 
   const firstDow = new Date(calMonth.year, calMonth.month, 1).getDay();
   const daysInMonth = new Date(calMonth.year, calMonth.month + 1, 0).getDate();
-  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const monthLabel = new Date(calMonth.year, calMonth.month).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
   const prevMonth = () => setCalMonth(p => { const d = new Date(p.year, p.month - 1); return { year: d.getFullYear(), month: d.getMonth() }; });
   const nextMonth = () => setCalMonth(p => { const d = new Date(p.year, p.month + 1); return { year: d.getFullYear(), month: d.getMonth() }; });
@@ -177,7 +178,7 @@ const Journal = () => {
   const writingByMonth = useMemo(() => {
     const map: Record<string, number> = {};
     journals.forEach((j: any) => {
-      const key = new Date(j.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+      const key = new Date(j.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "Asia/Kolkata" });
       map[key] = (map[key] || 0) + 1;
     });
     return Object.entries(map).slice(-6);
@@ -438,7 +439,7 @@ const Journal = () => {
                             {/* Date column */}
                             <div className="shrink-0 flex flex-col items-center gap-2 w-10 text-center">
                               <span className="text-text-secondary text-[9px] font-bold uppercase tracking-wider leading-none">
-                                {entryDate.toLocaleDateString("en-IN", { month: "short" })}
+                                {formatDayMonth(entry.date).split(" ")[1]}
                               </span>
                               <span className="text-text-primary text-2xl font-black leading-none">{entryDate.getDate()}</span>
                               {mood && (

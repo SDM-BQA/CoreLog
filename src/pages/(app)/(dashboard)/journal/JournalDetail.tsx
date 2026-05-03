@@ -57,23 +57,7 @@ const fmt12h = (time?: string) => {
   return `${String(hh % 12 || 12).padStart(2, "0")}:${String(mm).padStart(2, "0")} ${hh >= 12 ? "PM" : "AM"}`;
 };
 
-const parseDate = (val: string | undefined): Date | null => {
-  if (!val) return null;
-  const n = Number(val);
-  if (!isNaN(n) && n > 1_000_000_000) return new Date(n);
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d;
-};
-
-const fmtDate = (val: string | undefined) => {
-  const d = parseDate(val);
-  return d ? d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "—";
-};
-
-const fmtShort = (val: string | undefined) => {
-  const d = parseDate(val);
-  return d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
-};
+import { formatDate, toISO } from "../../../../@utils/date.utils";
 
 const wordCount = (html: string) => {
   const el = document.createElement("div");
@@ -177,7 +161,7 @@ const JournalDetail = () => {
           mood:         editData.mood || undefined,
           location:     editData.location,
           tags:         editData.tags ? editData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
-          date:         editData.date ? new Date(editData.date).toISOString() : undefined,
+          date:         editData.date ? toISO(editData.date) : undefined,
           time:         editData.time || undefined,
           is_favorite:  editData.is_favorite,
           photos:       editPhotos.length ? editPhotos : undefined,
@@ -335,7 +319,7 @@ const JournalDetail = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Date</p>
-                  <p className="text-text-primary text-sm font-semibold mt-0.5">{fmtDate(journal.date)}</p>
+                  <p className="text-text-primary text-sm font-semibold mt-0.5">{formatDate(journal.date)}</p>
                 </div>
               </div>
 

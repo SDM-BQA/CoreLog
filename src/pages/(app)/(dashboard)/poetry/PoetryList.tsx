@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { useGetPoemsListQuery } from "../../../../@store/api/poetry.api";
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { formatDate } from "../../../../@utils/date.utils";
 
 const PoemSkeleton = () => (
   <div className="bg-surface border border-border rounded-3xl overflow-hidden shadow-sm animate-pulse h-full">
@@ -156,12 +157,7 @@ const PoetryList = () => {
                         <div className="flex items-center gap-3 mb-4">
                            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest flex items-center gap-1.5">
                              <Clock size={12} />
-                             {(() => {
-                               const date = new Date(poem.created_at);
-                               return isNaN(date.getTime()) 
-                                 ? "Unknown Date" 
-                                 : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-                             })()}
+                             {formatDate(poem.created_at)}
                            </span>
                            <span className={`w-1.5 h-1.5 rounded-full ${poem.status === 'finished' ? 'bg-emerald-500' : poem.status === 'published' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
                         </div>

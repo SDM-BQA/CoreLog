@@ -26,6 +26,7 @@ import {
   fetch_external_movie_providers_api,
 } from "../../../../@apis/movies";
 import { useCreateMovieMutation } from "../../../../@store/api/movies.api";
+import { toISO } from "../../../../@utils/date.utils";
 import { toast } from "react-toast";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -151,12 +152,12 @@ const AddMovie = () => {
 
           const started_from =
             formValues.status !== "watchlist"
-              ? new Date(formValues.started_from).toISOString()
+              ? toISO(formValues.started_from)
               : undefined;
 
           const finished_on =
             formValues.status === "watched" || formValues.status === "rewatching"
-              ? new Date(formValues.finished_on).toISOString()
+              ? toISO(formValues.finished_on)
               : undefined;
 
           await createMovieMutation({

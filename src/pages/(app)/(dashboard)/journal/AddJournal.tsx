@@ -41,6 +41,7 @@ import {
 import { upload_image_api } from "../../../../@apis/users";
 import { useCreateJournalMutation } from "../../../../@store/api/journal.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { toISO, formatDate } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
 
@@ -108,7 +109,7 @@ const CalendarPicker = ({ value, onSelect, onClose }: {
   const firstDow    = new Date(viewYear, viewMonth, 1).getDay();
   const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
 
-  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
   const goBack = () => {
     const d = new Date(viewYear, viewMonth - 1);
@@ -563,7 +564,7 @@ const AddJournal = () => {
         location: meta.location.trim(),
         photos: photos.length ? photos : undefined,
         tags: meta.tags ? meta.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
-        date: new Date(meta.date).toISOString(),
+        date: toISO(meta.date),
         time: meta.time,
         is_favorite: meta.is_favorite,
       }).unwrap();
@@ -607,7 +608,7 @@ const AddJournal = () => {
           <div className="w-px h-4 bg-border shrink-0" />
           <span className="text-text-primary font-bold text-sm flex-1 truncate">New Entry</span>
           <span className="text-text-secondary/50 text-xs hidden md:block shrink-0">
-            {new Date(meta.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+            {formatDate(meta.date, { weekday: "short", day: "numeric", month: "short" })}
           </span>
           <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 border rounded-full text-[10px] font-bold uppercase tracking-wider ${ac.badge}`}>
             {currentType && <currentType.icon size={10} />}
@@ -739,7 +740,7 @@ const AddJournal = () => {
                   >
                     <Calendar size={12} className="text-text-secondary shrink-0" />
                     <span className="truncate">
-                      {new Date(meta.date + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {formatDate(meta.date + "T12:00:00")}
                     </span>
                   </button>
                 </div>

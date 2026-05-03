@@ -24,6 +24,7 @@ import { get_my_poems_query } from "../../../../@apis/poetry";
 import { get_my_journals_query } from "../../../../@apis/journal";
 import { get_my_target_query, get_target_progress_query, type Target, type TargetProgress } from "../../../../@apis/targets";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { formatDate } from "../../../../@utils/date.utils";
 
 type MediaItem =
   | { type: "Movie";  title: string; _id: string; cover: string; status: string; rating?: number; created_at?: string; genres?: string[] }
@@ -51,7 +52,7 @@ const timeGreeting = () => {
 };
 
 const fmtDate = () =>
-  new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
+  formatDate(new Date(), { weekday: "long", month: "long", day: "numeric" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const DashboardHome = () => {
@@ -297,7 +298,7 @@ const DashboardHome = () => {
                             <span className="text-[10px] font-semibold text-text-secondary capitalize">{item.status.replace(/_/g, " ")}</span>
                             <span className="text-text-secondary/30">·</span>
                             <span className="text-text-secondary/60 text-[10px]">
-                              {new Date(item.created_at || "").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                              {formatDate(item.created_at, { day: "numeric", month: "short" })}
                             </span>
                           </div>
                         </div>
