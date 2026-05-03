@@ -18,9 +18,9 @@ import {
 import { useForm } from "../../../../@hooks/Form/useForm";
 import { upload_image_api } from "../../../../@apis/users";
 import {
-  create_book_mutation,
   search_external_books_api,
 } from "../../../../@apis/books";
+import { useCreateBookMutation } from "../../../../@store/api/books.api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
 import { GoogleBook, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
@@ -99,7 +99,7 @@ const validationSchema = {
 
 const AddBook = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createBookMutation, { isLoading: isCreating }] = useCreateBookMutation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [remoteCoverUrl, setRemoteCoverUrl] = useState<string | null>(null);
 
@@ -132,7 +132,6 @@ const AddBook = () => {
       validationSchema,
       onSubmit: async (formValues) => {
         try {
-          setIsSubmitting(true);
           let cover_image = "";
 
           if (selectedFile) {
@@ -141,7 +140,7 @@ const AddBook = () => {
             cover_image = remoteCoverUrl;
           }
 
-          await create_book_mutation({
+          await createBookMutation({
             title: formValues.title,
             author: formValues.author,
             description: formValues.description,
@@ -164,7 +163,7 @@ const AddBook = () => {
                 : undefined,
             series_name: formValues.isPartOfSeries ? formValues.seriesName : undefined,
             series_number: formValues.isPartOfSeries ? formValues.seriesNumber : undefined,
-          });
+          }).unwrap();
 
           toast.success(`Book "${formValues.title}" added successfully!`);
           navigate("/dashboard/books");
@@ -175,11 +174,11 @@ const AddBook = () => {
           } else {
             toast.error("Failed to add book. Please try again.");
           }
-        } finally {
-          setIsSubmitting(false);
         }
       },
     });
+
+  const isSubmitting = isCreating;
 
   // const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);

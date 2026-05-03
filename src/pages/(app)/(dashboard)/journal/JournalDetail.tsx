@@ -8,9 +8,7 @@ import {
   Image as ImageIcon, BookOpen, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import {
-  get_journal_query,
   delete_journal_mutation,
-  update_journal_mutation,
   type Journal,
 } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
@@ -19,6 +17,7 @@ import { Modal } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
+import { useGetJournalByIdQuery, useUpdateJournalMutation } from "../../../../@store/api/journal.api";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string; bg: string }> = {
@@ -115,12 +114,14 @@ const JournalDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  // Data fetching with RTK Query
+  const { data: fetchedJournal, isLoading: isJournalLoading } = useGetJournalByIdQuery(id);
+  const [updateJournalMutation, { isLoading: isUpdatingMutation }] = useUpdateJournalMutation();
+
   const [journal, setJournal]           = useState<Journal | null>(null);
-  const [isLoading, setIsLoading]       = useState(true);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting]     = useState(false);
   const [isEditOpen, setIsEditOpen]     = useState(false);
-  const [isUpdating, setIsUpdating]     = useState(false);
   const [isUploading, setIsUploading]   = useState(false);
   const [lightbox, setLightbox]         = useState<number | null>(null);
   const [editPhotos, setEditPhotos]     = useState<string[]>([]);
@@ -132,21 +133,16 @@ const JournalDetail = () => {
     tags: "", date: "", time: "", is_favorite: false,
   });
 
+  // Sync local journal state with RTK Query data
   useEffect(() => {
-    if (!id) return;
-    (async () => {
-      try {
-        const data = await get_journal_query(id);
-        if (data) { setJournal(data); syncEdit(data); }
-        else { toast.error("Entry not found"); navigate("/dashboard/journal"); }
-      } catch {
-        toast.error("Failed to load entry");
-        navigate("/dashboard/journal");
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id]);
+    if (fetchedJournal) {
+      setJournal(fetchedJournal as unknown as Journal);
+      syncEdit(fetchedJournal as unknown as Journal);
+    }
+  }, [fetchedJournal]);
+
+  const isLoading = isJournalLoading;
+  const isUpdating = isUpdatingMutation;
 
   const syncEdit = (j: Journal) => {
     setEditPhotos(j.photos ?? []);
@@ -170,28 +166,27 @@ const JournalDetail = () => {
   const handleSave = async () => {
     if (!id) return;
     if (!editData.title.trim()) { toast.error("Title is required"); return; }
-    setIsUpdating(true);
     try {
-      const result = await update_journal_mutation(id, {
-        title:        editData.title.trim(),
-        description:  editData.description || undefined,
-        content:      editData.content,
-        journal_type: editData.journal_type,
-        mood:         editData.mood || undefined,
-        location:     editData.location,
-        tags:         editData.tags ? editData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
-        date:         editData.date ? new Date(editData.date).toISOString() : undefined,
-        time:         editData.time || undefined,
-        is_favorite:  editData.is_favorite,
-        photos:       editPhotos.length ? editPhotos : undefined,
-      });
-      setJournal(result);
+      await updateJournalMutation({
+        id,
+        input: {
+          title:        editData.title.trim(),
+          description:  editData.description || undefined,
+          content:      editData.content,
+          journal_type: editData.journal_type,
+          mood:         editData.mood || undefined,
+          location:     editData.location,
+          tags:         editData.tags ? editData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+          date:         editData.date ? new Date(editData.date).toISOString() : undefined,
+          time:         editData.time || undefined,
+          is_favorite:  editData.is_favorite,
+          photos:       editPhotos.length ? editPhotos : undefined,
+        }
+      }).unwrap();
       toast.success("Entry updated");
       setIsEditOpen(false);
     } catch {
       toast.error("Failed to update entry");
-    } finally {
-      setIsUpdating(false);
     }
   };
 

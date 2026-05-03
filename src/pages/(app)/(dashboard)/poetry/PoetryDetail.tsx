@@ -17,7 +17,7 @@ import {
   X,
   Image as ImageIcon,
 } from "lucide-react";
-import { get_poem_query, update_poem_mutation, delete_poem_mutation, type Poem, type PoemInput } from "../../../../@apis/poetry";
+import { delete_poem_mutation, type Poem, type PoemInput } from "../../../../@apis/poetry";
 import { upload_image_api } from "../../../../@apis/users";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
@@ -25,6 +25,7 @@ import { Modal } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
+import { useGetPoemByIdQuery, useUpdatePoemMutation } from "../../../../@store/api/poetry.api";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -72,9 +73,11 @@ const PoetryDetail = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Data fetching with RTK Query
+  const { data: fetchedPoem, isLoading: isPoemLoading } = useGetPoemByIdQuery(id);
+  const [updatePoemMutation, { isLoading: isUpdatingMutation }] = useUpdatePoemMutation();
+
   const [poem, setPoem] = useState<Poem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -93,28 +96,16 @@ const PoetryDetail = () => {
     created_at: "",
   });
 
+  // Sync local poem state with RTK Query data
   useEffect(() => {
-    const fetch = async () => {
-      if (!id) return;
-      try {
-        setIsLoading(true);
-        const data = await get_poem_query(id);
-        if (data) {
-          setPoem(data);
-          syncModal(data);
-        } else {
-          toast.error("Poem not found");
-          navigate("/dashboard/poetry");
-        }
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        toast.error("Failed to load poem");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetch();
-  }, [id]);
+    if (fetchedPoem) {
+      setPoem(fetchedPoem);
+      syncModal(fetchedPoem);
+    }
+  }, [fetchedPoem]);
+
+  const isLoading = isPoemLoading;
+  const isUpdating = isUpdatingMutation;
 
   const syncModal = (p: Poem) => {
     const formattedDate = toDateInput(p.created_at);
@@ -162,7 +153,6 @@ const PoetryDetail = () => {
     if (!id) return;
     if (!modalData.title.trim()) { toast.error("Title is required"); return; }
     if (!modalData.content.trim()) { toast.error("Content is required"); return; }
-    setIsUpdating(true);
     try {
       const payload: Partial<PoemInput> = {
         title: modalData.title.trim(),
@@ -176,14 +166,11 @@ const PoetryDetail = () => {
         status: modalData.status,
         created_at: toISO(modalData.created_at),
       };
-      const result = await update_poem_mutation(id, payload);
-      setPoem(result);
+      await updatePoemMutation({ id, input: payload }).unwrap();
       toast.success("Poem updated");
       setIsModalOpen(false);
     } catch {
       toast.error("Failed to update poem");
-    } finally {
-      setIsUpdating(false);
     }
   };
 

@@ -14,8 +14,8 @@ import {
   Search,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
-import { create_series_mutation } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
+import { useCreateSeriesMutation } from "../../../../@store/api/series.api";
 import { get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import RatingInput from "../../../../@components/RatingInput";
 import Select from "../../../../@components/@ui/Select";
@@ -72,7 +72,7 @@ const TMDB_GENRE_MAP: Record<number, string> = {
 
 const AddSeries = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createSeriesMutation, { isLoading: isCreating }] = useCreateSeriesMutation();
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -160,7 +160,6 @@ const AddSeries = () => {
       },
       onSubmit: async (formValues) => {
         try {
-          setIsSubmitting(true);
           let poster_image = "";
           if (posterFile) {
             poster_image = await upload_image_api(posterFile);
@@ -178,7 +177,7 @@ const AddSeries = () => {
               ? new Date(formValues.finished_on).toISOString()
               : undefined;
 
-          await create_series_mutation({
+          await createSeriesMutation({
             title: formValues.title,
             creator: formValues.language + " (" + formValues.origin_country + ")",
             description: formValues.description,
@@ -196,18 +195,18 @@ const AddSeries = () => {
             platform: formValues.platform,
             started_from,
             finished_on,
-          });
+          }).unwrap();
 
           toast.success(`Series "${formValues.title}" added successfully!`);
           navigate("/dashboard/series");
         } catch (error: any) {
           console.error("Error adding series:", error);
           toast.error(error.message || "Failed to add series.");
-        } finally {
-          setIsSubmitting(false);
         }
       },
     });
+
+  const isSubmitting = isCreating;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

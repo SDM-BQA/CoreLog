@@ -16,8 +16,8 @@ import {
   X,
   Calendar,
 } from "lucide-react";
-import { create_poem_mutation } from "../../../../@apis/poetry";
 import { upload_image_api } from "../../../../@apis/users";
+import { useCreatePoemMutation } from "../../../../@store/api/poetry.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
@@ -83,7 +83,7 @@ const ATMOSPHERES = [
 const AddPoem = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createPoemMutation, { isLoading: isCreatingMutation }] = useCreatePoemMutation();
   const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -123,9 +123,8 @@ const AddPoem = () => {
     if (!formData.title.trim()) { toast.error("Title is required"); return; }
     if (!formData.content.trim()) { toast.error("Poem content is required"); return; }
 
-    setIsSubmitting(true);
     try {
-      await create_poem_mutation({
+      await createPoemMutation({
         title: formData.title.trim(),
         content: formData.content,
         language: formData.language,
@@ -136,15 +135,15 @@ const AddPoem = () => {
         cover_image: formData.cover_image || undefined,
         status: formData.status,
         created_at: formData.created_at ? new Date(formData.created_at).toISOString() : undefined,
-      });
+      }).unwrap();
       toast.success("Poem saved to your anthology");
       navigate("/dashboard/poetry");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save poem");
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  const isSubmitting = isCreatingMutation;
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">

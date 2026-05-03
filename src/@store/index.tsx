@@ -1,11 +1,14 @@
 import { configureStore } from "@reduxjs/toolkit";
 import user_reducer from "./slices/user/user.slice";
+import { apiSlice } from "./api/api.slice";
 
 export const store = configureStore({
   reducer: {
     user: user_reducer,
-    // add more slices here
+    [apiSlice.reducerPath]: apiSlice.reducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(apiSlice.middleware),
 });
 
 // infer types from store itself

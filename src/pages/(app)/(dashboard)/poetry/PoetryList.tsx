@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Search,
   Plus,
@@ -8,10 +8,9 @@ import {
   ScrollText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { get_my_poems_query, type Poem } from "../../../../@apis/poetry";
+import { useGetPoemsListQuery } from "../../../../@store/api/poetry.api";
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
-import { toast } from "react-toast";
 
 const PoemSkeleton = () => (
   <div className="bg-surface border border-border rounded-3xl overflow-hidden shadow-sm animate-pulse h-full">
@@ -43,42 +42,24 @@ const PoemSkeleton = () => (
 );
 
 const PoetryList = () => {
-  const [poems, setPoems] = useState<Poem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [, setTotalCount] = useState(0);
 
-  const fetchPoems = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const filter: any = {
-        limit: 100, // For now, simple list
-      };
-      if (searchQuery.trim()) filter.search = searchQuery.trim();
-      if (statusFilter !== "All") filter.status = statusFilter.toLowerCase();
+  // Data fetching with RTK Query
+  const { data: poemsData, isLoading } = useGetPoemsListQuery({
+    limit: 100,
+    search: searchQuery.trim() || undefined,
+    status: statusFilter !== "All" ? statusFilter.toLowerCase() : undefined,
+  });
 
-      const result = await get_my_poems_query(filter);
-      setPoems(result.poems);
-      setTotalCount(result.total_count);
-    } catch (error) {
-      console.error("Failed to fetch poems:", error);
-      toast.error("Failed to load your anthology");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchQuery, statusFilter]);
+  const poems = poemsData?.poems || [];
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchPoems();
-    }, 400); // Debounce search
-    return () => clearTimeout(timer);
-  }, [fetchPoems]);
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
       <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-8 py-10 flex flex-col gap-10">
+        
+        <TargetBanner category="poems" label="Poems" />
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -146,7 +127,7 @@ const PoetryList = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {poems.map((poem) => (
+              {poems.map((poem: any) => (
                 <Link
                   key={poem._id}
                   to={`/dashboard/poetry/${poem._id}`}
@@ -196,7 +177,7 @@ const PoetryList = () => {
 
                       <div className="mt-auto pt-6 border-t border-border/50 flex items-center justify-between">
                          <div className="flex flex-wrap gap-2">
-                           {poem.tags?.slice(0, 3).map(tag => (
+                           {poem.tags?.slice(0, 3).map((tag: string) => (
                              <span key={tag} className="text-[10px] font-medium text-text-secondary bg-bg px-2.5 py-1 rounded-lg border border-border">
                                #{tag}
                              </span>

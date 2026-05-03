@@ -21,11 +21,11 @@ import RatingInput from "../../../../@components/RatingInput";
 import Select from "../../../../@components/@ui/Select";
 import { TMDBMovie, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import {
-  create_movie_mutation,
   search_external_movies_api,
   fetch_external_movie_details_api,
   fetch_external_movie_providers_api,
 } from "../../../../@apis/movies";
+import { useCreateMovieMutation } from "../../../../@store/api/movies.api";
 import { toast } from "react-toast";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -76,7 +76,7 @@ const TMDB_GENRE_MAP: Record<number, string> = {
 
 const AddMovie = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createMovieMutation, { isLoading: isCreating }] = useCreateMovieMutation();
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
@@ -142,7 +142,6 @@ const AddMovie = () => {
       },
       onSubmit: async (formValues) => {
         try {
-          setIsSubmitting(true);
           let poster_image = "";
           if (posterFile) {
             poster_image = await upload_image_api(posterFile);
@@ -160,7 +159,7 @@ const AddMovie = () => {
               ? new Date(formValues.finished_on).toISOString()
               : undefined;
 
-          await create_movie_mutation({
+          await createMovieMutation({
             title: formValues.title,
             // director: formValues.director,
             description: formValues.description,
@@ -176,18 +175,18 @@ const AddMovie = () => {
             platform: formValues.platform,
             started_from,
             finished_on,
-          });
+          }).unwrap();
 
           toast.success(`Movie "${formValues.title}" added successfully!`);
           navigate("/dashboard/movies");
         } catch (error) {
           console.error("Error adding movie:", error);
           toast.error(error instanceof Error ? error.message : "Failed to add movie.");
-        } finally {
-          setIsSubmitting(false);
         }
       },
     });
+
+  const isSubmitting = isCreating;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import type { JournalLockAPI } from "./useJournalLock";
 import FilterDropdown from "../../../../@components/@smart/FilterDropdown";
@@ -30,8 +30,9 @@ import {
   Lock,
   Fingerprint,
 } from "lucide-react";
-import { get_my_journals_query, type Journal } from "../../../../@apis/journal";
+import { type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { useGetJournalsListQuery } from "../../../../@store/api/journal.api";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string }> = {
@@ -91,9 +92,6 @@ const Journal = () => {
     await registerBiometric();
     setRegisteringBio(false);
   }, [registerBiometric]);
-  const [journals, setJournals] = useState<Journal[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
 
   const [search, setSearch]           = useState("");
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
@@ -104,27 +102,21 @@ const Journal = () => {
     const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await get_my_journals_query({ limit: 200, page: 1 });
-      setJournals(res.journals);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load journals");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Data fetching with RTK Query
+  const { data: journalsData, isLoading: loading, refetch: load } = useGetJournalsListQuery({
+    limit: 200,
+    page: 1,
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const journals = journalsData?.journals || [];
+  const error = null; // Error handled by RTK Query if needed
 
 
   // Filter
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return journals.filter((j) => {
-      if (q && !j.title.toLowerCase().includes(q) && !stripHtml(j.content).toLowerCase().includes(q) && !j.tags.some(t => t.toLowerCase().includes(q))) return false;
+    return journals.filter((j: any) => {
+      if (q && !j.title.toLowerCase().includes(q) && !stripHtml(j.content).toLowerCase().includes(q) && !j.tags.some((t: string) => t.toLowerCase().includes(q))) return false;
       if (selectedMood && j.mood !== selectedMood) return false;
       if (selectedType && j.journal_type !== selectedType) return false;
       return true;
@@ -140,7 +132,7 @@ const Journal = () => {
     const visible = sortedFiltered.slice(0, visibleCount);
     const groups: { key: string; label: string; entries: typeof visible }[] = [];
     const map = new Map<string, typeof visible>();
-    visible.forEach((j) => {
+    visible.forEach((j: any) => {
       const d = new Date(j.date);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!map.has(key)) {
@@ -155,16 +147,16 @@ const Journal = () => {
 
   // Mood summary
   const moodCounts = useMemo(() =>
-    journals.reduce((acc, j) => { if (j.mood) acc[j.mood] = (acc[j.mood] || 0) + 1; return acc; }, {} as Record<string, number>),
+    journals.reduce((acc: any, j: any) => { if (j.mood) acc[j.mood] = (acc[j.mood] || 0) + 1; return acc; }, {} as Record<string, number>),
     [journals]
   );
-  const topMoods = Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const moodTotal = topMoods.reduce((s, [, c]) => s + c, 0);
+  const topMoods = Object.entries(moodCounts).sort((a: any, b: any) => b[1] - a[1]).slice(0, 5);
+  const moodTotal = topMoods.reduce((s, [, c]: [any, any]) => s + (c as number), 0);
 
   // Calendar — first entry per day (for photo + title preview)
   const calEntries = useMemo(() => {
     const map = new Map<number, Journal>();
-    journals.forEach((j) => {
+    journals.forEach((j: any) => {
       const d = new Date(j.date);
       if (d.getFullYear() === calMonth.year && d.getMonth() === calMonth.month) {
         const day = d.getDate();
@@ -184,7 +176,7 @@ const Journal = () => {
   // Trends data
   const writingByMonth = useMemo(() => {
     const map: Record<string, number> = {};
-    journals.forEach((j) => {
+    journals.forEach((j: any) => {
       const key = new Date(j.date).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
       map[key] = (map[key] || 0) + 1;
     });
@@ -248,7 +240,7 @@ const Journal = () => {
                   { id: "feed",     label: "Feed",     icon: BookOpen },
                   { id: "calendar", label: "Calendar", icon: CalendarIcon },
                   { id: "trends",   label: "Insights", icon: TrendingUp },
-                ] as const).map(({ id, label, icon: Icon }) => (
+                ] as const).map(({ id, label, icon: Icon }: any) => (
                   <button
                     key={id}
                     onClick={() => setView(id)}
@@ -268,7 +260,7 @@ const Journal = () => {
                   { id: "feed",     label: "Journal Feed", icon: BookOpen },
                   { id: "calendar", label: "Calendar",     icon: CalendarIcon },
                   { id: "trends",   label: "Insights",     icon: TrendingUp },
-                ] as const).map(({ id, label, icon: Icon }) => (
+                ] as const).map(({ id, label, icon: Icon }: any) => (
                   <button
                     key={id}
                     onClick={() => setView(id)}
@@ -323,7 +315,7 @@ const Journal = () => {
               <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
                 <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Monthly Vibe</p>
                 <div className="flex flex-col gap-2">
-                  {topMoods.map(([mood, count]) => {
+                  {topMoods.map(([mood, count]: any) => {
                     const m = MOOD_MAP[mood];
                     return (
                       <button
@@ -433,7 +425,7 @@ const Journal = () => {
                           <span className="text-text-secondary/50 text-[10px] shrink-0">{entries.length} entr{entries.length === 1 ? "y" : "ies"}</span>
                         </div>
 
-                        {entries.map((entry) => {
+                        {entries.map((entry: any) => {
                       const type = TYPE_MAP[entry.journal_type] ?? TYPE_MAP.other;
                       const mood = MOOD_MAP[entry.mood ?? ""];
                       const entryDate = new Date(entry.date);
@@ -490,7 +482,7 @@ const Journal = () => {
 
                               {entry.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {entry.tags.slice(0, 5).map((tag) => (
+                                  {entry.tags.slice(0, 5).map((tag: string) => (
                                     <span key={tag} className="flex items-center gap-1 px-2 py-0.5 bg-bg border border-border rounded-full text-[10px] text-text-secondary">
                                       <Tag size={8} />
                                       {tag}
@@ -527,7 +519,7 @@ const Journal = () => {
                                 // 2 photos — side by side
                                 if (count === 2) return (
                                   <div className="flex gap-0.5 w-[76px] h-[76px]">
-                                    {photos.slice(0, 2).map((p, i) => (
+                                    {photos.slice(0, 2).map((p: string, i: number) => (
                                       <div key={i} className="flex-1 overflow-hidden rounded-sm">
                                         <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
                                       </div>
@@ -542,7 +534,7 @@ const Journal = () => {
                                       <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
                                     </div>
                                     <div className="flex-1 flex flex-col gap-0.5">
-                                      {photos.slice(1, 3).map((p, i) => (
+                                      {photos.slice(1, 3).map((p: string, i: number) => (
                                         <div key={i} className="flex-1 overflow-hidden rounded-sm">
                                           <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
                                         </div>
@@ -554,7 +546,7 @@ const Journal = () => {
                                 // 4+ photos — 2×2 grid, +N on last
                                 return (
                                   <div className="grid grid-cols-2 gap-0.5 w-[76px] h-[76px]">
-                                    {photos.slice(0, 4).map((p, i) => (
+                                    {photos.slice(0, 4).map((p: string, i: number) => (
                                       <div key={i} className="relative overflow-hidden rounded-sm">
                                         <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
                                         {i === 3 && extra > 0 && (
@@ -692,7 +684,7 @@ const Journal = () => {
                       <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col gap-4">
                         <h3 className="text-text-primary text-sm font-bold">Mood Breakdown</h3>
                         <div className="flex flex-col gap-2.5">
-                          {topMoods.map(([mood, count]) => {
+                          {topMoods.map(([mood, count]: [string, any]) => {
                             const m = MOOD_MAP[mood];
                             return (
                               <div key={mood} className="flex items-center gap-3">
@@ -713,10 +705,10 @@ const Journal = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {[
                         { label: "Total Entries", value: journals.length },
-                        { label: "Favourites", value: journals.filter(j => j.is_favorite).length },
-                        { label: "With Photos", value: journals.filter(j => j.photos.length > 0).length },
-                        { label: "Unique Tags", value: [...new Set(journals.flatMap(j => j.tags))].length },
-                      ].map(({ label, value }) => (
+                        { label: "Favourites", value: journals.filter((j: any) => j.is_favorite).length },
+                        { label: "With Photos", value: journals.filter((j: any) => j.photos.length > 0).length },
+                        { label: "Unique Tags", value: [...new Set(journals.flatMap((j: any) => j.tags))].length },
+                      ].map(({ label, value }: any) => (
                         <div key={label} className="bg-surface border border-border rounded-2xl p-4 text-center">
                           <p className="text-text-primary text-2xl font-black">{value}</p>
                           <p className="text-text-secondary text-xs mt-1">{label}</p>

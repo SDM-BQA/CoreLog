@@ -38,8 +38,8 @@ import {
   AlignRight,
   Image as ImageIcon,
 } from "lucide-react";
-import { create_journal_mutation } from "../../../../@apis/journal";
 import { upload_image_api } from "../../../../@apis/users";
+import { useCreateJournalMutation } from "../../../../@store/api/journal.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import Select from "../../../../@components/@ui/Select";
 import { toast } from "react-toast";
@@ -421,7 +421,7 @@ const AddJournal = () => {
   const navigate = useNavigate();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createJournalMutation, { isLoading: isCreatingMutation }] = useCreateJournalMutation();
   const [isUploading, setIsUploading] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
   const [showCal, setShowCal]     = useState(false);
@@ -553,9 +553,8 @@ const AddJournal = () => {
     if (!meta.location.trim()) { toast.error("Location is required"); return; }
     if (!meta.time) { toast.error("Time is required"); return; }
 
-    setIsSubmitting(true);
     try {
-      await create_journal_mutation({
+      await createJournalMutation({
         title: meta.title.trim(),
         content,
         description: meta.description.trim() || undefined,
@@ -567,15 +566,15 @@ const AddJournal = () => {
         date: new Date(meta.date).toISOString(),
         time: meta.time,
         is_favorite: meta.is_favorite,
-      });
+      }).unwrap();
       toast.success("Journal entry saved");
       navigate("/dashboard/journal");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save entry");
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  const isSubmitting = isCreatingMutation;
 
 
   useEffect(() => {
@@ -585,7 +584,6 @@ const AddJournal = () => {
 
 
   const currentType = JOURNAL_TYPES.find((t) => t.value === meta.journal_type);
-  const currentMood = MOODS.find((m) => m.value === meta.mood);
   const ac2 = ac.activeBtn;
 
   const fmt12h = (t: string) => {

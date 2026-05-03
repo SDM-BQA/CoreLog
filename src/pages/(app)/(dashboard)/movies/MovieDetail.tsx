@@ -16,7 +16,6 @@ import {
   Globe,
 } from "lucide-react";
 import {
-  get_movie_query,
   update_movie_mutation,
   delete_movie_mutation,
   type MovieInput,
@@ -30,6 +29,7 @@ import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { toast } from "react-toast";
+import { useGetMovieByIdQuery, useUpdateMovieMutation } from "../../../../@store/api/movies.api";
 
 interface Movie {
   _id: string;
@@ -75,9 +75,11 @@ const MovieDetail = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Data fetching with RTK Query
+  const { data: fetchedMovie, isLoading: isMovieLoading } = useGetMovieByIdQuery(id);
+  const [updateMovieMutation, { isLoading: isUpdating }] = useUpdateMovieMutation();
+
   const [movie, setMovie] = useState<Movie | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,41 +103,30 @@ const MovieDetail = () => {
   });
   const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
 
-  const fetchMovie = async () => {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      const data = await get_movie_query(id);
-      if (data) {
-        setMovie(data as Movie);
-        setModalData({
-          title: data.title,
-          // director: data.director || "",
-          release_year: data.release_year,
-          runtime: data.runtime || 0,
-          language: data.language || "",
-          origin_country: data.origin_country || "",
-          status: data.status,
-          genres: data.genres.map(get_genre_display),
-          platform: data.platform || "",
-          description: data.description || "",
-          rating: data.rating,
-          review: data.review || "",
-          started_from: toDateInput(data.started_from) || toDateInput(Date.now()),
-          finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching movie:", error);
-      toast.error("Failed to load movie details");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Sync local movie state with RTK Query data
   useEffect(() => {
-    fetchMovie();
-  }, [id]);
+    if (fetchedMovie) {
+      setMovie(fetchedMovie as unknown as Movie);
+      setModalData({
+        title: fetchedMovie.title,
+        // director: data.director || "",
+        release_year: fetchedMovie.release_year,
+        runtime: fetchedMovie.runtime || 0,
+        language: fetchedMovie.language || "",
+        origin_country: fetchedMovie.origin_country || "",
+        status: fetchedMovie.status,
+        genres: fetchedMovie.genres.map(get_genre_display),
+        platform: fetchedMovie.platform || "",
+        description: fetchedMovie.description || "",
+        rating: fetchedMovie.rating,
+        review: fetchedMovie.review || "",
+        started_from: toDateInput(fetchedMovie.started_from) || toDateInput(Date.now()),
+        finished_on: toDateInput(fetchedMovie.finished_on) || toDateInput(Date.now()),
+      });
+    }
+  }, [fetchedMovie]);
+
+  const isLoading = isMovieLoading;
 
   const validateModal = () => {
     const errors: Record<string, string> = {};
@@ -198,18 +189,14 @@ const MovieDetail = () => {
   const updateMovie = async (fields: Partial<MovieInput>) => {
     if (!id) return;
     try {
-      setIsUpdating(true);
-      const result = await update_movie_mutation(id, fields);
+      const result = await updateMovieMutation({ id, input: fields }).unwrap();
       if (result) {
-        setMovie(result as Movie);
         toast.success("Updated successfully");
         setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Error updating movie:", error);
       toast.error("Failed to update");
-    } finally {
-      setIsUpdating(false);
     }
   };
 

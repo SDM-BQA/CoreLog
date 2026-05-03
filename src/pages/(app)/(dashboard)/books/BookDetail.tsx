@@ -11,7 +11,6 @@ import {
   CalendarPlus,
   BookOpen,
   User,
-  ChevronDown,
   Hash,
   Globe,
   Building2,
@@ -21,7 +20,7 @@ import {
   Library,
 } from "lucide-react";
 import MediaLog from "../../../../@components/MediaLog";
-import { get_book_query, update_book_mutation, delete_book_mutation, get_book_logs_query, add_book_log_mutation, delete_book_log_mutation, type BookLog } from "../../../../@apis/books";
+import { update_book_mutation, delete_book_mutation, get_book_logs_query, add_book_log_mutation, delete_book_log_mutation, type BookLog } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { upload_image_api } from "../../../../@apis/users";
@@ -32,6 +31,7 @@ import RatingInput from "../../../../@components/RatingInput";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { MultiSearchSelect } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
+import { useGetBookByIdQuery, useUpdateBookMutation } from "../../../../@store/api/books.api";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
@@ -76,8 +76,11 @@ const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
+  // Data fetching with RTK Query
+  const { data: fetchedBook, isLoading: isBookLoading } = useGetBookByIdQuery(id);
+  const [updateBookMutation] = useUpdateBookMutation();
+
   const [book, setBook] = useState<Book | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<string>("want_to_read");
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -107,28 +110,28 @@ const BookDetail = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editView, setEditView] = useState<"all" | "synopsis" | "review" | "status_update">("all");
 
+  // Sync local book state with RTK Query data
   useEffect(() => {
-    const fetchBook = async () => {
+    if (fetchedBook) {
+      setBook(fetchedBook as unknown as Book);
+      setCurrentStatus(fetchedBook.status);
+    }
+  }, [fetchedBook]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
       if (!id) return;
       try {
-        setIsLoading(true);
-        const [data, logsData] = await Promise.all([
-          get_book_query(id),
-          get_book_logs_query(id),
-        ]);
-        if (data) {
-          setBook(data);
-          setCurrentStatus(data.status);
-        }
+        const logsData = await get_book_logs_query(id);
         setLogs(logsData ?? []);
-      } catch (error) {
-        console.error("Error fetching book:", error);
-      } finally {
-        setIsLoading(false);
+      } catch (error: any) {
+        console.error("Error fetching logs:", error);
       }
     };
-    fetchBook();
+    fetchLogs();
   }, [id]);
+
+  const isLoading = isBookLoading;
 
   if (isLoading) {
     return (
@@ -198,8 +201,8 @@ const BookDetail = () => {
     } else {
       setCurrentStatus(newStatus);
       try {
-        await update_book_mutation(book._id, { status: newStatus });
-      } catch (error) {
+        await updateBookMutation({ id: book._id, input: { status: newStatus } }).unwrap();
+      } catch (error: any) {
         console.error("Error updating status:", error);
       }
     }
@@ -238,45 +241,30 @@ const BookDetail = () => {
 
     setModalError(null);
     try {
-      await update_book_mutation(book._id, {
-        status: currentStatus === "read" ? "read" : currentStatus, // Keep current status if editing via button
-        title: modalData.title,
-        author: modalData.author,
-        publication_year: modalData.publication_year,
-        page_count: modalData.page_count,
-        publisher: modalData.publisher,
-        language: modalData.language,
-        rating: modalData.rating,
-        description: modalData.description,
-        review: modalData.review,
-        genres: modalData.genres.map(get_genre_key),
-        started_from: toISO(modalData.started_from),
-        finished_on: toISO(modalData.finished_on),
-        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
-        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
-      });
+      await updateBookMutation({
+        id: book._id,
+        input: {
+          status: currentStatus === "read" ? "read" : currentStatus,
+          title: modalData.title,
+          author: modalData.author,
+          publication_year: modalData.publication_year,
+          page_count: modalData.page_count,
+          publisher: modalData.publisher,
+          language: modalData.language,
+          rating: modalData.rating,
+          description: modalData.description,
+          review: modalData.review,
+          genres: modalData.genres.map(get_genre_key),
+          started_from: toISO(modalData.started_from),
+          finished_on: toISO(modalData.finished_on),
+          series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
+          series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
+        }
+      }).unwrap();
 
-      // Update local state
-      setBook({
-        ...book,
-        title: modalData.title,
-        author: modalData.author,
-        publication_year: modalData.publication_year,
-        page_count: modalData.page_count,
-        publisher: modalData.publisher,
-        language: modalData.language,
-        rating: modalData.rating,
-        description: modalData.description,
-        review: modalData.review,
-        genres: modalData.genres.map(get_genre_key),
-        started_from: toISO(modalData.started_from),
-        finished_on: toISO(modalData.finished_on),
-        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
-        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
-      });
       setIsStatusModalOpen(false);
       toast.success("Book details updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving status details:", error);
       toast.error("Failed to save changes. Please try again.");
     }

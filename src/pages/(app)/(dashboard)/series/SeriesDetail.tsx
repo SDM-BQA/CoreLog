@@ -17,7 +17,6 @@ import {
   Film,
 } from "lucide-react";
 import {
-  get_series_query,
   update_series_mutation,
   delete_series_mutation,
   get_series_logs_query,
@@ -35,6 +34,7 @@ import Select from "../../../../@components/@ui/Select";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { toast } from "react-toast";
+import { useGetSeriesByIdQuery, useUpdateSeriesMutation } from "../../../../@store/api/series.api";
 
 interface Series {
   _id: string;
@@ -80,9 +80,12 @@ const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ val
 const SeriesDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
+  // Data fetching with RTK Query
+  const { data: fetchedSeries, isLoading: isSeriesLoading } = useGetSeriesByIdQuery(id);
+  const [updateSeriesMutation, { isLoading: isUpdating }] = useUpdateSeriesMutation();
+
   const [series, setSeries] = useState<Series | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
   // Modal State
@@ -152,47 +155,45 @@ const SeriesDetail = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const fetchSeries = async () => {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      const [data, logsData] = await Promise.all([
-        get_series_query(id),
-        get_series_logs_query(id),
-      ]);
-      if (data) {
-        setSeries(data as unknown as Series);
-        setModalData({
-          title: data.title,
-          creator: data.creator,
-          release_year: data.release_year,
-          seasons: data.seasons,
-          seasons_watched: data.seasons_watched || 0,
-          episodes: data.episodes || 0,
-          language: data.language || "",
-          origin_country: data.origin_country || "",
-          status: data.status,
-          genres: data.genres.map(get_genre_display),
-          platform: data.platform || "",
-          description: data.description || "",
-          rating: data.rating,
-          review: data.review || "",
-          started_from: toDateInput(data.started_from) || toDateInput(Date.now()),
-          finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
-        });
-      }
-      setSeriesLogs(logsData ?? []);
-    } catch (error) {
-      console.error("Error fetching series:", error);
-      toast.error("Failed to load series details");
-    } finally {
-      setIsLoading(false);
+  // Sync local series state with RTK Query data
+  useEffect(() => {
+    if (fetchedSeries) {
+      setSeries(fetchedSeries as unknown as Series);
+      setModalData({
+        title: fetchedSeries.title,
+        creator: fetchedSeries.creator,
+        release_year: fetchedSeries.release_year,
+        seasons: fetchedSeries.seasons,
+        seasons_watched: fetchedSeries.seasons_watched || 0,
+        episodes: fetchedSeries.episodes || 0,
+        language: fetchedSeries.language || "",
+        origin_country: fetchedSeries.origin_country || "",
+        status: fetchedSeries.status,
+        genres: fetchedSeries.genres.map(get_genre_display),
+        platform: fetchedSeries.platform || "",
+        description: fetchedSeries.description || "",
+        rating: fetchedSeries.rating,
+        review: fetchedSeries.review || "",
+        started_from: toDateInput(fetchedSeries.started_from) || toDateInput(Date.now()),
+        finished_on: toDateInput(fetchedSeries.finished_on) || toDateInput(Date.now()),
+      });
     }
-  };
+  }, [fetchedSeries]);
 
   useEffect(() => {
-    fetchSeries();
+    const fetchLogs = async () => {
+      if (!id) return;
+      try {
+        const logsData = await get_series_logs_query(id);
+        setSeriesLogs(logsData ?? []);
+      } catch (error) {
+        console.error("Error fetching logs:", error);
+      }
+    };
+    fetchLogs();
   }, [id]);
+
+  const isLoading = isSeriesLoading;
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
@@ -228,18 +229,14 @@ const SeriesDetail = () => {
   const updateSeries = async (fields: any) => {
     if (!id) return;
     try {
-      setIsUpdating(true);
-      const result = await update_series_mutation(id, fields);
+      const result = await updateSeriesMutation({ id, input: fields }).unwrap();
       if (result) {
-        setSeries(result as unknown as Series);
         toast.success("Updated successfully");
         setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Error updating series:", error);
       toast.error("Failed to update");
-    } finally {
-      setIsUpdating(false);
     }
   };
 

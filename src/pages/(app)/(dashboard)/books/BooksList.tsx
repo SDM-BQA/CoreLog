@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -13,11 +13,12 @@ import {
   Library,
   X,
 } from "lucide-react";
-import { get_my_books_query, get_book_filters_query, BookFilter } from "../../../../@apis/books";
+import { get_my_books_query } from "../../../../@apis/books";
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView, MediaDisplay } from "../../../../@components/@smart";
+import { useGetBooksListQuery, useGetBookFiltersQuery } from "../../../../@store/api/books.api";
 
 export interface Book {
   _id: string;
@@ -78,20 +79,6 @@ const ListSkeleton = () => (
 const BooksList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [books, setBooks] = useState<Book[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Stats: fetched once on mount, independent of filters
-  const [stats, setStats] = useState({ total: 0, completed: 0, readingNow: 0 });
-
-  // Dynamic filter options from the user's actual collection
-  const [genreOptions, setGenreOptions] = useState<string[]>([]);
-  const [statusOptions, setStatusOptions] = useState<string[]>([]);
-  const [authorOptions, setAuthorOptions] = useState<string[]>([]);
-
   // Initialize state from URL or defaults
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar" | "series">(
     (searchParams.get("view") as any) || "grid"
@@ -99,10 +86,6 @@ const BooksList = () => {
   const [currentPage, setCurrentPage] = useState(
     Number(searchParams.get("page")) || 1
   );
-
-  // All books for calendar view (unpaginated)
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
-  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   // Filter state initialized from URL
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -120,6 +103,37 @@ const BooksList = () => {
   const [authorFilter, setAuthorFilter] = useState<string[]>(
     searchParams.get("authors")?.split(",").filter(Boolean) || []
   );
+
+  // Data fetching with RTK Query
+  const { data: booksData, isLoading: isBooksLoading } = useGetBooksListQuery({
+    search: committedSearch || undefined,
+    genres: genreFilter.length ? genreFilter : undefined,
+    status: statusFilter.length ? statusFilter : undefined,
+    author: authorFilter.length === 1 ? authorFilter[0] : undefined,
+    rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
+
+  const { data: filtersData } = useGetBookFiltersQuery(undefined);
+
+  const books = booksData?.books || [];
+  const total = booksData?.total_count || 0;
+  const totalPages = booksData?.page_count || 1;
+  const hasNextPage = booksData?.has_next_page || false;
+  const isLoading = isBooksLoading;
+
+  // Stats: fetched once on mount, independent of filters
+  const [stats, setStats] = useState({ total: 0, completed: 0, readingNow: 0 });
+
+  // Dynamic filter options from the user's actual collection
+  const genreOptions = filtersData?.genres || [];
+  const statusOptions = filtersData?.statuses || [];
+  const authorOptions = filtersData?.authors || [];
+
+  // All books for calendar view (unpaginated)
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -146,53 +160,21 @@ const BooksList = () => {
 
 
   // ── Fetch books from server ──────────────────────────────
-  const fetchBooks = useCallback(async (filter: BookFilter) => {
-    setIsLoading(true);
-    try {
-      const result = await get_my_books_query(filter);
-      setBooks(result.books as unknown as Book[]);
-      setTotal(result.total_count);
-      setTotalPages(result.page_count);
-      setHasNextPage(result.has_next_page);
-    } catch (error) {
-      console.error("Error fetching books:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Re-fetch whenever filters or page change
+  // Fetch stats once on mount
   useEffect(() => {
-    fetchBooks({
-      search: committedSearch || undefined,
-      genres: genreFilter.length ? genreFilter : undefined,
-      status: statusFilter.length ? statusFilter : undefined,
-      author: authorFilter.length === 1 ? authorFilter[0] : undefined,
-      rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-    });
-  }, [committedSearch, genreFilter, ratingFilter, statusFilter, authorFilter, currentPage, fetchBooks]);
-
-  // Fetch stats + dynamic filter options once on mount
-  useEffect(() => {
-    const fetchMeta = async () => {
+    const fetchStats = async () => {
       try {
-        const [all, read, reading, filters] = await Promise.all([
+        const [all, read, reading] = await Promise.all([
           get_my_books_query({ limit: 1 }),
           get_my_books_query({ status: ["read"], limit: 1 }),
           get_my_books_query({ status: ["reading"], limit: 1 }),
-          get_book_filters_query(),
         ]);
         setStats({ total: all.total_count, completed: read.total_count, readingNow: reading.total_count });
-        setGenreOptions(filters.genres);
-        setStatusOptions(filters.statuses);
-        setAuthorOptions(filters.authors);
       } catch (error) {
-        console.error("Error fetching meta:", error);
+        console.error("Error fetching stats:", error);
       }
     };
-    fetchMeta();
+    fetchStats();
   }, []);
 
   // Fetch ALL books (no pagination) when calendar or series view is active
@@ -524,7 +506,7 @@ const BooksList = () => {
                 })()
           ) : (
             <MediaDisplay
-              items={books.map((book) => ({
+              items={books.map((book: any) => ({
                 _id: book._id,
                 title: book.title,
                 subtitle: book.author,

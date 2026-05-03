@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -13,15 +13,12 @@ import {
   Tv,
   X,
 } from "lucide-react";
-import {
-  get_my_series_query,
-  get_series_filters_query,
-  SeriesFilter,
-} from "../../../../@apis/series";
+import { get_my_series_query } from "../../../../@apis/series";
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { FilterDropdown, CalendarView, MediaDisplay } from "../../../../@components/@smart";
+import { useGetSeriesListQuery, useGetSeriesFiltersQuery } from "../../../../@store/api/series.api";
 
 export interface Series {
   _id: string;
@@ -84,20 +81,6 @@ const ListSkeleton = () => (
 const SeriesList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [seriesList, setSeriesList] = useState<Series[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Stats
-  const [stats, setStats] = useState({ total: 0, watched: 0, watching: 0 });
-
-  // Filter options
-  const [genreOptions, setGenreOptions] = useState<string[]>([]);
-  const [statusOptions, setStatusOptions] = useState<string[]>([]);
-  const [platformOptions, setPlatformOptions] = useState<string[]>([]);
-
   // State from URL
   const [viewMode, setViewMode] = useState<
     "grid" | "list" | "calendar" | "platform"
@@ -129,6 +112,34 @@ const SeriesList = () => {
   const [platformFilter, setPlatformFilter] = useState<string[]>(
     searchParams.get("platforms")?.split(",").filter(Boolean) || [],
   );
+
+  // Data fetching with RTK Query
+  const { data: seriesData, isLoading: isSeriesLoading } = useGetSeriesListQuery({
+    search: committedSearch || undefined,
+    genres: genreFilter.length ? genreFilter : undefined,
+    status: statusFilter.length ? statusFilter : undefined,
+    platforms: platformFilter.length ? platformFilter : undefined,
+    rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
+
+  const { data: filtersData } = useGetSeriesFiltersQuery(undefined);
+
+  const seriesList = seriesData?.series || [];
+  const total = seriesData?.total_count || 0;
+  const totalPages = seriesData?.page_count || 1;
+  const hasNextPage = seriesData?.has_next_page || false;
+  const isLoading = isSeriesLoading;
+
+  // Stats - We can keep these as local state or move to another query
+  const [stats, setStats] = useState({ total: 0, watched: 0, watching: 0 });
+
+  // Filter options from RTK Query
+  const genreOptions = filtersData?.genres || [];
+  const statusOptions = filtersData?.statuses || [];
+  const platformOptions = filtersData?.platforms || [];
+
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -162,44 +173,8 @@ const SeriesList = () => {
     platformFilter.length > 0 ||
     !!committedSearch;
 
-  const fetchSeries = useCallback(async (filter: SeriesFilter) => {
-    setIsLoading(true);
-    try {
-      const result = await get_my_series_query(filter);
-      setSeriesList(result.series as unknown as Series[]);
-      setTotal(result.total_count);
-      setTotalPages(result.page_count);
-      setHasNextPage(result.has_next_page);
-    } catch (error) {
-      console.error("Error fetching series:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchSeries({
-      search: committedSearch || undefined,
-      genres: genreFilter.length ? genreFilter : undefined,
-      status: statusFilter.length ? statusFilter : undefined,
-      platforms: platformFilter.length ? platformFilter : undefined,
-      rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-    });
-  }, [
-    committedSearch,
-    genreFilter,
-    ratingFilter,
-    statusFilter,
-    platformFilter,
-    currentPage,
-    fetchSeries,
-  ]);
-
-  useEffect(() => {
-    const fetchMeta = async () => {
-      // Stats and filter options fetched independently so one failure doesn't block the other
+    const fetchStats = async () => {
       try {
         const [all, watched, watching] = await Promise.all([
           get_my_series_query({ limit: 1 }),
@@ -214,18 +189,8 @@ const SeriesList = () => {
       } catch (error) {
         console.error("Error fetching stats:", error);
       }
-
-      // Derive filter options from the user's actual series collection
-      try {
-        const filters = await get_series_filters_query();
-        setGenreOptions(filters.genres);
-        setStatusOptions(filters.statuses);
-        setPlatformOptions(filters.platforms);
-      } catch (error) {
-        console.error("Error fetching filter options:", error);
-      }
     };
-    fetchMeta();
+    fetchStats();
   }, []);
 
   // Fetch ALL series (no pagination) when calendar or platform view is active
@@ -606,7 +571,7 @@ const SeriesList = () => {
               )
             ) : (
               <MediaDisplay
-                items={seriesList.map((series) => ({
+                items={seriesList.map((series: any) => ({
                   _id: series._id,
                   title: series.title,
                   subtitle: series.creator,
