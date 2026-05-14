@@ -21,6 +21,7 @@ import { useCreatePoemMutation } from "../../../../@store/api/poetry.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { toISO } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { toast } from "react-toast";
 
 const LANGUAGES = [
@@ -283,15 +284,12 @@ const AddPoem = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Calendar size={12} />
-                    Creation Date
-                  </label>
-                  <input
-                    type="date"
+                  <CalendarInput
+                    label="Creation Date"
                     value={formData.created_at}
-                    onChange={(e) => set("created_at", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
+                    onChange={(val) => set("created_at", val)}
+                    max={new Date().toISOString().split("T")[0]}
+                    icon={Calendar}
                   />
                 </div>
 

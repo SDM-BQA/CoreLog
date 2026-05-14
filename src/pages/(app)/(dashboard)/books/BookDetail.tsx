@@ -31,6 +31,7 @@ import RatingInput from "../../../../@components/RatingInput";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { MultiSearchSelect } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { useGetBookByIdQuery, useUpdateBookMutation } from "../../../../@store/api/books.api";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -50,7 +51,7 @@ interface Book {
   publisher?: string;
   language?: string;
   started_from?: string;
-  finished_on?: string;
+  finished_on?: string | null;
   series_name?: string;
   series_number?: number;
   created_at?: string;
@@ -190,7 +191,10 @@ const BookDetail = () => {
         review: book.review || "",
         genres: (book.genres || []).map(get_genre_display),
         started_from: startedFrom,
-        finished_on: toDateInput(book.finished_on) || (newStatus === "read" ? today : ""),
+        finished_on:
+          newStatus === "reading"
+            ? ""
+            : (toDateInput(book.finished_on) || (newStatus === "read" ? today : "")),
         isPartOfSeries: !!book.series_name,
         series_name: book.series_name || "",
         series_number: book.series_number || 0
@@ -256,7 +260,7 @@ const BookDetail = () => {
           review: modalData.review,
           genres: modalData.genres.map(get_genre_key),
           started_from: toISO(modalData.started_from),
-          finished_on: toISO(modalData.finished_on),
+          finished_on: currentStatus === "read" ? toISO(modalData.finished_on) : null,
           series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
           series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
         }
@@ -885,27 +889,21 @@ const BookDetail = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {currentStatus !== "want_to_read" && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Started On
-                  </label>
-                  <input
-                    type="date"
+                  <CalendarInput
+                    label="Started On"
                     value={modalData.started_from}
-                    onChange={(e) => setModalData({ ...modalData, started_from: e.target.value })}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                    onChange={(val) => setModalData({ ...modalData, started_from: val })}
+                    max={new Date().toISOString().split("T")[0]}
                   />
                 </div>
               )}
               {currentStatus === "read" && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Finished On
-                  </label>
-                  <input
-                    type="date"
+                  <CalendarInput
+                    label="Finished On"
                     value={modalData.finished_on}
-                    onChange={(e) => setModalData({ ...modalData, finished_on: e.target.value })}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                    onChange={(val) => setModalData({ ...modalData, finished_on: val })}
+                    max={new Date().toISOString().split("T")[0]}
                   />
                 </div>
               )}

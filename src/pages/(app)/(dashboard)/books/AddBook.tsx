@@ -27,6 +27,7 @@ import { toISO } from "../../../../@utils/date.utils";
 import { GoogleBook, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import RatingInput from "../../../../@components/RatingInput";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { GENRE_MAP, get_genre_key } from "../../../../@utils/genres";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -591,48 +592,26 @@ const AddBook = () => {
                 {/* Started From — shown when Reading or Read */}
                 {(values.status === "reading" || values.status === "read") && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Started From
-                    </label>
-                    <div className="relative">
-                      <PlayCircle
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.startedFrom}
-                        onChange={(e) =>
-                          setFieldValue("startedFrom", e.target.value)
-                        }
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                      />
-                    </div>
+                    <CalendarInput
+                      label="Started From"
+                      icon={PlayCircle}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.startedFrom}
+                      onChange={(val) => setFieldValue("startedFrom", val)}
+                    />
                   </div>
                 )}
 
                 {/* Finished On — shown only when Read */}
                 {values.status === "read" && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Finished On
-                    </label>
-                    <div className="relative">
-                      <CheckCircle2
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.finishedOn}
-                        onChange={(e) =>
-                          setFieldValue("finishedOn", e.target.value)
-                        }
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                      />
-                    </div>
+                    <CalendarInput
+                      label="Finished On"
+                      icon={CheckCircle2}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.finishedOn}
+                      onChange={(val) => setFieldValue("finishedOn", val)}
+                    />
                   </div>
                 )}
               </div>

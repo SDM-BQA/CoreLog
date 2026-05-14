@@ -19,6 +19,7 @@ import { upload_image_api } from "../../../../@apis/users";
 import { get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import RatingInput from "../../../../@components/RatingInput";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { TMDBMovie, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import {
   search_external_movies_api,
@@ -543,58 +544,28 @@ const AddMovie = () => {
                 {/* Start Date */}
                 {showStartDate && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Watched From
-                    </label>
-                    <div className="relative">
-                      <PlayCircle
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.started_from}
-                        onChange={(e) => setFieldValue("started_from", e.target.value)}
-                        className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all ${
-                          errors.started_from
-                            ? "border-error focus:border-error focus:ring-error/20"
-                            : "border-border"
-                        }`}
-                      />
-                    </div>
-                    {errors.started_from && (
-                      <p className="text-error text-xs mt-1.5 pl-1">{errors.started_from}</p>
-                    )}
+                    <CalendarInput
+                      label="Watched From"
+                      icon={PlayCircle}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.started_from}
+                      onChange={(val) => setFieldValue("started_from", val)}
+                      error={errors.started_from}
+                    />
                   </div>
                 )}
 
                 {/* Finish Date */}
                 {showFinishDate && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Finished On
-                    </label>
-                    <div className="relative">
-                      <CheckCircle2
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.finished_on}
-                        onChange={(e) => setFieldValue("finished_on", e.target.value)}
-                        className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all ${
-                          errors.finished_on
-                            ? "border-error focus:border-error focus:ring-error/20"
-                            : "border-border"
-                        }`}
-                      />
-                    </div>
-                    {errors.finished_on && (
-                      <p className="text-error text-xs mt-1.5 pl-1">{errors.finished_on}</p>
-                    )}
+                    <CalendarInput
+                      label="Finished On"
+                      icon={CheckCircle2}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.finished_on}
+                      onChange={(val) => setFieldValue("finished_on", val)}
+                      error={errors.finished_on}
+                    />
                   </div>
                 )}
               </div>

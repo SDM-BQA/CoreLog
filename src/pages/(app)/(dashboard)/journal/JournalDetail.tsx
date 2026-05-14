@@ -15,6 +15,7 @@ import { get_full_image_url } from "../../../../@utils/api.utils";
 import { upload_image_api } from "../../../../@apis/users";
 import { Modal } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
 import { useGetJournalByIdQuery, useUpdateJournalMutation } from "../../../../@store/api/journal.api";
@@ -537,12 +538,11 @@ const JournalDetail = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Date</label>
-                <input
-                  type="date"
+                <CalendarInput
+                  label="Date"
                   value={editData.date}
-                  onChange={(e) => setE("date", e.target.value)}
-                  className="w-full bg-bg border border-border rounded-xl py-2.5 px-3 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
+                  onChange={(val) => setE("date", val)}
+                  max={new Date().toISOString().split("T")[0]}
                 />
               </div>
               <div className="space-y-1.5">

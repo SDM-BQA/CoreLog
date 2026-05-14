@@ -628,7 +628,7 @@ const AddJournal = () => {
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden custom-scrollbar">
 
           {/* LEFT — writing area */}
-          <div className="lg:flex-1 lg:min-h-0 flex flex-col overflow-hidden">
+          <div className="lg:flex-1 lg:min-h-0 flex flex-col overflow-hidden min-h-[58vh]">
 
             {/* Title */}
             <input
@@ -691,7 +691,7 @@ const AddJournal = () => {
                 suppressContentEditableWarning
                 onInput={onEditorInput}
                 onKeyDown={handleEditorKeyDown}
-                className="w-full h-full min-h-[180px] p-5 sm:p-7 text-text-primary focus:outline-none leading-[1.9] text-sm sm:text-base journal-editor"
+                className="w-full h-full min-h-[44vh] sm:min-h-[320px] p-5 sm:p-7 text-text-primary focus:outline-none leading-[1.9] text-sm sm:text-base journal-editor"
                 style={{ wordBreak: "break-word" }}
               />
             </div>
@@ -706,7 +706,14 @@ const AddJournal = () => {
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter">
                   Type <span className="text-rose-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="sm:hidden">
+                  <Select
+                    value={meta.journal_type}
+                    options={JOURNAL_TYPES.map(({ value, label, icon }) => ({ value, label, icon }))}
+                    onChange={(val) => setM("journal_type", val)}
+                  />
+                </div>
+                <div className="hidden sm:grid grid-cols-2 gap-1.5">
                   {JOURNAL_TYPES.map(({ value, label, icon: Icon }) => (
                     <button
                       key={value}

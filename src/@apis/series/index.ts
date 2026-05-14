@@ -18,7 +18,7 @@ export interface SeriesInput {
     poster_image?: string;
     platform?: string;
     started_from?: string;
-    finished_on?: string;
+    finished_on?: string | null;
 }
 
 export const create_series_mutation = async (input: SeriesInput) => {

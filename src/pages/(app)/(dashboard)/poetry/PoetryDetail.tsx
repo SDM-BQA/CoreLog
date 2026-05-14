@@ -23,6 +23,7 @@ import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { Modal } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
 import { useGetPoemByIdQuery, useUpdatePoemMutation } from "../../../../@store/api/poetry.api";
@@ -509,12 +510,11 @@ const PoetryDetail = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Creation Date</label>
-              <input
-                type="date"
+              <CalendarInput
+                label="Creation Date"
                 value={modalData.created_at}
-                onChange={(e) => setM("created_at", e.target.value)}
-                className="w-full bg-bg border border-border rounded-lg py-2.5 px-4 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
+                onChange={(val) => setM("created_at", val)}
+                max={new Date().toISOString().split("T")[0]}
               />
             </div>
           </div>

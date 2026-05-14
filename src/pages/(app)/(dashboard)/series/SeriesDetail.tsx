@@ -31,6 +31,7 @@ import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { toast } from "react-toast";
@@ -54,7 +55,7 @@ interface Series {
   poster_image?: string;
   platform?: string;
   started_from?: string;
-  finished_on?: string;
+  finished_on?: string | null;
   created_at?: string;
 }
 
@@ -112,6 +113,7 @@ const SeriesDetail = () => {
   });
 
   const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const [seriesLogs, setSeriesLogs] = useState<SeriesLog[]>([]);
 
@@ -132,26 +134,40 @@ const SeriesDetail = () => {
     }
 
     if (editView === "all" || editView === "status_update") {
+      if (!modalData.status) {
+        errors.status = "Status is required";
+      }
+
       if (modalData.status === "watched" || modalData.status === "rewatching") {
         if (modalData.seasons_watched < 0) errors.seasons_watched = "Cannot be negative";
         if (modalData.seasons_watched > modalData.seasons) errors.seasons_watched = "Cannot exceed total seasons";
+        if (!(modalData.rating > 0)) errors.rating = "Rating is required";
+        if (!modalData.review.trim()) errors.review = "Review is required";
       }
       const today = new Date();
       today.setHours(23, 59, 59, 999);
-      
-      if (modalData.status !== "watchlist" && modalData.started_from) {
-        if (new Date(modalData.started_from) > today) {
+
+      if (modalData.status !== "watchlist") {
+        if (!modalData.started_from) {
+          errors.started_from = "Start date is required";
+        } else if (new Date(modalData.started_from) > today) {
           errors.started_from = "Future dates not allowed";
         }
       }
-      if ((modalData.status === "watched" || modalData.status === "rewatching") && modalData.finished_on) {
-        const finish = new Date(modalData.finished_on);
-        const start = new Date(modalData.started_from);
-        if (finish > today) errors.finished_on = "Future dates not allowed";
-        if (finish < start) errors.finished_on = "Cannot be before start date";
+
+      if (modalData.status === "watched" || modalData.status === "rewatching") {
+        if (!modalData.finished_on) {
+          errors.finished_on = "Finish date is required";
+        } else {
+          const finish = new Date(modalData.finished_on);
+          const start = new Date(modalData.started_from);
+          if (finish > today) errors.finished_on = "Future dates not allowed";
+          if (modalData.started_from && finish < start) errors.finished_on = "Cannot be before start date";
+        }
       }
     }
     setModalErrors(errors);
+    setModalError(Object.values(errors)[0] ?? null);
     return Object.keys(errors).length === 0;
   };
 
@@ -216,10 +232,14 @@ const SeriesDetail = () => {
           rating: series.rating,
           review: series.review || "",
           started_from: toDateInput(series.started_from) || toDateInput(Date.now()),
-          finished_on: toDateInput(series.finished_on) || toDateInput(Date.now()),
+          finished_on:
+            newStatus === "watching"
+              ? ""
+              : (toDateInput(series.finished_on) || toDateInput(Date.now())),
         });
       }
       setModalErrors({});
+      setModalError(null);
       setIsModalOpen(true);
     } else {
       updateSeries({ status: newStatus });
@@ -247,7 +267,10 @@ const SeriesDetail = () => {
       genres: modalData.genres.map(get_genre_key),
       creator: `${modalData.language} (${modalData.origin_country})`,
       started_from: toISO(modalData.started_from),
-      finished_on: toISO(modalData.finished_on),
+      finished_on:
+        modalData.status === "watched" || modalData.status === "rewatching"
+          ? toISO(modalData.finished_on)
+          : null,
     };
     updateSeries(payload);
   };
@@ -334,6 +357,7 @@ const SeriesDetail = () => {
     }
     setEditView(view);
     setModalErrors({});
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -638,6 +662,12 @@ const SeriesDetail = () => {
         }
       >
         <div className="flex flex-col gap-6">
+          {modalError && (
+            <div className="bg-error/10 border border-error/20 text-error text-xs p-3 rounded-lg flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-error animate-pulse" />
+              {modalError}
+            </div>
+          )}
           {editView === "all" && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -656,12 +686,6 @@ const SeriesDetail = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <Select
-                  label="Status"
-                  value={modalData.status}
-                  options={STATUS_OPTIONS}
-                  onChange={(val) => setModalData({...modalData, status: val})}
-                />
                 <div>
                   <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Year</label>
                   <input type="text" placeholder="YYYY" value={modalData.release_year} onChange={e => setModalData({...modalData, release_year: e.target.value})} className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.release_year ? "border-error focus:border-error focus:ring-error/20" : "border-border focus:border-accent"}`} />
@@ -718,30 +742,26 @@ const SeriesDetail = () => {
               {/* Started From Date - Shown for Watching, Watched, Rewatching, Not Finished */}
               {(modalData.status === "watching" || modalData.status === "watched" || modalData.status === "rewatching" || modalData.status === "not_finished") && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Start Date</label>
-                  <input 
-                    type="date" 
+                  <CalendarInput
+                    label="Start Date"
                     max={new Date().toISOString().split("T")[0]}
-                    value={modalData.started_from} 
-                    onChange={e => setModalData({...modalData, started_from: e.target.value})} 
-                    className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.started_from ? "border-error" : "border-border"}`} 
+                    value={modalData.started_from}
+                    onChange={(val) => setModalData({ ...modalData, started_from: val })}
+                    error={modalErrors.started_from}
                   />
-                  {modalErrors.started_from && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.started_from}</p>}
                 </div>
               )}
 
               {/* Finished Date - ONLY for Watched, Rewatching */}
               {(modalData.status === "watched" || modalData.status === "rewatching") && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Finish Date</label>
-                  <input 
-                    type="date" 
+                  <CalendarInput
+                    label="Finish Date"
                     max={new Date().toISOString().split("T")[0]}
-                    value={modalData.finished_on} 
-                    onChange={e => setModalData({...modalData, finished_on: e.target.value})} 
-                    className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.finished_on ? "border-error" : "border-border"}`} 
+                    value={modalData.finished_on}
+                    onChange={(val) => setModalData({ ...modalData, finished_on: val })}
+                    error={modalErrors.finished_on}
                   />
-                  {modalErrors.finished_on && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.finished_on}</p>}
                 </div>
               )}
               
@@ -768,6 +788,7 @@ const SeriesDetail = () => {
                   value={modalData.rating}
                   onChange={(val) => setModalData({ ...modalData, rating: val })}
                 />
+                {modalErrors.rating && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.rating}</p>}
                <label className="text-text-primary text-xs font-semibold block uppercase tracking-wider">
                   Your Review
                </label>
@@ -776,8 +797,9 @@ const SeriesDetail = () => {
                 onChange={e => setModalData({...modalData, review: e.target.value})}
                 placeholder="Share your thoughts..."
                 rows={8}
-                className="w-full bg-bg border border-border rounded-xl p-4 text-sm text-text-primary focus:border-accent outline-none resize-none shadow-inner"
+                className={`w-full bg-bg border rounded-xl p-4 text-sm text-text-primary focus:border-accent outline-none resize-none shadow-inner ${modalErrors.review ? "border-error" : "border-border"}`}
               />
+              {modalErrors.review && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.review}</p>}
             </div>
           )}
 
