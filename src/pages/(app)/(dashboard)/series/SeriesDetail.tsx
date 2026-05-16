@@ -34,8 +34,10 @@ import Select from "../../../../@components/@ui/Select";
 import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
+import PremiumFeatureModal from "../../../../@components/PremiumFeatureModal";
 import { toast } from "react-toast";
 import { useGetSeriesByIdQuery, useUpdateSeriesMutation } from "../../../../@store/api/series.api";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 
 interface Series {
   _id: string;
@@ -81,6 +83,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ val
 const SeriesDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.user);
   
   // Data fetching with RTK Query
   const { data: fetchedSeries, isLoading: isSeriesLoading } = useGetSeriesByIdQuery(id);
@@ -92,6 +95,7 @@ const SeriesDetail = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPremiumPromptOpen, setIsPremiumPromptOpen] = useState(false);
   const [editView, setEditView] = useState<"all" | "status_update" | "synopsis" | "review">("all");
   const [modalData, setModalData] = useState({
     title: "",
@@ -250,7 +254,9 @@ const SeriesDetail = () => {
     if (!id) return;
     try {
       const result = await updateSeriesMutation({ id, input: fields }).unwrap();
-      if (result) {
+      const updatedSeries = (result as any)?.update_series ?? result;
+      if (updatedSeries) {
+        setSeries(updatedSeries as Series);
         toast.success("Updated successfully");
         setIsModalOpen(false);
       }
@@ -317,6 +323,10 @@ const SeriesDetail = () => {
 
   const handleAddSeriesLog = async (entry: { date: string; position: number; note?: string }) => {
     if (!id) return;
+    if (user?.plan !== "inner_circle") {
+      setIsPremiumPromptOpen(true);
+      return;
+    }
     const newLog = await add_series_log_mutation(id, {
       date: entry.date,
       episodes_watched: entry.position - clampedEpisode,
@@ -632,6 +642,8 @@ const SeriesDetail = () => {
               onAdd={handleAddSeriesLog}
               onDelete={handleDeleteSeriesLog}
               onFinish={() => handleStatusChange({ target: { value: "watched" } } as React.ChangeEvent<HTMLSelectElement>)}
+              isPremiumLocked={user?.plan !== "inner_circle"}
+              onPremiumLockedClick={() => setIsPremiumPromptOpen(true)}
             />
           )}
         </div>
@@ -821,6 +833,13 @@ const SeriesDetail = () => {
         onConfirm={confirmDelete}
         title="Delete Series"
         itemName={series?.title ?? ""}
+      />
+
+      <PremiumFeatureModal
+        isOpen={isPremiumPromptOpen}
+        onClose={() => setIsPremiumPromptOpen(false)}
+        featureTitle="Log Your Binge Journey"
+        featureMessage="Want to log your binge journey with episodes, notes, and streak vibes? Join the Inner Circle and track every cliffhanger."
       />
     </div>
   );

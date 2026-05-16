@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { useForm } from "../../../../@hooks/Form/useForm";
@@ -9,10 +10,19 @@ import {
   validateGender,
   validateAvatar
 } from "../../../../@validator/auth.validator";
-import { update_user_account_mutation, upload_image_api } from "../../../../@apis/users";
+import {
+  update_user_account_mutation,
+  upload_image_api,
+  get_inner_circle_status_query,
+  send_inner_circle_otp_mutation,
+  verify_inner_circle_otp_mutation,
+  cancel_inner_circle_membership_mutation,
+  type InnerCircleStatus,
+} from "../../../../@apis/users";
 import { update_user } from "../../../../@store/slices/user/user.slice";
 import { toast } from "react-toast";
 import { useJournalLock } from "../journal/useJournalLock";
+import Modal from "../../../../@components/Modal";
 
 import {
   User,
@@ -29,6 +39,7 @@ import {
   Loader2,
   Trash2,
   KeyRound,
+  Crown,
 } from "lucide-react";
 
 // ── PIN OTP input (4 boxes) ───────────────────────────────────────────────────
@@ -87,11 +98,33 @@ const PinInput = ({
 };
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("profile");
+  const formatDateDDMMYYYY = (value?: string | null) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "-";
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const { user } = useAppSelector((state) => state.user);
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [innerCircleStatus, setInnerCircleStatus] = useState<InnerCircleStatus | null>(null);
+  const [innerCircleEmail, setInnerCircleEmail] = useState(user?.email_id || "");
+  const [innerCircleOtp, setInnerCircleOtp] = useState("");
+  const [innerCircleOtpSent, setInnerCircleOtpSent] = useState(false);
+  const [innerCircleLoading, setInnerCircleLoading] = useState(false);
+  const [innerCircleError, setInnerCircleError] = useState("");
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelOtp, setCancelOtp] = useState("");
+  const [cancelOtpSent, setCancelOtpSent] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   // ── Journal lock ──────────────────────────────────────────────────────────
   const journalLock = useJournalLock();
@@ -184,6 +217,17 @@ const Settings = () => {
     },
   });
 
+  const refreshInnerCircleStatus = useCallback(async () => {
+    try {
+      const status = await get_inner_circle_status_query();
+      setInnerCircleStatus(status);
+      setInnerCircleEmail(status.email || user?.email_id || "");
+      setInnerCircleError("");
+    } catch (error: any) {
+      setInnerCircleError(error.message || "Failed to fetch Inner Circle status.");
+    }
+  }, [user?.email_id]);
+
   // Keep form in sync when user data is revalidated/loaded
   useEffect(() => {
     if (user) {
@@ -193,6 +237,19 @@ const Settings = () => {
       setFieldValue("gender", user.gender || "male");
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user?._id) {
+      refreshInnerCircleStatus();
+    }
+  }, [user?._id, refreshInnerCircleStatus]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -228,8 +285,105 @@ const Settings = () => {
     }
   };
 
+  const handleSendInnerCircleOtp = async () => {
+    const email = (user?.email_id || "").trim().toLowerCase();
+    setInnerCircleError("");
+    if (!email) {
+      setInnerCircleError("No registered email found for this account.");
+      return;
+    }
+
+    try {
+      setInnerCircleLoading(true);
+      await send_inner_circle_otp_mutation(email);
+      setInnerCircleOtpSent(true);
+      toast.success("OTP sent. Check your email.");
+    } catch (error: any) {
+      setInnerCircleError(error.message || "Failed to send OTP.");
+    } finally {
+      setInnerCircleLoading(false);
+    }
+  };
+
+  const handleVerifyInnerCircleOtp = async () => {
+    const email = (user?.email_id || "").trim().toLowerCase();
+    setInnerCircleError("");
+    if (!email || innerCircleOtp.trim().length !== 6) {
+      setInnerCircleError("Enter 6-digit OTP.");
+      return;
+    }
+
+    try {
+      setInnerCircleLoading(true);
+      const status = await verify_inner_circle_otp_mutation(email, innerCircleOtp.trim());
+      setInnerCircleStatus(status);
+      setInnerCircleOtp("");
+      setInnerCircleOtpSent(false);
+      dispatch(update_user({
+        plan: status.plan,
+        inner_circle_email: status.email || undefined,
+        inner_circle_started_at: status.started_at || undefined,
+        inner_circle_expires_at: status.expires_at || undefined,
+      }));
+      toast.success(status.days_left > 30 ? "Inner Circle renewed for 1 month!" : "Welcome to Inner Circle!");
+    } catch (error: any) {
+      setInnerCircleError(error.message || "Failed to verify OTP.");
+    } finally {
+      setInnerCircleLoading(false);
+    }
+  };
+
+  const handleSendCancelOtp = async () => {
+    const email = (user?.email_id || "").trim().toLowerCase();
+    setCancelError("");
+    if (!email) {
+      setCancelError("No registered email found.");
+      return;
+    }
+    try {
+      setInnerCircleLoading(true);
+      await send_inner_circle_otp_mutation(email);
+      setCancelOtpSent(true);
+    } catch (error: any) {
+      setCancelError(error.message || "Failed to send OTP.");
+    } finally {
+      setInnerCircleLoading(false);
+    }
+  };
+
+  const handleCancelInnerCircle = async () => {
+    const email = (user?.email_id || "").trim().toLowerCase();
+    try {
+      if (cancelOtp.trim().length !== 6) {
+        setCancelError("Enter a valid 6-digit OTP.");
+        return;
+      }
+      setInnerCircleLoading(true);
+      const status = await cancel_inner_circle_membership_mutation(email, cancelOtp.trim());
+      setInnerCircleStatus(status);
+      setInnerCircleOtp("");
+      setInnerCircleOtpSent(false);
+      setCancelOtp("");
+      setCancelOtpSent(false);
+      setInnerCircleError("");
+      setCancelError("");
+      setCancelModalOpen(false);
+      dispatch(update_user({
+        plan: status.plan,
+        inner_circle_started_at: undefined,
+        inner_circle_expires_at: undefined,
+      }));
+      toast.success("Inner Circle membership cancelled.");
+    } catch (error: any) {
+      setInnerCircleError(error.message || "Failed to cancel membership.");
+    } finally {
+      setInnerCircleLoading(false);
+    }
+  };
+
   const settingsOptions = [
     { id: "profile", label: "Profile", icon: User, description: "Manage your personal information and public profile" },
+    { id: "inner_circle", label: "Inner Circle", icon: Crown, description: "Activate and renew your Inner Circle membership" },
     { id: "appearance", label: "Appearance", icon: Palette, description: "Customise how CoreLog looks and feels on your device" },
     { id: "notifications", label: "Notifications", icon: Bell, description: "Choose what updates and alerts you want to receive" },
     { id: "privacy", label: "Privacy & Security", icon: Shield, description: "Control your data and manage security settings" },
@@ -253,7 +407,14 @@ const Settings = () => {
             {settingsOptions.map((option) => (
               <button
                 key={option.id}
-                onClick={() => setActiveTab(option.id)}
+                onClick={() => {
+                  setActiveTab(option.id);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("tab", option.id);
+                    return next;
+                  });
+                }}
                 className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${
                   activeTab === option.id 
                     ? "bg-accent/10 border-accent/20 text-text-primary shadow-sm" 
@@ -303,7 +464,9 @@ const Settings = () => {
                       <h2 className="text-text-primary text-xl font-bold">
                         {user?.first_name} {user?.last_name}
                       </h2>
-                      <p className="text-text-secondary text-xs mt-1">Free Tier Member • @{user?.user_name}</p>
+                      <p className="text-text-secondary text-xs mt-1">
+                        {innerCircleStatus?.is_active ? "Inner Circle Member" : "Free Tier Member"} • @{user?.user_name}
+                      </p>
                       <button 
                         type="button" 
                         onClick={handleAvatarClick}
@@ -398,6 +561,186 @@ const Settings = () => {
                   </div>
                 </form>
               )}
+
+              {activeTab === "inner_circle" && (
+                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div>
+                    <h2 className="text-text-primary text-lg font-bold">Inner Circle</h2>
+                    <p className="text-text-secondary text-sm mt-1">Activate one month access, then renew monthly via OTP.</p>
+                  </div>
+                  <div className="bg-bg border border-border rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-text-primary text-sm font-bold">Membership Status</p>
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full border ${innerCircleStatus?.is_active ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-text-secondary border-border bg-surface"}`}>
+                        {innerCircleStatus?.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-surface border border-border rounded-xl p-3">
+                        <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Plan</p>
+                        <p className="text-text-primary text-sm font-bold mt-1">{innerCircleStatus?.is_active ? "Inner Circle" : "Free"}</p>
+                      </div>
+                      <div className="bg-surface border border-border rounded-xl p-3">
+                        <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Days Left</p>
+                        <p className="text-text-primary text-sm font-bold mt-1">{innerCircleStatus?.days_left ?? 0}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-surface border border-border rounded-xl p-3">
+                        <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Started At</p>
+                        <p className="text-text-primary text-xs font-semibold mt-1">{formatDateDDMMYYYY(innerCircleStatus?.started_at)}</p>
+                      </div>
+                      <div className="bg-surface border border-border rounded-xl p-3">
+                        <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Expires At</p>
+                        <p className="text-text-primary text-xs font-semibold mt-1">{formatDateDDMMYYYY(innerCircleStatus?.expires_at)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {innerCircleStatus?.is_active ? (
+                    <div className="bg-bg border border-border rounded-2xl p-5 flex flex-col gap-4">
+                      <p className="text-text-primary text-sm font-bold">Manage Membership</p>
+                      <p className="text-text-secondary text-xs">
+                        Your Inner Circle membership is active. You can cancel it anytime.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCancelModalOpen(true)}
+                        disabled={innerCircleLoading}
+                        className="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 disabled:opacity-50 text-rose-400 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors w-fit"
+                      >
+                        Cancel Membership
+                      </button>
+                      {innerCircleError && (
+                        <p className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                          {innerCircleError}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-bg border border-border rounded-2xl p-5 flex flex-col gap-4">
+                      <p className="text-text-primary text-sm font-bold">Join the Inner Circle</p>
+                      <p className="text-text-secondary text-xs">Enter your email, receive OTP, and verify to activate for 30 days.</p>
+                      <div className="space-y-2">
+                        <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest pl-1">Email</label>
+                        <input
+                          type="email"
+                          value={innerCircleEmail}
+                          disabled
+                          className="w-full bg-surface/60 border border-border rounded-xl py-2.5 px-4 text-sm text-text-secondary cursor-not-allowed"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSendInnerCircleOtp}
+                        disabled={innerCircleLoading}
+                        className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-background px-5 py-2.5 rounded-xl text-sm font-bold transition-colors w-fit"
+                      >
+                        {innerCircleLoading ? "Sending..." : "Become Inner Circle"}
+                      </button>
+                      {innerCircleOtpSent && (
+                        <div className="space-y-2">
+                          <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest pl-1">OTP</label>
+                          <input
+                            type="text"
+                            value={innerCircleOtp}
+                            onChange={(e) => setInnerCircleOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="Enter 6-digit OTP"
+                            className="w-full bg-surface border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleVerifyInnerCircleOtp}
+                            disabled={innerCircleLoading || innerCircleOtp.length !== 6}
+                            className="bg-emerald-500/90 hover:bg-emerald-500 disabled:opacity-50 text-background px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
+                          >
+                            {innerCircleLoading ? "Verifying..." : "Verify & Activate"}
+                          </button>
+                        </div>
+                      )}
+                      {innerCircleError && (
+                        <p className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                          {innerCircleError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Modal
+                isOpen={cancelModalOpen}
+                onClose={() => {
+                  setCancelModalOpen(false);
+                  setCancelOtp("");
+                  setCancelOtpSent(false);
+                  setCancelError("");
+                }}
+                title="Confirm Membership Cancellation"
+                footer={
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setCancelModalOpen(false);
+                        setCancelOtp("");
+                        setCancelOtpSent(false);
+                        setCancelError("");
+                      }}
+                      className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      Keep Membership
+                    </button>
+                    {!cancelOtpSent ? (
+                      <button
+                        onClick={handleSendCancelOtp}
+                        disabled={innerCircleLoading}
+                        className="bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-all"
+                      >
+                        {innerCircleLoading ? "Sending..." : "Send OTP"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleCancelInnerCircle}
+                        disabled={innerCircleLoading || cancelOtp.length !== 6}
+                        className="bg-rose-500/90 hover:bg-rose-500 disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-all"
+                      >
+                        {innerCircleLoading ? "Cancelling..." : "Confirm Cancel"}
+                      </button>
+                    )}
+                  </div>
+                }
+              >
+                <div className="space-y-4">
+                  <p className="text-text-secondary text-sm">
+                    This will deactivate your Inner Circle membership immediately. To continue, verify OTP sent to your registered email.
+                  </p>
+                  <div>
+                    <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest pl-1">Registered Email</label>
+                    <input
+                      type="email"
+                      value={user?.email_id || ""}
+                      disabled
+                      className="w-full mt-1 bg-surface/60 border border-border rounded-xl py-2.5 px-4 text-sm text-text-secondary cursor-not-allowed"
+                    />
+                  </div>
+                  {cancelOtpSent && (
+                    <div>
+                      <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest pl-1">OTP</label>
+                      <input
+                        type="text"
+                        value={cancelOtp}
+                        onChange={(e) => setCancelOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="Enter 6-digit OTP"
+                        className="w-full mt-1 bg-surface border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+                      />
+                    </div>
+                  )}
+                  {cancelError && (
+                    <p className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                      {cancelError}
+                    </p>
+                  )}
+                </div>
+              </Modal>
 
               {/* ── Privacy & Security ── */}
               {activeTab === "privacy" && (
@@ -539,7 +882,7 @@ const Settings = () => {
               )}
 
               {/* ── Other placeholder tabs ── */}
-              {activeTab !== "profile" && activeTab !== "privacy" && (
+              {activeTab !== "profile" && activeTab !== "privacy" && activeTab !== "inner_circle" && (
                 <div className="py-20 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                   <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
                     <Lock size={32} />

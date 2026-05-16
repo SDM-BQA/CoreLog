@@ -33,21 +33,24 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[9999] isolate flex items-center justify-center p-4 sm:p-6">
       {/* Overlay */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-[6px] animate-fade-in"
+        className="absolute inset-0 z-0 bg-black/60 backdrop-blur-[6px] animate-fade-in"
         onClick={onClose}
       />
 
       {/* Modal Container */}
       <div
-        className="relative w-full bg-surface border border-border rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-zoom max-h-[92vh]"
+        className="relative z-10 w-full border border-border rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-zoom max-h-[92vh] bg-[#12132a]"
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Opaque base layer so background content never bleeds through */}
+        <div className="absolute inset-0 bg-[#12132a] z-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+        <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-border/50">
           <h3 className="text-text-primary text-xl font-bold tracking-tight">
             {title}
           </h3>
@@ -60,13 +63,13 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
+        <div className="relative z-10 flex-1 overflow-y-auto px-6 py-6 custom-scrollbar">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-5 border-t border-border/50 bg-bg/30">
+          <div className="relative z-10 px-6 py-5 border-t border-border/50 bg-[#151734]">
             {footer}
           </div>
         )}

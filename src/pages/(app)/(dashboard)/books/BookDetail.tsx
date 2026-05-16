@@ -27,12 +27,14 @@ import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
 import DeleteModal from "../../../../@components/DeleteModal";
+import PremiumFeatureModal from "../../../../@components/PremiumFeatureModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { MultiSearchSelect } from "../../../../@components/@smart";
 import Select from "../../../../@components/@ui/Select";
 import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { useGetBookByIdQuery, useUpdateBookMutation } from "../../../../@store/api/books.api";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
@@ -76,6 +78,7 @@ const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ val
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.user);
   
   // Data fetching with RTK Query
   const { data: fetchedBook, isLoading: isBookLoading } = useGetBookByIdQuery(id);
@@ -109,6 +112,7 @@ const BookDetail = () => {
   });
   const [modalError, setModalError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPremiumPromptOpen, setIsPremiumPromptOpen] = useState(false);
   const [editView, setEditView] = useState<"all" | "synopsis" | "review" | "status_update">("all");
 
   // Sync local book state with RTK Query data
@@ -360,6 +364,10 @@ const BookDetail = () => {
 
   const handleAddLog = async (entry: { date: string; position: number; note?: string }) => {
     if (!book) return;
+    if (user?.plan !== "inner_circle") {
+      setIsPremiumPromptOpen(true);
+      return;
+    }
     const newLog = await add_book_log_mutation(book._id, {
       date: entry.date,
       pages_read: entry.position - clampedPage,
@@ -691,6 +699,8 @@ const BookDetail = () => {
             onAdd={handleAddLog}
             onDelete={handleDeleteLog}
             onFinish={() => handleStatusChange({ target: { value: "read" } } as React.ChangeEvent<HTMLSelectElement>)}
+            isPremiumLocked={user?.plan !== "inner_circle"}
+            onPremiumLockedClick={() => setIsPremiumPromptOpen(true)}
           />
         )}
       </div>
@@ -968,6 +978,13 @@ const BookDetail = () => {
         onConfirm={confirmDelete}
         title="Delete Book"
         itemName={book.title}
+      />
+
+      <PremiumFeatureModal
+        isOpen={isPremiumPromptOpen}
+        onClose={() => setIsPremiumPromptOpen(false)}
+        featureTitle="Log Your Reading Journey"
+        featureMessage="Want to log your reading journey with pages, notes, and progress streaks? Join the Inner Circle and make every chapter count."
       />
     </div>
   );

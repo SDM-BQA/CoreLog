@@ -10,6 +10,10 @@ interface User {
   gender?: string;
   mobile_no?: string;
   user_name?: string;
+  plan?: "free" | "inner_circle";
+  inner_circle_email?: string;
+  inner_circle_started_at?: string;
+  inner_circle_expires_at?: string;
 }
 
 interface UserState {

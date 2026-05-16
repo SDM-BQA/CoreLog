@@ -8,6 +8,7 @@ import {
   Flame,
   CheckCircle2,
   Trash2,
+  Crown,
 } from "lucide-react";
 
 export interface LogEntry {
@@ -28,6 +29,8 @@ interface MediaLogProps {
   onAdd: (entry: { date: string; position: number; note?: string }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onFinish: () => void;
+  isPremiumLocked?: boolean;
+  onPremiumLockedClick?: () => void;
 }
 
 const MediaLog = ({
@@ -41,13 +44,15 @@ const MediaLog = ({
   onAdd,
   onDelete,
   onFinish,
+  isPremiumLocked = false,
+  onPremiumLockedClick,
 }: MediaLogProps) => {
   const isActive = activeStatuses.includes(status);
-
-  const latestPosition = logs.length > 0 ? logs[logs.length - 1].position : 0;
+  const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+  const latestPosition = sortedLogs.length > 0 ? Math.max(...sortedLogs.map((l) => l.position || 0)) : 0;
   const clampedPosition = total ? Math.min(latestPosition, total) : latestPosition;
   const progressPct = total ? Math.min(100, Math.round((clampedPosition / total) * 100)) : 0;
-  const isCompleted = !!(total && latestPosition === total);
+  const isCompleted = sortedLogs.length > 0 && total > 0 && clampedPosition >= total;
 
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -55,6 +60,10 @@ const MediaLog = ({
   const [form, setForm] = useState({ date: "", position: "", note: "" });
 
   const openForm = () => {
+    if (isPremiumLocked) {
+      onPremiumLockedClick?.();
+      return;
+    }
     const today = new Date().toISOString().split("T")[0];
     setForm({ date: today, position: clampedPosition > 0 ? String(clampedPosition) : "", note: "" });
     setError("");
@@ -96,9 +105,19 @@ const MediaLog = ({
           <div className="flex items-center gap-2">
             <button
               onClick={openForm}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 transition-colors"
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                isPremiumLocked
+                  ? "bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+                  : "bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-accent/30"
+              }`}
             >
-              <Plus size={13} /> Log Session
+              {isPremiumLocked ? <Crown size={13} /> : <Plus size={13} />}
+              Log Session
+              {isPremiumLocked && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 border border-amber-500/30">
+                  Pro
+                </span>
+              )}
             </button>
             <button
               onClick={onFinish}
@@ -228,7 +247,7 @@ const MediaLog = ({
                 </div>
               </div>
             )}
-            {[...logs].reverse().map((log, i) => {
+            {[...sortedLogs].reverse().map((log, i) => {
               const isLatest = i === 0;
               return (
                 <div key={log._id} className="flex items-start gap-4 group">
