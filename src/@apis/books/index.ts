@@ -15,7 +15,7 @@ export interface BookInput {
     publisher?: string;
     language?: string;
     started_from?: string;
-    finished_on?: string;
+    finished_on?: string | null;
     series_name?: string;
     series_number?: number;
 }

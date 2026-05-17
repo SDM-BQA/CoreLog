@@ -1,14 +1,12 @@
 import { useState, useRef } from "react";
 import {
   ImagePlus,
-  ChevronDown,
   PlusCircle,
   Sparkles,
   Eye,
   BookOpen,
   Calendar,
   User,
-  Check,
   Search,
   Hash,
   Globe,
@@ -20,13 +18,16 @@ import {
 import { useForm } from "../../../../@hooks/Form/useForm";
 import { upload_image_api } from "../../../../@apis/users";
 import {
-  create_book_mutation,
   search_external_books_api,
 } from "../../../../@apis/books";
+import { useCreateBookMutation } from "../../../../@store/api/books.api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toast";
+import { toISO } from "../../../../@utils/date.utils";
 import { GoogleBook, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import RatingInput from "../../../../@components/RatingInput";
+import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { GENRE_MAP, get_genre_key } from "../../../../@utils/genres";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -43,8 +44,8 @@ interface AddBookForm {
   pageCount?: number;
   publisher?: string;
   language?: string;
-  startedFrom?: string;
-  finishedOn?: string;
+  startedFrom: string;
+  finishedOn: string;
   isPartOfSeries?: boolean;
   seriesName?: string;
   seriesNumber?: number;
@@ -57,7 +58,7 @@ const STATUS_MAP = {
   not_finished: "Not Finished",
 };
 
-const STATUS_OPTIONS = Object.keys(STATUS_MAP) as (keyof typeof STATUS_MAP)[];
+// const STATUS_OPTIONS = Object.keys(STATUS_MAP) as (keyof typeof STATUS_MAP)[];
 
 
 const validationSchema = {
@@ -100,7 +101,7 @@ const validationSchema = {
 
 const AddBook = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createBookMutation, { isLoading: isCreating }] = useCreateBookMutation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [remoteCoverUrl, setRemoteCoverUrl] = useState<string | null>(null);
 
@@ -133,7 +134,6 @@ const AddBook = () => {
       validationSchema,
       onSubmit: async (formValues) => {
         try {
-          setIsSubmitting(true);
           let cover_image = "";
 
           if (selectedFile) {
@@ -142,7 +142,7 @@ const AddBook = () => {
             cover_image = remoteCoverUrl;
           }
 
-          await create_book_mutation({
+          await createBookMutation({
             title: formValues.title,
             author: formValues.author,
             description: formValues.description,
@@ -156,27 +156,33 @@ const AddBook = () => {
             publisher: formValues.publisher || "",
             language: formValues.language || "",
             started_from:
-              formValues.status === "reading" || formValues.status === "read"
-                ? new Date(formValues.startedFrom).toISOString()
+              (formValues.status === "reading" || formValues.status === "read") && formValues.startedFrom
+                ? toISO(formValues.startedFrom)
                 : undefined,
             finished_on:
-              formValues.status === "read" ? new Date(formValues.finishedOn).toISOString() : undefined,
+              formValues.status === "read" && formValues.finishedOn
+                ? toISO(formValues.finishedOn)
+                : undefined,
             series_name: formValues.isPartOfSeries ? formValues.seriesName : undefined,
             series_number: formValues.isPartOfSeries ? formValues.seriesNumber : undefined,
-          });
+          }).unwrap();
 
           toast.success(`Book "${formValues.title}" added successfully!`);
           navigate("/dashboard/books");
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Error adding book:", error);
-          toast.error(error.message || "Failed to add book. Please try again.");
-        } finally {
-          setIsSubmitting(false);
+          if (error instanceof Error) {
+            toast.error(error.message || "Failed to add book. Please try again.");
+          } else {
+            toast.error("Failed to add book. Please try again.");
+          }
         }
       },
     });
 
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const isSubmitting = isCreating;
+
+  // const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -567,110 +573,45 @@ const AddBook = () => {
                       </div>
                     </div>
                   )}
-                </div>
-
-                {/* Status Section */}
-                <div className="relative">
-                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Reading Status
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                  >
-                    <span className="text-text-primary font-medium">
-                      {STATUS_MAP[values.status as keyof typeof STATUS_MAP]}
-                    </span>
-                    <ChevronDown
-                      size={18}
-                      className={`text-text-secondary transition-transform duration-200 ${statusDropdownOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {statusDropdownOpen && (
-                    <>
-                      {/* Invisible overlay to catch outside clicks */}
-                      <div
-                        className="fixed inset-0 z-20"
-                        onClick={() => setStatusDropdownOpen(false)}
-                      />
-                      <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden py-1">
-                        {STATUS_OPTIONS.map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => {
-                              setFieldValue("status", status);
-                              setStatusDropdownOpen(false);
-                              if (status === "reading" && !values.startedFrom) {
-                                setFieldValue("startedFrom", new Date().toISOString().split("T")[0]);
-                              }
-                              if (status === "read" && !values.finishedOn) {
-                                setFieldValue("finishedOn", new Date().toISOString().split("T")[0]);
-                              }
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
-                              values.status === status
-                                ? "bg-accent/10 text-accent font-semibold"
-                                : "text-text-primary hover:bg-bg"
-                            }`}
-                          >
-                            {STATUS_MAP[status]}
-                            {values.status === status && <Check size={16} />}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <Select
+                  label="Reading Status"
+                  value={values.status}
+                  options={Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }))}
+                  onChange={(val) => {
+                    setFieldValue("status", val);
+                    if (val === "reading" && !values.startedFrom) {
+                      setFieldValue("startedFrom", new Date().toISOString().split("T")[0]);
+                    }
+                    if (val === "read" && !values.finishedOn) {
+                      setFieldValue("finishedOn", new Date().toISOString().split("T")[0]);
+                    }
+                  }}
+                />
                 </div>
 
                 {/* Started From — shown when Reading or Read */}
                 {(values.status === "reading" || values.status === "read") && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Started From
-                    </label>
-                    <div className="relative">
-                      <PlayCircle
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.startedFrom}
-                        onChange={(e) =>
-                          setFieldValue("startedFrom", e.target.value)
-                        }
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                      />
-                    </div>
+                    <CalendarInput
+                      label="Started From"
+                      icon={PlayCircle}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.startedFrom}
+                      onChange={(val) => setFieldValue("startedFrom", val)}
+                    />
                   </div>
                 )}
 
                 {/* Finished On — shown only when Read */}
                 {values.status === "read" && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Finished On
-                    </label>
-                    <div className="relative">
-                      <CheckCircle2
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.finishedOn}
-                        onChange={(e) =>
-                          setFieldValue("finishedOn", e.target.value)
-                        }
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                      />
-                    </div>
+                    <CalendarInput
+                      label="Finished On"
+                      icon={CheckCircle2}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.finishedOn}
+                      onChange={(val) => setFieldValue("finishedOn", val)}
+                    />
                   </div>
                 )}
               </div>

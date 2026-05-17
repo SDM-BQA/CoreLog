@@ -16,9 +16,12 @@ import {
   X,
   Calendar,
 } from "lucide-react";
-import { create_poem_mutation } from "../../../../@apis/poetry";
 import { upload_image_api } from "../../../../@apis/users";
+import { useCreatePoemMutation } from "../../../../@store/api/poetry.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
+import { toISO } from "../../../../@utils/date.utils";
+import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { toast } from "react-toast";
 
 const LANGUAGES = [
@@ -82,7 +85,7 @@ const ATMOSPHERES = [
 const AddPoem = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createPoemMutation, { isLoading: isCreatingMutation }] = useCreatePoemMutation();
   const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -122,9 +125,8 @@ const AddPoem = () => {
     if (!formData.title.trim()) { toast.error("Title is required"); return; }
     if (!formData.content.trim()) { toast.error("Poem content is required"); return; }
 
-    setIsSubmitting(true);
     try {
-      await create_poem_mutation({
+      await createPoemMutation({
         title: formData.title.trim(),
         content: formData.content,
         language: formData.language,
@@ -134,16 +136,16 @@ const AddPoem = () => {
         tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         cover_image: formData.cover_image || undefined,
         status: formData.status,
-        created_at: formData.created_at ? new Date(formData.created_at).toISOString() : undefined,
-      });
+        created_at: formData.created_at ? toISO(formData.created_at) : undefined,
+      }).unwrap();
       toast.success("Poem saved to your anthology");
       navigate("/dashboard/poetry");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save poem");
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  const isSubmitting = isCreatingMutation;
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
@@ -189,36 +191,20 @@ const AddPoem = () => {
 
               {/* Language + Type row */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-text-secondary text-xs font-bold uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                    <Globe size={12} />
-                    Language
-                  </label>
-                  <select
-                    value={formData.language}
-                    onChange={(e) => set("language", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-sm text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    {LANGUAGES.map((l) => (
-                      <option key={l.code} value={l.code}>{l.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-text-secondary text-xs font-bold uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                    <BookOpen size={12} />
-                    Poem Type
-                  </label>
-                  <select
-                    value={formData.poem_type}
-                    onChange={(e) => set("poem_type", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-sm text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    {POEM_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Language"
+                  value={formData.language}
+                  options={LANGUAGES.map(l => ({ value: l.code, label: l.label }))}
+                  onChange={(val) => set("language", val)}
+                  icon={Globe}
+                />
+                <Select
+                  label="Poem Type"
+                  value={formData.poem_type}
+                  options={POEM_TYPES.map(t => ({ value: t, label: t }))}
+                  onChange={(val) => set("poem_type", val)}
+                  icon={BookOpen}
+                />
               </div>
 
               <div className="space-y-2">
@@ -298,51 +284,30 @@ const AddPoem = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Calendar size={12} />
-                    Creation Date
-                  </label>
-                  <input
-                    type="date"
+                  <CalendarInput
+                    label="Creation Date"
                     value={formData.created_at}
-                    onChange={(e) => set("created_at", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
+                    onChange={(val) => set("created_at", val)}
+                    max={new Date().toISOString().split("T")[0]}
+                    icon={Calendar}
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Smile size={12} />
-                    Current Mood
-                  </label>
-                  <select
-                    value={formData.mood}
-                    onChange={(e) => set("mood", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="">Select mood...</option>
-                    {MOODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Current Mood"
+                  value={formData.mood}
+                  options={[{ value: "", label: "Select mood..." }, ...MOODS.map(m => ({ value: m, label: m }))]}
+                  onChange={(val) => set("mood", val)}
+                  icon={Smile}
+                />
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Wind size={12} />
-                    Atmosphere
-                  </label>
-                  <select
-                    value={formData.atmosphere}
-                    onChange={(e) => set("atmosphere", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="">Select atmosphere...</option>
-                    {ATMOSPHERES.map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Atmosphere"
+                  value={formData.atmosphere}
+                  options={[{ value: "", label: "Select atmosphere..." }, ...ATMOSPHERES.map(a => ({ value: a, label: a }))]}
+                  onChange={(val) => set("atmosphere", val)}
+                  icon={Wind}
+                />
 
                 <div className="space-y-1.5">
                   <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
@@ -359,21 +324,17 @@ const AddPoem = () => {
                   <p className="text-text-secondary/40 text-[10px] pl-1">Comma separated</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Save size={12} />
-                    Manuscript Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => set("status", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors cursor-pointer"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="finished">Finished</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
+                <Select
+                  label="Manuscript Status"
+                  value={formData.status}
+                  options={[
+                    { value: "draft", label: "Draft" },
+                    { value: "finished", label: "Finished" },
+                    { value: "published", label: "Published" }
+                  ]}
+                  onChange={(val) => set("status", val)}
+                  icon={Save}
+                />
               </div>
 
               <button

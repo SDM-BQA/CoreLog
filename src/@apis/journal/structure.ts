@@ -22,6 +22,10 @@ export const GET_MY_JOURNALS_QUERY = `
                 journal_type
                 mood
                 location
+                location_address
+                location_city
+                location_lat
+                location_lng
                 photos
                 tags
                 date
@@ -39,6 +43,27 @@ export const GET_MY_JOURNALS_QUERY = `
     }
 `;
 
+export const GET_JOURNAL_STREAK_QUERY = `
+    query GetJournalStreak {
+        get_journal_streak {
+            current_streak
+            longest_streak
+            total_active_days
+            active_days_this_month
+            last_entry_date
+            streak_updated_at
+        }
+    }
+`;
+
+export const GET_JOURNAL_FILTERS_QUERY = `
+    query GetJournalFilters {
+        get_journal_filters {
+            tags
+        }
+    }
+`;
+
 export const GET_JOURNAL_QUERY = `
     query GetJournal($id: ID!) {
         get_journal(id: $id) {
@@ -49,6 +74,10 @@ export const GET_JOURNAL_QUERY = `
             journal_type
             mood
             location
+            location_address
+            location_city
+            location_lat
+            location_lng
             photos
             video
             tags
@@ -71,6 +100,10 @@ export const UPDATE_JOURNAL_MUTATION = `
             journal_type
             mood
             location
+            location_address
+            location_city
+            location_lat
+            location_lng
             photos
             tags
             date

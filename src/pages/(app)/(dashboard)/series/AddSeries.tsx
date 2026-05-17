@@ -11,21 +11,22 @@ import {
   Sparkles,
   Eye,
   Clapperboard,
-  Check,
-  ChevronDown,
   Search,
 } from "lucide-react";
 import { useForm } from "../../../../@hooks/Form/useForm";
-import { create_series_mutation } from "../../../../@apis/series";
 import { upload_image_api } from "../../../../@apis/users";
+import { useCreateSeriesMutation } from "../../../../@store/api/series.api";
 import { get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import RatingInput from "../../../../@components/RatingInput";
+import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { TMDBSeries, FeatureCard, SearchDropdown, MultiSearchSelect } from "../../../../@components/@smart";
 import { 
   search_external_series_api, 
   fetch_external_series_details_api,
   fetch_external_series_providers_api 
 } from "../../../../@apis/series";
+import { toISO } from "../../../../@utils/date.utils";
 import { toast } from "react-toast";
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
@@ -57,8 +58,6 @@ const STATUS_MAP = {
   not_finished: "Not Finished",
 };
 
-type StatusKey = keyof typeof STATUS_MAP;
-const STATUS_OPTIONS = Object.keys(STATUS_MAP) as StatusKey[];
 
 const TMDB_GENRE_MAP: Record<number, string> = {
   10759: "Action & Adventure",
@@ -75,12 +74,11 @@ const TMDB_GENRE_MAP: Record<number, string> = {
 
 const AddSeries = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createSeriesMutation, { isLoading: isCreating }] = useCreateSeriesMutation();
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [remotePosterUrl, setRemotePosterUrl] = useState<string | null>(null);
 
   // Search States
@@ -164,7 +162,6 @@ const AddSeries = () => {
       },
       onSubmit: async (formValues) => {
         try {
-          setIsSubmitting(true);
           let poster_image = "";
           if (posterFile) {
             poster_image = await upload_image_api(posterFile);
@@ -174,15 +171,15 @@ const AddSeries = () => {
 
           const started_from =
             formValues.status !== "watchlist"
-              ? new Date(formValues.started_from).toISOString()
+              ? toISO(formValues.started_from)
               : undefined;
 
           const finished_on =
             formValues.status === "watched" || formValues.status === "rewatching"
-              ? new Date(formValues.finished_on).toISOString()
+              ? toISO(formValues.finished_on)
               : undefined;
 
-          await create_series_mutation({
+          await createSeriesMutation({
             title: formValues.title,
             creator: formValues.language + " (" + formValues.origin_country + ")",
             description: formValues.description,
@@ -200,18 +197,18 @@ const AddSeries = () => {
             platform: formValues.platform,
             started_from,
             finished_on,
-          });
+          }).unwrap();
 
           toast.success(`Series "${formValues.title}" added successfully!`);
           navigate("/dashboard/series");
         } catch (error: any) {
           console.error("Error adding series:", error);
           toast.error(error.message || "Failed to add series.");
-        } finally {
-          setIsSubmitting(false);
         }
       },
     });
+
+  const isSubmitting = isCreating;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -604,126 +601,47 @@ const AddSeries = () => {
                   )}
                 </div>
 
-                {/* Status Dropdown */}
-                <div className="relative">
-                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Watching Status
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-left flex items-center justify-between focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                  >
-                    <span className="text-text-primary font-medium">
-                      {STATUS_MAP[values.status as StatusKey]}
-                    </span>
-                    <ChevronDown
-                      size={18}
-                      className={`text-text-secondary transition-transform duration-200 ${
-                        statusDropdownOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {statusDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-20"
-                        onClick={() => setStatusDropdownOpen(false)}
-                      />
-                      <div className="absolute z-30 top-[calc(100%+6px)] left-0 w-full bg-surface border border-border rounded-xl shadow-xl shadow-black/5 overflow-hidden py-1">
-                        {STATUS_OPTIONS.map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() => {
-                              setFieldValue("status", status);
-                              setStatusDropdownOpen(false);
-                              if ((status === "watching" || status === "rewatching") && !values.started_from) {
-                                setFieldValue("started_from", new Date().toISOString().split("T")[0]);
-                              }
-                              if (status === "watched" && !values.finished_on) {
-                                setFieldValue("finished_on", new Date().toISOString().split("T")[0]);
-                                setFieldValue("seasons_watched", values.seasons);
-                              }
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
-                              values.status === status
-                                ? "bg-accent/10 text-accent font-semibold"
-                                : "text-text-primary hover:bg-bg"
-                            }`}
-                          >
-                            {STATUS_MAP[status]}
-                            {values.status === status && <Check size={16} />}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <Select
+                  label="Watching Status"
+                  value={values.status}
+                  options={Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }))}
+                  onChange={(val) => {
+                    setFieldValue("status", val);
+                    if ((val === "watching" || val === "rewatching") && !values.started_from) {
+                      setFieldValue("started_from", new Date().toISOString().split("T")[0]);
+                    }
+                    if (val === "watched" && !values.finished_on) {
+                      setFieldValue("finished_on", new Date().toISOString().split("T")[0]);
+                      setFieldValue("seasons_watched", values.seasons);
+                    }
+                  }}
+                />
 
                 {/* Start Date */}
                 {showStartDate && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Started From
-                    </label>
-                    <div className="relative">
-                      <PlayCircle
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.started_from}
-                        onChange={(e) =>
-                          setFieldValue("started_from", e.target.value)
-                        }
-                        className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all ${
-                          errors.started_from
-                            ? "border-error focus:border-error focus:ring-error/20"
-                            : "border-border"
-                        }`}
-                      />
-                    </div>
-                    {errors.started_from && (
-                      <p className="text-error text-xs mt-1.5 pl-1">
-                        {errors.started_from}
-                      </p>
-                    )}
+                    <CalendarInput
+                      label="Started From"
+                      icon={PlayCircle}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.started_from}
+                      onChange={(val) => setFieldValue("started_from", val)}
+                      error={errors.started_from}
+                    />
                   </div>
                 )}
 
                 {/* Finish Date */}
                 {showFinishDate && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Finished On
-                    </label>
-                    <div className="relative">
-                      <CheckCircle2
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"
-                      />
-                      <input
-                        type="date"
-                        max={new Date().toISOString().split("T")[0]}
-                        value={values.finished_on}
-                        onChange={(e) =>
-                          setFieldValue("finished_on", e.target.value)
-                        }
-                        className={`w-full bg-bg border rounded-xl py-2.5 pl-11 pr-4 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all ${
-                          errors.finished_on
-                            ? "border-error focus:border-error focus:ring-error/20"
-                            : "border-border"
-                        }`}
-                      />
-                    </div>
-                    {errors.finished_on && (
-                      <p className="text-error text-xs mt-1.5 pl-1">
-                        {errors.finished_on}
-                      </p>
-                    )}
+                    <CalendarInput
+                      label="Finished On"
+                      icon={CheckCircle2}
+                      max={new Date().toISOString().split("T")[0]}
+                      value={values.finished_on}
+                      onChange={(val) => setFieldValue("finished_on", val)}
+                      error={errors.finished_on}
+                    />
                   </div>
                 )}
 

@@ -11,7 +11,6 @@ import {
   CalendarPlus,
   BookOpen,
   User,
-  ChevronDown,
   Hash,
   Globe,
   Building2,
@@ -21,16 +20,22 @@ import {
   Library,
 } from "lucide-react";
 import MediaLog from "../../../../@components/MediaLog";
-import { get_book_query, update_book_mutation, delete_book_mutation, get_book_logs_query, add_book_log_mutation, delete_book_log_mutation, type BookLog } from "../../../../@apis/books";
+import { update_book_mutation, delete_book_mutation, get_book_logs_query, add_book_log_mutation, delete_book_log_mutation, type BookLog } from "../../../../@apis/books";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { upload_image_api } from "../../../../@apis/users";
 import { toast } from "react-toast";
 import Modal from "../../../../@components/Modal";
 import DeleteModal from "../../../../@components/DeleteModal";
+import PremiumFeatureModal from "../../../../@components/PremiumFeatureModal";
 import RatingInput from "../../../../@components/RatingInput";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { MultiSearchSelect } from "../../../../@components/@smart";
+import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
+import { useGetBookByIdQuery, useUpdateBookMutation } from "../../../../@store/api/books.api";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
+
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
 
 interface Book {
@@ -48,7 +53,7 @@ interface Book {
   publisher?: string;
   language?: string;
   started_from?: string;
-  finished_on?: string;
+  finished_on?: string | null;
   series_name?: string;
   series_number?: number;
   created_at?: string;
@@ -68,12 +73,18 @@ const STATUS_COLORS: Record<string, string> = {
   not_finished: "text-red-500",
 };
 
+const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }));
+
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.user);
   
+  // Data fetching with RTK Query
+  const { data: fetchedBook, isLoading: isBookLoading } = useGetBookByIdQuery(id);
+  const [updateBookMutation] = useUpdateBookMutation();
+
   const [book, setBook] = useState<Book | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<string>("want_to_read");
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -101,30 +112,31 @@ const BookDetail = () => {
   });
   const [modalError, setModalError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPremiumPromptOpen, setIsPremiumPromptOpen] = useState(false);
   const [editView, setEditView] = useState<"all" | "synopsis" | "review" | "status_update">("all");
 
+  // Sync local book state with RTK Query data
   useEffect(() => {
-    const fetchBook = async () => {
+    if (fetchedBook) {
+      setBook(fetchedBook as unknown as Book);
+      setCurrentStatus(fetchedBook.status);
+    }
+  }, [fetchedBook]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
       if (!id) return;
       try {
-        setIsLoading(true);
-        const [data, logsData] = await Promise.all([
-          get_book_query(id),
-          get_book_logs_query(id),
-        ]);
-        if (data) {
-          setBook(data);
-          setCurrentStatus(data.status);
-        }
+        const logsData = await get_book_logs_query(id);
         setLogs(logsData ?? []);
-      } catch (error) {
-        console.error("Error fetching book:", error);
-      } finally {
-        setIsLoading(false);
+      } catch (error: any) {
+        console.error("Error fetching logs:", error);
       }
     };
-    fetchBook();
+    fetchLogs();
   }, [id]);
+
+  const isLoading = isBookLoading;
 
   if (isLoading) {
     return (
@@ -183,7 +195,10 @@ const BookDetail = () => {
         review: book.review || "",
         genres: (book.genres || []).map(get_genre_display),
         started_from: startedFrom,
-        finished_on: toDateInput(book.finished_on) || (newStatus === "read" ? today : ""),
+        finished_on:
+          newStatus === "reading"
+            ? ""
+            : (toDateInput(book.finished_on) || (newStatus === "read" ? today : "")),
         isPartOfSeries: !!book.series_name,
         series_name: book.series_name || "",
         series_number: book.series_number || 0
@@ -194,8 +209,8 @@ const BookDetail = () => {
     } else {
       setCurrentStatus(newStatus);
       try {
-        await update_book_mutation(book._id, { status: newStatus });
-      } catch (error) {
+        await updateBookMutation({ id: book._id, input: { status: newStatus } }).unwrap();
+      } catch (error: any) {
         console.error("Error updating status:", error);
       }
     }
@@ -234,45 +249,30 @@ const BookDetail = () => {
 
     setModalError(null);
     try {
-      await update_book_mutation(book._id, {
-        status: currentStatus === "read" ? "read" : currentStatus, // Keep current status if editing via button
-        title: modalData.title,
-        author: modalData.author,
-        publication_year: modalData.publication_year,
-        page_count: modalData.page_count,
-        publisher: modalData.publisher,
-        language: modalData.language,
-        rating: modalData.rating,
-        description: modalData.description,
-        review: modalData.review,
-        genres: modalData.genres.map(get_genre_key),
-        started_from: toISO(modalData.started_from),
-        finished_on: toISO(modalData.finished_on),
-        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
-        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
-      });
+      await updateBookMutation({
+        id: book._id,
+        input: {
+          status: currentStatus === "read" ? "read" : currentStatus,
+          title: modalData.title,
+          author: modalData.author,
+          publication_year: modalData.publication_year,
+          page_count: modalData.page_count,
+          publisher: modalData.publisher,
+          language: modalData.language,
+          rating: modalData.rating,
+          description: modalData.description,
+          review: modalData.review,
+          genres: modalData.genres.map(get_genre_key),
+          started_from: toISO(modalData.started_from),
+          finished_on: currentStatus === "read" ? toISO(modalData.finished_on) : null,
+          series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
+          series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
+        }
+      }).unwrap();
 
-      // Update local state
-      setBook({
-        ...book,
-        title: modalData.title,
-        author: modalData.author,
-        publication_year: modalData.publication_year,
-        page_count: modalData.page_count,
-        publisher: modalData.publisher,
-        language: modalData.language,
-        rating: modalData.rating,
-        description: modalData.description,
-        review: modalData.review,
-        genres: modalData.genres.map(get_genre_key),
-        started_from: toISO(modalData.started_from),
-        finished_on: toISO(modalData.finished_on),
-        series_name: modalData.isPartOfSeries ? modalData.series_name : undefined,
-        series_number: modalData.isPartOfSeries ? modalData.series_number : undefined
-      });
       setIsStatusModalOpen(false);
       toast.success("Book details updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving status details:", error);
       toast.error("Failed to save changes. Please try again.");
     }
@@ -364,6 +364,10 @@ const BookDetail = () => {
 
   const handleAddLog = async (entry: { date: string; position: number; note?: string }) => {
     if (!book) return;
+    if (user?.plan !== "inner_circle") {
+      setIsPremiumPromptOpen(true);
+      return;
+    }
     const newLog = await add_book_log_mutation(book._id, {
       date: entry.date,
       pages_read: entry.position - clampedPage,
@@ -464,30 +468,13 @@ const BookDetail = () => {
               {/* Status and Action Buttons Row */}
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
                 {/* Interactive Status Changer */}
-                <div className="relative inline-flex items-center">
-                  <BookmarkCheck
-                    size={14}
-                    className={`absolute left-3 pointer-events-none ${STATUS_COLORS[currentStatus] || "text-text-primary"}`}
-                  />
-                  <select
-                    value={currentStatus}
-                    onChange={handleStatusChange}
-                    className={`appearance-none cursor-pointer pl-9 pr-8 py-2 text-sm font-semibold rounded-lg bg-surface border border-border hover:bg-surface-hover transition-colors outline-none focus:ring-2 focus:ring-accent/50 ${
-                      STATUS_COLORS[currentStatus] || "text-text-primary"
-                    }`}
-                    aria-label="Change book status"
-                  >
-                    {Object.entries(STATUS_MAP).map(([value, label]) => (
-                      <option key={value} value={value} className="text-text-primary">
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={14}
-                    className="absolute right-3 pointer-events-none text-text-secondary"
-                  />
-                </div>
+                <Select
+                  value={currentStatus}
+                  options={STATUS_OPTIONS}
+                  onChange={(val) => handleStatusChange({ target: { value: val } } as React.ChangeEvent<HTMLSelectElement>)}
+                  icon={BookmarkCheck}
+                  className="w-[180px]"
+                />
 
                 <div className="h-6 w-px bg-border hidden sm:block"></div>
 
@@ -712,6 +699,8 @@ const BookDetail = () => {
             onAdd={handleAddLog}
             onDelete={handleDeleteLog}
             onFinish={() => handleStatusChange({ target: { value: "read" } } as React.ChangeEvent<HTMLSelectElement>)}
+            isPremiumLocked={user?.plan !== "inner_circle"}
+            onPremiumLockedClick={() => setIsPremiumPromptOpen(true)}
           />
         )}
       </div>
@@ -813,22 +802,77 @@ const BookDetail = () => {
                     type="text"
                     value={modalData.language}
                     onChange={(e) => setModalData({ ...modalData, language: e.target.value })}
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all uppercase"
-                  />
-                </div>
-                <div className="col-span-1 sm:col-span-1">
-                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                    Publisher
-                  </label>
-                  <input
-                    type="text"
-                    value={modalData.publisher}
-                    onChange={(e) => setModalData({ ...modalData, publisher: e.target.value })}
                     className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
                   />
                 </div>
+                <div className="col-span-1">
+                  <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                    Status
+                  </label>
+                  <Select
+                    value={currentStatus}
+                    options={STATUS_OPTIONS}
+                    onChange={(val) => handleStatusChange({ target: { value: val } } as React.ChangeEvent<HTMLSelectElement>)}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
+                  Publisher
+                </label>
+                <input
+                  type="text"
+                  value={modalData.publisher}
+                  onChange={(e) => setModalData({ ...modalData, publisher: e.target.value })}
+                  className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
+                />
               </div>
 
+              {/* Series Info */}
+              <div className="bg-bg/50 border border-border rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="isPartOfSeries"
+                    checked={modalData.isPartOfSeries}
+                    onChange={(e) => setModalData({ ...modalData, isPartOfSeries: e.target.checked })}
+                    className="w-4 h-4 rounded border-border text-accent focus:ring-accent/20 bg-bg"
+                  />
+                  <label htmlFor="isPartOfSeries" className="text-text-primary text-sm font-medium">
+                    This book is part of a series
+                  </label>
+                </div>
+                
+                {modalData.isPartOfSeries && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                    <div className="sm:col-span-2">
+                      <label className="text-text-secondary text-[10px] font-bold uppercase tracking-widest mb-1.5 block">
+                        Series Name
+                      </label>
+                      <input
+                        type="text"
+                        value={modalData.series_name}
+                        onChange={(e) => setModalData({ ...modalData, series_name: e.target.value })}
+                        className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:border-accent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-text-secondary text-[10px] font-bold uppercase tracking-widest mb-1.5 block">
+                        Book #
+                      </label>
+                      <input
+                        type="number"
+                        value={modalData.series_number}
+                        onChange={(e) => setModalData({ ...modalData, series_number: parseInt(e.target.value) || 0 })}
+                        className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:border-accent outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Genres */}
               <MultiSearchSelect
                 label="Genres"
                 options={GENRE_OPTIONS}
@@ -847,136 +891,100 @@ const BookDetail = () => {
                 }}
                 placeholder="Search genres..."
               />
-
-              {/* Series Information */}
-              <div className="mt-2 mb-4 p-4 border border-border rounded-xl bg-surface/50">
-                <label className="flex items-center gap-3 cursor-pointer hover:bg-bg/50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={modalData.isPartOfSeries}
-                    onChange={(e) => setModalData({ ...modalData, isPartOfSeries: e.target.checked })}
-                    className="w-4 h-4 rounded text-accent bg-surface border-border focus:ring-accent/20"
-                  />
-                  <span className="text-sm font-semibold text-text-primary">This book is part of a series</span>
-                </label>
-                
-                {modalData.isPartOfSeries && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                        Series Name
-                      </label>
-                      <input
-                        type="text"
-                        value={modalData.series_name}
-                        onChange={(e) => setModalData({ ...modalData, series_name: e.target.value })}
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                        Book Number
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={modalData.series_number || ""}
-                        onChange={(e) => setModalData({ ...modalData, series_number: parseInt(e.target.value) || 0 })}
-                        className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
             </>
           )}
 
-          {/* Date Inputs - Conditional */}
+          {/* Dates & Status Update Logic */}
           {(editView === "all" || editView === "status_update") && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {currentStatus !== "want_to_read" && (
-                  <div>
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={modalData.started_from}
-                      onChange={(e) => setModalData({ ...modalData, started_from: e.target.value })}
-                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
-                    />
-                  </div>
-                )}
-                {currentStatus === "read" && (
-                  <div>
-                    <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                      Finish Date
-                    </label>
-                    <input
-                      type="date"
-                      value={modalData.finished_on}
-                      onChange={(e) => setModalData({ ...modalData, finished_on: e.target.value })}
-                      className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all"
-                    />
-                  </div>
-                )}
+              {currentStatus !== "want_to_read" && (
+                <div>
+                  <CalendarInput
+                    label="Started On"
+                    value={modalData.started_from}
+                    onChange={(val) => setModalData({ ...modalData, started_from: val })}
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              )}
+              {currentStatus === "read" && (
+                <div>
+                  <CalendarInput
+                    label="Finished On"
+                    value={modalData.finished_on}
+                    onChange={(val) => setModalData({ ...modalData, finished_on: val })}
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rating & Review - Shown for Read status or explicitly editing review */}
+          {(editView === "status_update" || editView === "review") && (currentStatus === "read" || currentStatus === "not_finished") && (
+            <div className="space-y-6">
+              {currentStatus === "read" && (
+                <RatingInput
+                  label="How would you rate this book?"
+                  value={modalData.rating}
+                  onChange={(val) => setModalData({ ...modalData, rating: val })}
+                />
+              )}
+              
+              <div className="space-y-2">
+                <label className="text-text-primary text-xs font-semibold block tracking-wider uppercase">
+                  {currentStatus === "not_finished" ? "Notes (Why didn't you finish?)" : "Your Thoughts"}
+                </label>
+                <textarea
+                  value={modalData.review}
+                  onChange={(e) => setModalData({ ...modalData, review: e.target.value })}
+                  placeholder={currentStatus === "not_finished" ? "Add some notes about your experience..." : "Write your personal review..."}
+                  rows={editView === "review" ? 12 : 6}
+                  className="w-full bg-bg border border-border rounded-xl p-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all resize-none"
+                />
               </div>
+            </div>
           )}
 
-          {/* Star Rating - Show in All, Review, or Status Update mode if Read */}
-          {(editView === "all" || editView === "review" || editView === "status_update") && currentStatus === "read" && (
-            <RatingInput
-              value={modalData.rating}
-              onChange={(val) => setModalData({ ...modalData, rating: val })}
-            />
-          )}
-
-          {/* Synopsis - Only in Synopsis mode */}
+          {/* Synopsis Only */}
           {editView === "synopsis" && (
-            <div>
-              <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                Synopsis
+            <div className="space-y-2">
+              <label className="text-text-primary text-xs font-semibold block tracking-wider uppercase">
+                Plot Summary
               </label>
               <textarea
-                placeholder="A brief summary..."
                 value={modalData.description}
                 onChange={(e) => setModalData({ ...modalData, description: e.target.value })}
-                rows={12}
-                className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
+                placeholder="What is this book about?"
+                rows={15}
+                className="w-full bg-bg border border-border rounded-xl p-4 text-text-primary text-sm focus:outline-none focus:border-accent transition-all resize-none"
               />
             </div>
           )}
 
-          {/* Personal Review / Notes - Show in Review or Status Update mode if applicable */}
-          {(editView === "review" || editView === "status_update") && (currentStatus === "read" || currentStatus === "not_finished") && (
-            <div>
-              <label className="text-text-primary text-xs font-semibold mb-2 block tracking-wider uppercase">
-                {currentStatus === "not_finished" ? "Notes" : "Your Review"}
-              </label>
-              <textarea
-                placeholder={currentStatus === "not_finished" ? "Why did you stop reading this book?" : "What did you think of this book?"}
-                value={modalData.review}
-                onChange={(e) => setModalData({ ...modalData, review: e.target.value })}
-                rows={12}
-                className="w-full bg-bg border border-border rounded-xl py-3 px-4 text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all resize-none"
-              />
-            </div>
-          )}
-          
+          {/* Error Message */}
           {modalError && (
-            <p className="text-error text-xs mt-3 flex items-center gap-1.5 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
-              <span className="w-1 h-1 rounded-full bg-error" />
+            <div className="bg-error/10 border border-error/20 text-error text-xs p-3 rounded-lg flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-error animate-pulse" />
               {modalError}
-            </p>
+            </div>
           )}
         </div>
       </Modal>
+
       <DeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Delete Book"
-        itemName={book?.title ?? ""}
+        itemName={book.title}
+      />
+
+      <PremiumFeatureModal
+        isOpen={isPremiumPromptOpen}
+        onClose={() => setIsPremiumPromptOpen(false)}
+        featureTitle="Log Your Reading Journey"
+        featureMessage="Want to log your reading journey with pages, notes, and progress streaks? Join the Inner Circle and make every chapter count."
       />
     </div>
   );

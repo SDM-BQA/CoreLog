@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -14,13 +14,12 @@ import {
 } from "lucide-react";
 import {
   get_my_movies_query,
-  get_movie_filters_query,
-  MovieFilter,
 } from "../../../../@apis/movies";
 import TargetBanner from "../../../../@components/TargetBanner";
 import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
 import { get_language_name } from "../../../../@utils/api.utils";
 import { FilterDropdown, MediaDisplay, CalendarView } from "../../../../@components/@smart";
+import { useGetMoviesListQuery, useGetMovieFiltersQuery } from "../../../../@store/api/movies.api";
 
 export interface Movie {
   _id: string;
@@ -53,30 +52,12 @@ const ITEMS_PER_PAGE = 10;
 const MoviesList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const [stats, setStats] = useState({ total: 0, watched: 0, watchlist: 0 });
-
-  const [genreOptions, setGenreOptions] = useState<string[]>([]);
-  const [statusOptions, setStatusOptions] = useState<string[]>([]);
-  const [languageOptions, setLanguageOptions] = useState<string[]>([]);
-  const [platformOptions, setPlatformOptions] = useState<string[]>([]);
-  // const [directorOptions, setDirectorOptions] = useState<string[]>([]);
-
   const [viewMode, setViewMode] = useState<"grid" | "list" | "calendar">(
     (searchParams.get("view") as any) || "grid"
   );
   const [currentPage, setCurrentPage] = useState(
     Number(searchParams.get("page")) || 1
   );
-
-  // All movies for calendar view (unpaginated)
-  const [allMovies, setAllMovies] = useState<Movie[]>([]);
-  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [committedSearch, setCommittedSearch] = useState(searchParams.get("search") || "");
@@ -96,9 +77,37 @@ const MoviesList = () => {
   const [platformFilter, setPlatformFilter] = useState<string[]>(
     searchParams.get("platforms")?.split(",").filter(Boolean) || []
   );
-  // const [directorFilter, setDirectorFilter] = useState<string[]>(
-  //   searchParams.get("directors")?.split(",").filter(Boolean) || []
-  // );
+
+  // Data fetching with RTK Query
+  const { data: moviesData, isLoading: isMoviesLoading } = useGetMoviesListQuery({
+    search: committedSearch || undefined,
+    genres: genreFilter.length ? genreFilter : undefined,
+    status: statusFilter.length ? statusFilter : undefined,
+    languages: languageFilter.length ? languageFilter : undefined,
+    platforms: platformFilter.length ? platformFilter : undefined,
+    rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
+
+  const { data: filtersData } = useGetMovieFiltersQuery(undefined);
+
+  const movies = moviesData?.movies || [];
+  const total = moviesData?.total_count || 0;
+  const totalPages = moviesData?.page_count || 1;
+  const hasNextPage = moviesData?.has_next_page || false;
+  const isLoading = isMoviesLoading;
+
+  const [stats, setStats] = useState({ total: 0, watched: 0, watchlist: 0 });
+
+  const genreOptions = filtersData?.genres || [];
+  const statusOptions = filtersData?.statuses || [];
+  const languageOptions = filtersData?.languages || [];
+  const platformOptions = filtersData?.platforms || [];
+
+  // All movies for calendar view (unpaginated)
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,60 +135,24 @@ const MoviesList = () => {
     // directorFilter.length > 0 ||
     !!committedSearch;
 
-  const fetchMovies = useCallback(async (filter: MovieFilter) => {
-    setIsLoading(true);
-    try {
-      const result = await get_my_movies_query(filter);
-      setMovies(result.movies as unknown as Movie[]);
-      setTotal(result.total_count);
-      setTotalPages(result.page_count);
-      setHasNextPage(result.has_next_page);
-    } catch (error) {
-      console.error("Error fetching movies:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchMovies({
-      search: committedSearch || undefined,
-      genres: genreFilter.length ? genreFilter : undefined,
-      status: statusFilter.length ? statusFilter : undefined,
-      languages: languageFilter.length ? languageFilter : undefined,
-      platforms: platformFilter.length ? platformFilter : undefined,
-      // directors: directorFilter.length ? directorFilter : undefined,
-      rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-    });
-  }, [committedSearch, genreFilter, ratingFilter, statusFilter, languageFilter, currentPage, fetchMovies]);
-
-  // Stats + filter options
-  useEffect(() => {
-    const fetchMeta = async () => {
+    const fetchStats = async () => {
       try {
-        const [all, watched, watchlist, filters] = await Promise.all([
+        const [all, watched, watchlist] = await Promise.all([
           get_my_movies_query({ limit: 1 }),
           get_my_movies_query({ status: ["watched"], limit: 1 }),
           get_my_movies_query({ status: ["watchlist"], limit: 1 }),
-          get_movie_filters_query(),
         ]);
         setStats({
           total: all.total_count,
           watched: watched.total_count,
           watchlist: watchlist.total_count,
         });
-        setGenreOptions(filters.genres);
-        setStatusOptions(filters.statuses);
-        setLanguageOptions(filters.languages);
-        setPlatformOptions(filters.platforms);
-        // setDirectorOptions(filters.directors);
       } catch (error) {
-        console.error("Error fetching meta:", error);
+        console.error("Error fetching stats:", error);
       }
     };
-    fetchMeta();
+    fetchStats();
   }, []);
 
   // Fetch ALL movies (no pagination) when calendar view is active
@@ -436,7 +409,7 @@ const MoviesList = () => {
               )
             ) : (
               <MediaDisplay
-                items={movies.map((movie) => ({
+                items={movies.map((movie: any) => ({
                   _id: movie._id,
                   title: movie.title,
                   subtitle: movie.language ? get_language_name(movie.language) : "",

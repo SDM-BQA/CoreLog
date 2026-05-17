@@ -7,7 +7,6 @@ import {
   Pencil,
   Trash2,
   Tv,
-  ChevronDown,
   CalendarPlus,
   PlayCircle,
   CheckCircle2,
@@ -18,7 +17,6 @@ import {
   Film,
 } from "lucide-react";
 import {
-  get_series_query,
   update_series_mutation,
   delete_series_mutation,
   get_series_logs_query,
@@ -32,9 +30,14 @@ import { get_full_image_url, get_rating_level, get_language_name, get_country_na
 import { formatDate, toDateInput, toISO } from "../../../../@utils/date.utils";
 import { get_genre_display, get_genre_key, GENRE_MAP } from "../../../../@utils/genres";
 import { Modal, MultiSearchSelect } from "../../../../@components/@smart";
+import Select from "../../../../@components/@ui/Select";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import RatingInput from "../../../../@components/RatingInput";
+import PremiumFeatureModal from "../../../../@components/PremiumFeatureModal";
 import { toast } from "react-toast";
+import { useGetSeriesByIdQuery, useUpdateSeriesMutation } from "../../../../@store/api/series.api";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 
 interface Series {
   _id: string;
@@ -54,7 +57,7 @@ interface Series {
   poster_image?: string;
   platform?: string;
   started_from?: string;
-  finished_on?: string;
+  finished_on?: string | null;
   created_at?: string;
 }
 
@@ -75,18 +78,24 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const GENRE_OPTIONS = Object.values(GENRE_MAP);
+const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, label]) => ({ value, label }));
 
 const SeriesDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.user);
+  
+  // Data fetching with RTK Query
+  const { data: fetchedSeries, isLoading: isSeriesLoading } = useGetSeriesByIdQuery(id);
+  const [updateSeriesMutation, { isLoading: isUpdating }] = useUpdateSeriesMutation();
+
   const [series, setSeries] = useState<Series | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPremiumPromptOpen, setIsPremiumPromptOpen] = useState(false);
   const [editView, setEditView] = useState<"all" | "status_update" | "synopsis" | "review">("all");
   const [modalData, setModalData] = useState({
     title: "",
@@ -108,6 +117,7 @@ const SeriesDetail = () => {
   });
 
   const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const [seriesLogs, setSeriesLogs] = useState<SeriesLog[]>([]);
 
@@ -128,70 +138,82 @@ const SeriesDetail = () => {
     }
 
     if (editView === "all" || editView === "status_update") {
+      if (!modalData.status) {
+        errors.status = "Status is required";
+      }
+
       if (modalData.status === "watched" || modalData.status === "rewatching") {
         if (modalData.seasons_watched < 0) errors.seasons_watched = "Cannot be negative";
         if (modalData.seasons_watched > modalData.seasons) errors.seasons_watched = "Cannot exceed total seasons";
+        if (!(modalData.rating > 0)) errors.rating = "Rating is required";
+        if (!modalData.review.trim()) errors.review = "Review is required";
       }
       const today = new Date();
       today.setHours(23, 59, 59, 999);
-      
-      if (modalData.status !== "watchlist" && modalData.started_from) {
-        if (new Date(modalData.started_from) > today) {
+
+      if (modalData.status !== "watchlist") {
+        if (!modalData.started_from) {
+          errors.started_from = "Start date is required";
+        } else if (new Date(modalData.started_from) > today) {
           errors.started_from = "Future dates not allowed";
         }
       }
-      if ((modalData.status === "watched" || modalData.status === "rewatching") && modalData.finished_on) {
-        const finish = new Date(modalData.finished_on);
-        const start = new Date(modalData.started_from);
-        if (finish > today) errors.finished_on = "Future dates not allowed";
-        if (finish < start) errors.finished_on = "Cannot be before start date";
+
+      if (modalData.status === "watched" || modalData.status === "rewatching") {
+        if (!modalData.finished_on) {
+          errors.finished_on = "Finish date is required";
+        } else {
+          const finish = new Date(modalData.finished_on);
+          const start = new Date(modalData.started_from);
+          if (finish > today) errors.finished_on = "Future dates not allowed";
+          if (modalData.started_from && finish < start) errors.finished_on = "Cannot be before start date";
+        }
       }
     }
     setModalErrors(errors);
+    setModalError(Object.values(errors)[0] ?? null);
     return Object.keys(errors).length === 0;
   };
 
-  const fetchSeries = async () => {
-    if (!id) return;
-    try {
-      setIsLoading(true);
-      const [data, logsData] = await Promise.all([
-        get_series_query(id),
-        get_series_logs_query(id),
-      ]);
-      if (data) {
-        setSeries(data as unknown as Series);
-        setModalData({
-          title: data.title,
-          creator: data.creator,
-          release_year: data.release_year,
-          seasons: data.seasons,
-          seasons_watched: data.seasons_watched || 0,
-          episodes: data.episodes || 0,
-          language: data.language || "",
-          origin_country: data.origin_country || "",
-          status: data.status,
-          genres: data.genres.map(get_genre_display),
-          platform: data.platform || "",
-          description: data.description || "",
-          rating: data.rating,
-          review: data.review || "",
-          started_from: toDateInput(data.started_from) || toDateInput(Date.now()),
-          finished_on: toDateInput(data.finished_on) || toDateInput(Date.now()),
-        });
-      }
-      setSeriesLogs(logsData ?? []);
-    } catch (error) {
-      console.error("Error fetching series:", error);
-      toast.error("Failed to load series details");
-    } finally {
-      setIsLoading(false);
+  // Sync local series state with RTK Query data
+  useEffect(() => {
+    if (fetchedSeries) {
+      setSeries(fetchedSeries as unknown as Series);
+      setModalData({
+        title: fetchedSeries.title,
+        creator: fetchedSeries.creator,
+        release_year: fetchedSeries.release_year,
+        seasons: fetchedSeries.seasons,
+        seasons_watched: fetchedSeries.seasons_watched || 0,
+        episodes: fetchedSeries.episodes || 0,
+        language: fetchedSeries.language || "",
+        origin_country: fetchedSeries.origin_country || "",
+        status: fetchedSeries.status,
+        genres: fetchedSeries.genres.map(get_genre_display),
+        platform: fetchedSeries.platform || "",
+        description: fetchedSeries.description || "",
+        rating: fetchedSeries.rating,
+        review: fetchedSeries.review || "",
+        started_from: toDateInput(fetchedSeries.started_from) || toDateInput(Date.now()),
+        finished_on: toDateInput(fetchedSeries.finished_on) || toDateInput(Date.now()),
+      });
     }
-  };
+  }, [fetchedSeries]);
 
   useEffect(() => {
-    fetchSeries();
+    const fetchLogs = async () => {
+      if (!id) return;
+      try {
+        const logsData = await get_series_logs_query(id);
+        setSeriesLogs(logsData ?? []);
+      } catch (error) {
+        console.error("Error fetching logs:", error);
+      }
+    };
+    fetchLogs();
   }, [id]);
+
+  const isLoading = isSeriesLoading;
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value;
@@ -214,10 +236,14 @@ const SeriesDetail = () => {
           rating: series.rating,
           review: series.review || "",
           started_from: toDateInput(series.started_from) || toDateInput(Date.now()),
-          finished_on: toDateInput(series.finished_on) || toDateInput(Date.now()),
+          finished_on:
+            newStatus === "watching"
+              ? ""
+              : (toDateInput(series.finished_on) || toDateInput(Date.now())),
         });
       }
       setModalErrors({});
+      setModalError(null);
       setIsModalOpen(true);
     } else {
       updateSeries({ status: newStatus });
@@ -227,18 +253,16 @@ const SeriesDetail = () => {
   const updateSeries = async (fields: any) => {
     if (!id) return;
     try {
-      setIsUpdating(true);
-      const result = await update_series_mutation(id, fields);
-      if (result) {
-        setSeries(result as unknown as Series);
+      const result = await updateSeriesMutation({ id, input: fields }).unwrap();
+      const updatedSeries = (result as any)?.update_series ?? result;
+      if (updatedSeries) {
+        setSeries(updatedSeries as Series);
         toast.success("Updated successfully");
         setIsModalOpen(false);
       }
     } catch (error) {
       console.error("Error updating series:", error);
       toast.error("Failed to update");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -249,7 +273,10 @@ const SeriesDetail = () => {
       genres: modalData.genres.map(get_genre_key),
       creator: `${modalData.language} (${modalData.origin_country})`,
       started_from: toISO(modalData.started_from),
-      finished_on: toISO(modalData.finished_on),
+      finished_on:
+        modalData.status === "watched" || modalData.status === "rewatching"
+          ? toISO(modalData.finished_on)
+          : null,
     };
     updateSeries(payload);
   };
@@ -296,6 +323,10 @@ const SeriesDetail = () => {
 
   const handleAddSeriesLog = async (entry: { date: string; position: number; note?: string }) => {
     if (!id) return;
+    if (user?.plan !== "inner_circle") {
+      setIsPremiumPromptOpen(true);
+      return;
+    }
     const newLog = await add_series_log_mutation(id, {
       date: entry.date,
       episodes_watched: entry.position - clampedEpisode,
@@ -336,6 +367,7 @@ const SeriesDetail = () => {
     }
     setEditView(view);
     setModalErrors({});
+    setModalError(null);
     setIsModalOpen(true);
   };
 
@@ -426,21 +458,14 @@ const SeriesDetail = () => {
               </div>
             </div>
 
-            {/* Actions Row */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
-              <div className="relative inline-flex items-center">
-                <BookmarkCheck size={14} className={`absolute left-3 pointer-events-none ${STATUS_COLORS[series.status].split(' ')[0]}`} />
-                <select
-                  value={series.status}
-                  onChange={handleStatusChange}
-                  className="appearance-none cursor-pointer pl-9 pr-8 py-2 text-sm font-semibold rounded-lg bg-surface border border-border hover:bg-surface-hover transition-colors outline-none focus:ring-2 focus:ring-accent/50 text-text-primary"
-                >
-                  {Object.entries(STATUS_MAP).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 pointer-events-none text-text-secondary" />
-              </div>
+              <Select
+                value={series.status}
+                options={STATUS_OPTIONS}
+                onChange={(val) => handleStatusChange({ target: { value: val } } as React.ChangeEvent<HTMLSelectElement>)}
+                icon={BookmarkCheck}
+                className="w-[180px]"
+              />
 
               <div className="h-6 w-px bg-border hidden sm:block" />
 
@@ -617,6 +642,8 @@ const SeriesDetail = () => {
               onAdd={handleAddSeriesLog}
               onDelete={handleDeleteSeriesLog}
               onFinish={() => handleStatusChange({ target: { value: "watched" } } as React.ChangeEvent<HTMLSelectElement>)}
+              isPremiumLocked={user?.plan !== "inner_circle"}
+              onPremiumLockedClick={() => setIsPremiumPromptOpen(true)}
             />
           )}
         </div>
@@ -647,6 +674,12 @@ const SeriesDetail = () => {
         }
       >
         <div className="flex flex-col gap-6">
+          {modalError && (
+            <div className="bg-error/10 border border-error/20 text-error text-xs p-3 rounded-lg flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-error animate-pulse" />
+              {modalError}
+            </div>
+          )}
           {editView === "all" && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -665,18 +698,6 @@ const SeriesDetail = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Status</label>
-                  <select 
-                    value={modalData.status} 
-                    onChange={e => setModalData({...modalData, status: e.target.value})} 
-                    className="w-full bg-bg border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none appearance-none cursor-pointer"
-                  >
-                    {Object.entries(STATUS_MAP).map(([val, label]) => (
-                      <option key={val} value={val}>{label}</option>
-                    ))}
-                  </select>
-                </div>
                 <div>
                   <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Year</label>
                   <input type="text" placeholder="YYYY" value={modalData.release_year} onChange={e => setModalData({...modalData, release_year: e.target.value})} className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.release_year ? "border-error focus:border-error focus:ring-error/20" : "border-border focus:border-accent"}`} />
@@ -733,30 +754,26 @@ const SeriesDetail = () => {
               {/* Started From Date - Shown for Watching, Watched, Rewatching, Not Finished */}
               {(modalData.status === "watching" || modalData.status === "watched" || modalData.status === "rewatching" || modalData.status === "not_finished") && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Start Date</label>
-                  <input 
-                    type="date" 
+                  <CalendarInput
+                    label="Start Date"
                     max={new Date().toISOString().split("T")[0]}
-                    value={modalData.started_from} 
-                    onChange={e => setModalData({...modalData, started_from: e.target.value})} 
-                    className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.started_from ? "border-error" : "border-border"}`} 
+                    value={modalData.started_from}
+                    onChange={(val) => setModalData({ ...modalData, started_from: val })}
+                    error={modalErrors.started_from}
                   />
-                  {modalErrors.started_from && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.started_from}</p>}
                 </div>
               )}
 
               {/* Finished Date - ONLY for Watched, Rewatching */}
               {(modalData.status === "watched" || modalData.status === "rewatching") && (
                 <div>
-                  <label className="text-text-primary text-xs font-semibold mb-2 block uppercase tracking-wider">Finish Date</label>
-                  <input 
-                    type="date" 
+                  <CalendarInput
+                    label="Finish Date"
                     max={new Date().toISOString().split("T")[0]}
-                    value={modalData.finished_on} 
-                    onChange={e => setModalData({...modalData, finished_on: e.target.value})} 
-                    className={`w-full bg-bg border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:border-accent outline-none ${modalErrors.finished_on ? "border-error" : "border-border"}`} 
+                    value={modalData.finished_on}
+                    onChange={(val) => setModalData({ ...modalData, finished_on: val })}
+                    error={modalErrors.finished_on}
                   />
-                  {modalErrors.finished_on && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.finished_on}</p>}
                 </div>
               )}
               
@@ -783,6 +800,7 @@ const SeriesDetail = () => {
                   value={modalData.rating}
                   onChange={(val) => setModalData({ ...modalData, rating: val })}
                 />
+                {modalErrors.rating && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.rating}</p>}
                <label className="text-text-primary text-xs font-semibold block uppercase tracking-wider">
                   Your Review
                </label>
@@ -791,8 +809,9 @@ const SeriesDetail = () => {
                 onChange={e => setModalData({...modalData, review: e.target.value})}
                 placeholder="Share your thoughts..."
                 rows={8}
-                className="w-full bg-bg border border-border rounded-xl p-4 text-sm text-text-primary focus:border-accent outline-none resize-none shadow-inner"
+                className={`w-full bg-bg border rounded-xl p-4 text-sm text-text-primary focus:border-accent outline-none resize-none shadow-inner ${modalErrors.review ? "border-error" : "border-border"}`}
               />
+              {modalErrors.review && <p className="text-error text-[10px] font-medium mt-1 ml-1">{modalErrors.review}</p>}
             </div>
           )}
 
@@ -814,6 +833,13 @@ const SeriesDetail = () => {
         onConfirm={confirmDelete}
         title="Delete Series"
         itemName={series?.title ?? ""}
+      />
+
+      <PremiumFeatureModal
+        isOpen={isPremiumPromptOpen}
+        onClose={() => setIsPremiumPromptOpen(false)}
+        featureTitle="Log Your Binge Journey"
+        featureMessage="Want to log your binge journey with episodes, notes, and streak vibes? Join the Inner Circle and track every cliffhanger."
       />
     </div>
   );

@@ -18,9 +18,15 @@ export const App = () => {
             dispatch(update_user(freshUser));
           }
         } catch (error) {
-          console.error("Session expired or user not found:", error);
-          // If the token is invalid or user doesn't exist, clear the session
-          dispatch(clear_user());
+          console.error("Session revalidation failed:", error);
+          const error_message = (error as Error).message;
+          if (
+            error_message === "Invalid or expired token" ||
+            error_message === "Authentication required" ||
+            error_message === "User not found"
+          ) {
+            dispatch(clear_user());
+          }
         }
       }
     };
