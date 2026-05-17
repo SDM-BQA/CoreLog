@@ -2,6 +2,7 @@ import { axios_graphql_service_auth, check_graphql_error } from "../../@utils/ap
 import {
     CREATE_JOURNAL_MUTATION,
     GET_MY_JOURNALS_QUERY,
+    GET_JOURNAL_STREAK_QUERY,
     GET_JOURNAL_QUERY,
     UPDATE_JOURNAL_MUTATION,
     DELETE_JOURNAL_MUTATION,
@@ -14,6 +15,10 @@ export interface JournalInput {
     journal_type: string;
     mood?: string;
     location?: string;
+    location_address?: string;
+    location_city?: string;
+    location_lat?: number;
+    location_lng?: number;
     photos?: string[];
     video?: string;
     tags?: string[];
@@ -42,6 +47,10 @@ export interface Journal {
     journal_type: string;
     mood?: string;
     location: string;
+    location_address?: string;
+    location_city?: string;
+    location_lat?: number;
+    location_lng?: number;
     photos: string[];
     video?: string;
     tags: string[];
@@ -60,6 +69,15 @@ export interface JournalPage {
     per_page: number;
     page_count: number;
     has_next_page: boolean;
+}
+
+export interface JournalStreak {
+    current_streak: number;
+    longest_streak: number;
+    total_active_days: number;
+    active_days_this_month: number;
+    last_entry_date?: string;
+    streak_updated_at?: string;
 }
 
 export const create_journal_mutation = async (input: JournalInput): Promise<{ _id: string; title: string; date: string }> => {
@@ -81,6 +99,13 @@ export const get_journal_query = async (id: string): Promise<Journal> => {
     const { data } = await service({ data: { query: GET_JOURNAL_QUERY, variables: { id } } });
     check_graphql_error(data);
     return data.data.get_journal;
+};
+
+export const get_journal_streak_query = async (): Promise<JournalStreak> => {
+    const service = axios_graphql_service_auth();
+    const { data } = await service({ data: { query: GET_JOURNAL_STREAK_QUERY } });
+    check_graphql_error(data);
+    return data.data.get_journal_streak;
 };
 
 export const update_journal_mutation = async (id: string, input: Partial<JournalInput>): Promise<Journal> => {

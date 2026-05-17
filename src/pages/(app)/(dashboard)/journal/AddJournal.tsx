@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,11 +39,14 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { upload_image_api } from "../../../../@apis/users";
-import { useCreateJournalMutation } from "../../../../@store/api/journal.api";
+import { useCreateJournalMutation, useGetJournalByIdQuery, useGetJournalFiltersQuery, useUpdateJournalMutation } from "../../../../@store/api/journal.api";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { toISO, formatDate } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
+import LocationPickerMap from "../../../../@components/LocationPickerMap";
 import { toast } from "react-toast";
+import { useAppSelector } from "../../../../@store/hooks/store.hooks";
+import { JOURNAL_PREDEFINED_TAGS } from "../../../../constants/journalTags";
 
 const JOURNAL_TYPES = [
   { value: "personal",  label: "Personal",  icon: User },
@@ -419,10 +422,20 @@ const ToolbarBtn = ({
 
 // ── Main component ──────────────────────────────────────────────────────────
 const AddJournal = () => {
+  const { id: editJournalId } = useParams<{ id?: string }>();
+  const isEditMode = Boolean(editJournalId);
+  const { user } = useAppSelector((state) => state.user);
+  const isPremiumUser = user?.plan === "inner_circle";
+  const photoLimit = isPremiumUser ? 20 : 6;
+
   const navigate = useNavigate();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const addressBoxRef = useRef<HTMLDivElement>(null);
   const [createJournalMutation, { isLoading: isCreatingMutation }] = useCreateJournalMutation();
+  const [updateJournalMutation, { isLoading: isUpdatingMutation }] = useUpdateJournalMutation();
+  const { data: journalFilters } = useGetJournalFiltersQuery(undefined);
+  const { data: existingJournal, isLoading: isJournalLoading } = useGetJournalByIdQuery(editJournalId ?? "", { skip: !isEditMode });
   const [isUploading, setIsUploading] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
   const [showCal, setShowCal]     = useState(false);
@@ -437,15 +450,77 @@ const AddJournal = () => {
     journal_type: "personal",
     mood: "",
     location: "",
-    tags: "",
+    location_address: "",
+    location_lat: "",
+    location_lng: "",
     date: nowForDefault.toISOString().split("T")[0],
     time: defaultTime,
     is_favorite: false,
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const showUpgradeNotice = !isPremiumUser && photos.length > 6;
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{
+    display_name: string;
+    lat: string;
+    lon: string;
+    city?: string;
+  }>>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
 
   const setM = (k: keyof typeof meta, v: string | boolean) =>
     setMeta((p) => ({ ...p, [k]: v }));
+
+  const normalizeTag = (raw: string) => raw.replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, "_");
+  const allTagSuggestions = Array.from(new Set([
+    ...JOURNAL_PREDEFINED_TAGS,
+    ...((journalFilters?.tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean)),
+  ]));
+
+  const filteredTagSuggestions = allTagSuggestions
+    .filter((t) => !selectedTags.includes(t))
+    .filter((t) => !tagInput.trim() || t.includes(normalizeTag(tagInput)));
+  const customTag = normalizeTag(tagInput);
+  const canAddCustomTag = !!customTag && !selectedTags.includes(customTag) && !allTagSuggestions.includes(customTag);
+
+  const addTag = (raw: string) => {
+    const next = normalizeTag(raw);
+    if (!next) return;
+    if (selectedTags.includes(next)) return;
+    setSelectedTags((prev) => [...prev, next]);
+    setTagInput("");
+    setShowTagSuggestions(false);
+  };
+
+  const removeTag = (tag: string) => {
+    setSelectedTags((prev) => prev.filter((t) => t !== tag));
+  };
+
+  useEffect(() => {
+    if (!isEditMode || !existingJournal) return;
+    setMeta((prev) => ({
+      ...prev,
+      title: existingJournal.title ?? "",
+      description: existingJournal.description ?? "",
+      journal_type: existingJournal.journal_type ?? "personal",
+      mood: existingJournal.mood ?? "",
+      location: existingJournal.location ?? "",
+      location_address: existingJournal.location_address ?? "",
+      location_lat: existingJournal.location_lat ? String(existingJournal.location_lat) : "",
+      location_lng: existingJournal.location_lng ? String(existingJournal.location_lng) : "",
+      date: existingJournal.date ? String(existingJournal.date).split("T")[0] : prev.date,
+      time: existingJournal.time ?? prev.time,
+      is_favorite: Boolean(existingJournal.is_favorite),
+    }));
+    setPhotos(existingJournal.photos ?? []);
+    setSelectedTags((existingJournal.tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean));
+    if (editorRef.current) {
+      editorRef.current.innerHTML = existingJournal.content ?? "";
+      setIsEmpty(!editorRef.current.textContent?.trim());
+    }
+  }, [isEditMode, existingJournal]);
 
   const color = TYPE_COLOR[meta.journal_type] ?? "violet";
   const ac = AC[color];
@@ -527,8 +602,8 @@ const AddJournal = () => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
 
-    const slots = 6 - photos.length;
-    if (slots <= 0) { toast.error("Maximum 6 photos allowed"); return; }
+    const slots = photoLimit - photos.length;
+    if (slots <= 0) { toast.error(`Maximum ${photoLimit} photos allowed`); return; }
 
     const toUpload = files.slice(0, slots);
     if (files.length > slots) toast.error(`Only ${slots} slot${slots > 1 ? "s" : ""} left — uploading first ${slots}`);
@@ -551,37 +626,180 @@ const AddJournal = () => {
     if (!meta.title.trim()) { toast.error("Title is required"); return; }
     const content = editorRef.current?.innerHTML ?? "";
     if (!editorRef.current?.textContent?.trim()) { toast.error("Entry content is required"); return; }
-    if (!meta.location.trim()) { toast.error("Location is required"); return; }
+    if (!meta.location_address.trim()) { toast.error("Full address is required"); return; }
     if (!meta.time) { toast.error("Time is required"); return; }
 
     try {
-      await createJournalMutation({
+      const payload = {
         title: meta.title.trim(),
         content,
         description: meta.description.trim() || undefined,
         journal_type: meta.journal_type,
         mood: meta.mood || undefined,
-        location: meta.location.trim(),
+        location: meta.location.trim() || "Selected Location",
+        location_address: meta.location_address.trim(),
+        location_city: meta.location.trim() || undefined,
+        location_lat: meta.location_lat ? Number(meta.location_lat) : undefined,
+        location_lng: meta.location_lng ? Number(meta.location_lng) : undefined,
         photos: photos.length ? photos : undefined,
-        tags: meta.tags ? meta.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: selectedTags.length ? selectedTags : undefined,
         date: toISO(meta.date),
         time: meta.time,
         is_favorite: meta.is_favorite,
-      }).unwrap();
-      toast.success("Journal entry saved");
-      navigate("/dashboard/journal");
+      };
+
+      if (isEditMode && editJournalId) {
+        await updateJournalMutation({ id: editJournalId, input: payload }).unwrap();
+        toast.success("Journal entry updated");
+        navigate(`/dashboard/journal/${editJournalId}`);
+      } else {
+        await createJournalMutation(payload).unwrap();
+        toast.success("Journal entry saved");
+        navigate("/dashboard/journal");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save entry");
     }
   };
 
-  const isSubmitting = isCreatingMutation;
+  const isSubmitting = isEditMode ? isUpdatingMutation : isCreatingMutation;
+
+  if (isEditMode && isJournalLoading) {
+    return (
+      <div className="bg-bg flex-1 flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  const handleGeocodeAddress = async (addressValue: string, silent = false) => {
+    if (!addressValue.trim()) return;
+    try {
+      const query = encodeURIComponent(addressValue.trim());
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${query}`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = await response.json();
+      if (!Array.isArray(data) || !data.length) {
+        if (!silent) toast.error("Could not find coordinates for this address");
+        return;
+      }
+      const best = data[0];
+      const city =
+        best?.address?.city ||
+        best?.address?.town ||
+        best?.address?.village ||
+        "";
+      setMeta((p) => ({
+        ...p,
+        location_lat: String(best.lat ?? ""),
+        location_lng: String(best.lon ?? ""),
+        location: city || p.location || "Selected Location",
+      }));
+      if (!silent) toast.success("Address pinned on map");
+    } catch {
+      if (!silent) toast.error("Failed to geocode address");
+    }
+  };
+
+  const fetchAddressSuggestions = async (queryText: string) => {
+    if (queryText.trim().length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+    try {
+      const query = encodeURIComponent(queryText.trim());
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&q=${query}`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        setAddressSuggestions([]);
+        return;
+      }
+      setAddressSuggestions(
+        data.map((item: any) => ({
+          display_name: item.display_name,
+          lat: item.lat,
+          lon: item.lon,
+          city: item?.address?.city || item?.address?.town || item?.address?.village || item?.address?.hamlet || "",
+        })),
+      );
+    } catch {
+      setAddressSuggestions([]);
+    }
+  };
+
+  const handleSelectAddressSuggestion = (s: { display_name: string; lat: string; lon: string; city?: string }) => {
+    setMeta((p) => ({
+      ...p,
+      location_address: s.display_name,
+      location_lat: s.lat,
+      location_lng: s.lon,
+      location: s.city || p.location || "Selected Location",
+    }));
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
+  };
+
+  const handlePickOnMap = async (lat: number, lng: number) => {
+    setMeta((p) => ({ ...p, location_lat: String(lat), location_lng: String(lng) }));
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+        headers: { Accept: "application/json" },
+      });
+      const data = await response.json();
+      const address = data?.display_name || "";
+      const city =
+        data?.address?.city ||
+        data?.address?.town ||
+        data?.address?.village ||
+        data?.address?.hamlet ||
+        "";
+      setMeta((p) => ({
+        ...p,
+        location_address: address || p.location_address,
+        location: city || p.location || "Selected Location",
+      }));
+    } catch {
+      // Keep picked coordinates even if reverse geocode fails.
+    }
+  };
 
 
   useEffect(() => {
     document.addEventListener("selectionchange", checkActive);
     return () => document.removeEventListener("selectionchange", checkActive);
   }, [checkActive]);
+
+  useEffect(() => {
+    if (!meta.location_address.trim()) return;
+    const timer = setTimeout(() => {
+      void handleGeocodeAddress(meta.location_address, true);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [meta.location_address]);
+
+  useEffect(() => {
+    if (!meta.location_address.trim()) {
+      setAddressSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void fetchAddressSuggestions(meta.location_address);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [meta.location_address]);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (addressBoxRef.current && !addressBoxRef.current.contains(e.target as Node)) {
+        setShowAddressSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
 
   const currentType = JOURNAL_TYPES.find((t) => t.value === meta.journal_type);
@@ -606,7 +824,7 @@ const AddJournal = () => {
             <span className="hidden sm:inline">Journal</span>
           </Link>
           <div className="w-px h-4 bg-border shrink-0" />
-          <span className="text-text-primary font-bold text-sm flex-1 truncate">New Entry</span>
+          <span className="text-text-primary font-bold text-sm flex-1 truncate">{isEditMode ? "Edit Entry" : "New Entry"}</span>
           <span className="text-text-secondary/50 text-xs hidden md:block shrink-0">
             {formatDate(meta.date, { weekday: "short", day: "numeric", month: "short" })}
           </span>
@@ -615,20 +833,32 @@ const AddJournal = () => {
             <span className="hidden sm:inline">{currentType?.label}</span>
           </div>
           <button
+            type="button"
+            onClick={() => setM("is_favorite", !meta.is_favorite)}
+            className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-all ${
+              meta.is_favorite
+                ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
+                : "bg-bg border-border text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            <Star size={13} fill={meta.is_favorite ? "currentColor" : "none"} />
+            <span className="hidden sm:inline">{meta.is_favorite ? "Favourite" : "Mark Favourite"}</span>
+          </button>
+          <button
             type="submit"
             disabled={isSubmitting || isUploading}
             className={`shrink-0 flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold text-white disabled:opacity-50 transition-all ${ac.btn}`}
           >
             {isSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-            <span className="hidden sm:inline">{isSubmitting ? "Saving…" : "Save"}</span>
+            <span className="hidden sm:inline">{isSubmitting ? (isEditMode ? "Updating…" : "Saving…") : (isEditMode ? "Update" : "Save")}</span>
           </button>
         </div>
 
         {/* ── Split pane ────────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden custom-scrollbar">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)_auto] overflow-y-auto custom-scrollbar">
 
           {/* LEFT — writing area */}
-          <div className="lg:flex-1 lg:min-h-0 flex flex-col overflow-hidden min-h-[58vh]">
+          <div className="lg:min-h-0 flex flex-col overflow-hidden min-h-[58vh] lg:col-start-1 lg:row-start-1">
 
             {/* Title */}
             <input
@@ -698,7 +928,7 @@ const AddJournal = () => {
           </div>
 
           {/* RIGHT — sidebar */}
-          <div className="border-t lg:border-t-0 lg:border-l border-border lg:w-[300px] lg:shrink-0 overflow-y-auto custom-scrollbar bg-surface/40">
+          <div className="border-t lg:border-t-0 lg:border-l border-border bg-surface/40 lg:col-start-2 lg:row-span-2 lg:h-full">
             <div className="p-4 flex flex-col gap-4">
 
               {/* Type */}
@@ -706,30 +936,11 @@ const AddJournal = () => {
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter">
                   Type <span className="text-rose-500">*</span>
                 </label>
-                <div className="sm:hidden">
-                  <Select
-                    value={meta.journal_type}
-                    options={JOURNAL_TYPES.map(({ value, label, icon }) => ({ value, label, icon }))}
-                    onChange={(val) => setM("journal_type", val)}
-                  />
-                </div>
-                <div className="hidden sm:grid grid-cols-2 gap-1.5">
-                  {JOURNAL_TYPES.map(({ value, label, icon: Icon }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setM("journal_type", value)}
-                      className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium border transition-all ${
-                        meta.journal_type === value
-                          ? `${AC[TYPE_COLOR[value]].badge} border-current`
-                          : "bg-bg border-border text-text-secondary hover:text-text-primary"
-                      }`}
-                    >
-                      <Icon size={12} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <Select
+                  value={meta.journal_type}
+                  options={JOURNAL_TYPES.map(({ value, label, icon }) => ({ value, label, icon }))}
+                  onChange={(val) => setM("journal_type", val)}
+                />
               </div>
 
               <div className="h-px bg-border" />
@@ -768,75 +979,141 @@ const AddJournal = () => {
 
               <div className="h-px bg-border" />
 
-              <Select
-                label="Mood"
-                value={meta.mood}
-                options={[{ value: "", label: "Select mood…" }, ...MOODS.map(m => ({ value: m.value, label: `${m.emoji} ${m.label}` }))]}
-                onChange={(val) => setM("mood", val)}
-                icon={Smile}
-              />
+              <div onMouseDown={() => setShowAddressSuggestions(false)}>
+                <Select
+                  label="Mood"
+                  value={meta.mood}
+                  options={[{ value: "", label: "Select mood…" }, ...MOODS.map(m => ({ value: m.value, label: `${m.emoji} ${m.label}` }))]}
+                  onChange={(val) => setM("mood", val)}
+                  icon={Smile}
+                />
+              </div>
 
               {/* Location */}
               <div className="space-y-1.5">
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
-                  <MapPin size={12} /> Location <span className="text-rose-500">*</span>
+                  <MapPin size={12} /> Address <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="Where are you writing from?"
-                  value={meta.location}
-                  onChange={(e) => setM("location", e.target.value)}
-                  className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary placeholder:text-text-secondary/25 focus:outline-none transition-colors ${ac.ring}`}
+                <div ref={addressBoxRef} className="relative z-[200]">
+                  <input
+                    type="text"
+                    placeholder="Kundalahalli Colony, Brookefield, Bengaluru"
+                    value={meta.location_address}
+                    onFocus={() => setShowAddressSuggestions(true)}
+                    onChange={(e) => {
+                      setM("location_address", e.target.value);
+                      setShowAddressSuggestions(true);
+                    }}
+                    className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary placeholder:text-text-secondary/25 focus:outline-none transition-colors ${ac.ring}`}
+                  />
+                  {showAddressSuggestions && addressSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[999] rounded-xl border border-border bg-surface shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                      {addressSuggestions.map((s, idx) => (
+                        <button
+                          key={`${s.lat}-${s.lon}-${idx}`}
+                          type="button"
+                          onClick={() => handleSelectAddressSuggestion(s)}
+                          className="w-full text-left px-3 py-2.5 text-xs text-text-secondary hover:text-text-primary hover:bg-bg transition-colors border-b border-border last:border-b-0"
+                        >
+                          {s.display_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-text-secondary/70">
+                  Pin updates automatically from address.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-text-secondary text-xs font-black uppercase tracking-tighter">Map Picker</label>
+                <LocationPickerMap
+                  lat={meta.location_lat ? Number(meta.location_lat) : undefined}
+                  lng={meta.location_lng ? Number(meta.location_lng) : undefined}
+                  onPick={handlePickOnMap}
                 />
+                <p className="text-[10px] text-text-secondary/70">Click anywhere on map to set marker location.</p>
               </div>
 
               {/* Tags */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 relative z-[240]">
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                   <Hash size={12} /> Tags
                 </label>
-                <input
-                  type="text"
-                  placeholder="growth, family, goals…"
-                  value={meta.tags}
-                  onChange={(e) => setM("tags", e.target.value)}
-                  className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary placeholder:text-text-secondary/25 focus:outline-none transition-colors ${ac.ring}`}
-                />
+                <div className={`w-full min-h-[40px] bg-bg border border-border rounded-lg px-2 py-1.5 flex flex-wrap items-center gap-1.5 ${ac.ring}`}>
+                  {selectedTags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent/10 border border-accent/20 text-accent text-xs">
+                      #{tag}
+                      <button type="button" onClick={() => removeTag(tag)} className="text-accent/80 hover:text-accent">
+                        <X size={11} />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onFocus={() => setShowTagSuggestions(true)}
+                    onChange={(e) => {
+                      setTagInput(e.target.value);
+                      setShowTagSuggestions(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === "Tab" || e.key === " ") {
+                        e.preventDefault();
+                        addTag(tagInput);
+                      }
+                      if (e.key === "Backspace" && !tagInput && selectedTags.length) {
+                        removeTag(selectedTags[selectedTags.length - 1]);
+                      }
+                    }}
+                    placeholder={selectedTags.length ? "Add more tags..." : "Type tag and press Space/Enter"}
+                    className="flex-1 min-w-[120px] bg-transparent text-xs text-text-primary placeholder:text-text-secondary/35 focus:outline-none"
+                  />
+                </div>
+                {showTagSuggestions && (filteredTagSuggestions.length > 0 || canAddCustomTag) && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[999] rounded-xl border border-border bg-surface shadow-2xl overflow-hidden max-h-44 overflow-y-auto">
+                    {canAddCustomTag && (
+                      <button
+                        type="button"
+                        onClick={() => addTag(customTag)}
+                        className="w-full text-left px-3 py-2 text-xs text-accent hover:bg-bg transition-colors border-b border-border"
+                      >
+                        Add #{customTag}
+                      </button>
+                    )}
+                    {filteredTagSuggestions.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => addTag(tag)}
+                        className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg transition-colors border-b border-border last:border-b-0"
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-border" />
 
-              {/* Favourite */}
-              <button
-                type="button"
-                onClick={() => setM("is_favorite", !meta.is_favorite)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-sm font-medium ${
-                  meta.is_favorite
-                    ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
-                    : "bg-bg border-border text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <Star size={14} fill={meta.is_favorite ? "currentColor" : "none"} />
-                {meta.is_favorite ? "Marked as favourite" : "Mark as favourite"}
-              </button>
-
             </div>
           </div>
-        </div>
 
         {/* ── Photos section ───────────────────────────────────────────── */}
-        <div className="shrink-0 h-44 border-t border-border flex flex-col">
+        <div className="h-44 border-t border-border flex flex-col w-full lg:col-start-1 lg:row-start-2">
           {/* Header */}
           <div className="shrink-0 flex items-center justify-between px-5 py-2 border-b border-border bg-surface/60">
             <div className="flex items-center gap-2">
               <ImageIcon size={13} className="text-text-secondary" />
               <span className="text-xs font-black uppercase tracking-tighter text-text-secondary">Photos</span>
-              <span className="text-text-secondary/40 text-xs">{photos.length}/6</span>
+              <span className="text-text-secondary/40 text-xs">{photos.length}/{photoLimit}</span>
             </div>
             <button
               type="button"
               onClick={() => photoInputRef.current?.click()}
-              disabled={isUploading || photos.length >= 6}
+              disabled={isUploading || photos.length >= photoLimit}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-bg border border-border rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40"
             >
               {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
@@ -844,6 +1121,11 @@ const AddJournal = () => {
             </button>
             <input ref={photoInputRef} type="file" onChange={handlePhotoUpload} accept="image/*" multiple className="hidden" />
           </div>
+          {showUpgradeNotice && (
+            <div className="px-5 py-1.5 border-b border-border bg-amber-500/10 text-amber-300 text-[11px]">
+              You have more than 6 photos. Upgrade to Inner Circle to continue adding more.
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 min-h-0 px-5 py-3">
@@ -871,7 +1153,7 @@ const AddJournal = () => {
                     </button>
                   </div>
                 ))}
-                {photos.length < 6 && (
+                {photos.length < photoLimit && (
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
@@ -885,6 +1167,7 @@ const AddJournal = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
 
       {showCal && (

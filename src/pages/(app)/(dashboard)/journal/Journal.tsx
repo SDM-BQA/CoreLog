@@ -1,7 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import type { JournalLockAPI } from "./useJournalLock";
 import FilterDropdown from "../../../../@components/@smart/FilterDropdown";
+import JournalStreakModal from "../../../../@components/JournalStreakModal";
+import JournalMapView from "../../../../@components/JournalMapView";
 import {
   Calendar as CalendarIcon,
   Search,
@@ -18,6 +20,7 @@ import {
   Loader2,
   RefreshCw,
   FileText,
+  Map as MapIcon,
   User,
   DollarSign,
   Plane,
@@ -29,11 +32,12 @@ import {
   MoreHorizontal,
   Lock,
   Fingerprint,
+  Flame,
 } from "lucide-react";
 import { type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDate, formatDayMonth } from "../../../../@utils/date.utils";
-import { useGetJournalsListQuery } from "../../../../@store/api/journal.api";
+import { useGetJournalsListQuery, useGetJournalStreakQuery } from "../../../../@store/api/journal.api";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string }> = {
@@ -85,6 +89,7 @@ const fmt12h = (time?: string) => {
 // ── Main component ───────────────────────────────────────────────────────────
 const Journal = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { lock, hasBiometric, biometricSupported, registerBiometric } = useOutletContext<JournalLockAPI>();
   const [registeringBio, setRegisteringBio] = useState(false);
 
@@ -94,10 +99,13 @@ const Journal = () => {
     setRegisteringBio(false);
   }, [registerBiometric]);
 
-  const [search, setSearch]           = useState("");
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [view, setView]               = useState<"feed" | "calendar" | "trends">("feed");
+  const [search, setSearch]           = useState(searchParams.get("q") ?? "");
+  const [selectedMood, setSelectedMood] = useState<string | null>(searchParams.get("mood"));
+  const [selectedType, setSelectedType] = useState<string | null>(searchParams.get("type"));
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
+  const [view, setView]               = useState<"feed" | "calendar" | "trends" | "map">(
+    (searchParams.get("view") as "feed" | "calendar" | "trends" | "map") || "feed"
+  );
   const [visibleCount, setVisibleCount] = useState(FEED_PAGE_SIZE);
   const [calMonth, setCalMonth]       = useState(() => {
     const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
@@ -108,6 +116,7 @@ const Journal = () => {
     limit: 200,
     page: 1,
   });
+  const { data: streakData } = useGetJournalStreakQuery(undefined);
 
   const journals = journalsData?.journals || [];
   const error = null; // Error handled by RTK Query if needed
@@ -185,6 +194,15 @@ const Journal = () => {
   }, [journals]);
   const maxCount = Math.max(...writingByMonth.map(([, c]) => c), 1);
 
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (view && view !== "feed") next.set("view", view);
+    if (search.trim()) next.set("q", search.trim());
+    if (selectedMood) next.set("mood", selectedMood);
+    if (selectedType) next.set("type", selectedType);
+    setSearchParams(next, { replace: true });
+  }, [view, search, selectedMood, selectedType, setSearchParams]);
+
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-8 flex flex-col gap-8">
@@ -209,6 +227,14 @@ const Journal = () => {
                 <span className="hidden sm:inline">Set up Fingerprint</span>
               </button>
             )}
+            <button
+              onClick={() => setIsStreakModalOpen(true)}
+              title="View writing streak"
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-400/35 rounded-xl text-sm font-bold text-orange-200 hover:from-orange-500/25 hover:to-amber-500/25 hover:border-orange-300/60 transition-colors shadow-lg shadow-orange-500/10"
+            >
+              <Flame size={15} />
+              <span className="hidden sm:inline">Streak{streakData?.current_streak ? ` ${streakData.current_streak}` : ""}</span>
+            </button>
             <button
               onClick={lock}
               title="Lock journal"
@@ -236,11 +262,12 @@ const Journal = () => {
             {/* View switcher — vertical list on desktop, compact icon cards on mobile */}
             <div className="bg-surface border border-border rounded-2xl p-2">
               {/* Mobile: 3-column icon cards */}
-              <div className="grid grid-cols-3 gap-1 lg:hidden">
+              <div className="grid grid-cols-4 gap-1 lg:hidden">
                 {([
                   { id: "feed",     label: "Feed",     icon: BookOpen },
                   { id: "calendar", label: "Calendar", icon: CalendarIcon },
                   { id: "trends",   label: "Insights", icon: TrendingUp },
+                  { id: "map",      label: "Map",      icon: MapIcon },
                 ] as const).map(({ id, label, icon: Icon }: any) => (
                   <button
                     key={id}
@@ -261,6 +288,7 @@ const Journal = () => {
                   { id: "feed",     label: "Journal Feed", icon: BookOpen },
                   { id: "calendar", label: "Calendar",     icon: CalendarIcon },
                   { id: "trends",   label: "Insights",     icon: TrendingUp },
+                  { id: "map",      label: "Map View",     icon: MapIcon },
                 ] as const).map(({ id, label, icon: Icon }: any) => (
                   <button
                     key={id}
@@ -721,6 +749,10 @@ const Journal = () => {
               </div>
             )}
 
+            {!loading && !error && view === "map" && (
+              <JournalMapView journals={journals as Journal[]} />
+            )}
+
           </div>
 
           {/* Quote — mobile only, shown after main content */}
@@ -738,6 +770,12 @@ const Journal = () => {
           </div>
         </div>
       </div>
+      <JournalStreakModal
+        isOpen={isStreakModalOpen}
+        onClose={() => setIsStreakModalOpen(false)}
+        journals={journals}
+        streak={streakData}
+      />
     </div>
   );
 };

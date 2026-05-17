@@ -77,7 +77,7 @@ const Select: React.FC<SelectProps> = ({
       {error && <p className="text-error text-xs mt-1.5 pl-1">{error}</p>}
 
       {isOpen && (
-        <div className="absolute z-[100] mt-2 w-full bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute z-[1200] mt-2 w-full bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="max-h-[240px] overflow-y-auto py-1.5 custom-scrollbar">
             {options.length === 0 ? (
               <div className="px-4 py-3 text-xs text-text-secondary text-center italic">

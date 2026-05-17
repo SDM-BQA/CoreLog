@@ -104,6 +104,7 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, Component: Journal },
                     { path: "add-entry", Component: AddJournal },
+                    { path: "edit-entry/:id", Component: AddJournal },
                     { path: ":id", Component: JournalDetail },
                 ],
             },
