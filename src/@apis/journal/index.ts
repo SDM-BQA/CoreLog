@@ -8,6 +8,20 @@ import {
     DELETE_JOURNAL_MUTATION,
 } from "./structure";
 
+export interface JournalExpenseItem {
+    id: string;
+    amount: number;
+    note: string;
+    category?: string;
+}
+
+export interface JournalTemplateBlock {
+    id: string;
+    type: string;
+    title: string;
+    items?: JournalExpenseItem[];
+}
+
 export interface JournalInput {
     title: string;
     content: string;
@@ -22,6 +36,7 @@ export interface JournalInput {
     photos?: string[];
     video?: string;
     tags?: string[];
+    template_blocks?: JournalTemplateBlock[];
     date: string;
     time?: string;
     is_favorite?: boolean;
@@ -54,6 +69,7 @@ export interface Journal {
     photos: string[];
     video?: string;
     tags: string[];
+    template_blocks: JournalTemplateBlock[];
     date: string;
     time: string;
     is_favorite: boolean;

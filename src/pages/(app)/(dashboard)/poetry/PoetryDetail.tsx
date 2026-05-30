@@ -27,6 +27,7 @@ import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import DeleteModal from "../../../../@components/DeleteModal";
 import { toast } from "react-toast";
 import { useGetPoemByIdQuery, useUpdatePoemMutation } from "../../../../@store/api/poetry.api";
+import { POETRY_PREDEFINED_TAGS } from "../../../../constants/poetryTags";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -84,6 +85,9 @@ const PoetryDetail = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTags, setModalTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [modalData, setModalData] = useState({
     title: "",
     content: "",
@@ -91,11 +95,29 @@ const PoetryDetail = () => {
     poem_type: "Free Verse",
     mood: "",
     atmosphere: "",
-    tags: "",
     cover_image: "",
     status: "draft",
     created_at: "",
   });
+
+  const normalizeTag = (raw: string) => raw.replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, "_");
+  const filteredTagSuggestions = POETRY_PREDEFINED_TAGS
+    .filter((t) => !modalTags.includes(t))
+    .filter((t) => !tagInput.trim() || t.includes(normalizeTag(tagInput)));
+  const customTag = normalizeTag(tagInput);
+  const canAddCustomTag = !!customTag && !modalTags.includes(customTag) && !POETRY_PREDEFINED_TAGS.includes(customTag);
+
+  const addTag = (raw: string) => {
+    const next = normalizeTag(raw);
+    if (!next || modalTags.includes(next)) return;
+    setModalTags((prev) => [...prev, next]);
+    setTagInput("");
+    setShowTagSuggestions(false);
+  };
+
+  const removeTag = (tag: string) => {
+    setModalTags((prev) => prev.filter((t) => t !== tag));
+  };
 
   // Sync local poem state with RTK Query data
   useEffect(() => {
@@ -118,11 +140,14 @@ const PoetryDetail = () => {
       poem_type: p.poem_type,
       mood: p.mood ?? "",
       atmosphere: p.atmosphere ?? "",
-      tags: Array.isArray(p.tags) ? p.tags.join(", ") : "",
+      
       cover_image: p.cover_image ?? "",
       status: p.status,
       created_at: formattedDate,
     });
+    setModalTags((p.tags ?? []).map((t) => normalizeTag(t)).filter(Boolean));
+    setTagInput("");
+    setShowTagSuggestions(false);
   };
 
   const openEdit = () => {
@@ -162,7 +187,7 @@ const PoetryDetail = () => {
         poem_type: modalData.poem_type,
         mood: modalData.mood || undefined,
         atmosphere: modalData.atmosphere || undefined,
-        tags: modalData.tags ? modalData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: modalTags.length ? modalTags : undefined,
         cover_image: modalData.cover_image || undefined,
         status: modalData.status,
         created_at: toISO(modalData.created_at),
@@ -498,15 +523,60 @@ const PoetryDetail = () => {
               onChange={(val) => setM("status", val)}
             />
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 relative">
               <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest ml-1">Tags</label>
-              <input
-                type="text"
-                placeholder="love, night, solitude..."
-                value={modalData.tags}
-                onChange={(e) => setM("tags", e.target.value)}
-                className="w-full bg-bg border border-border rounded-lg py-2.5 px-4 text-xs text-text-primary focus:outline-none focus:border-accent transition-colors"
-              />
+              <div
+                className="w-full bg-bg border border-border rounded-lg px-3 py-2 min-h-[42px] flex flex-wrap items-center gap-2 focus-within:border-accent transition-colors"
+                onClick={() => setShowTagSuggestions(true)}
+              >
+                {modalTags.map((tag) => (
+                  <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/30 text-[10px] text-accent">
+                    #{tag}
+                    <button type="button" onClick={() => removeTag(tag)} className="text-accent/80 hover:text-accent">
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={tagInput}
+                  onChange={(e) => { setTagInput(e.target.value); setShowTagSuggestions(true); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "," || e.key === " ") {
+                      e.preventDefault();
+                      if (tagInput.trim()) addTag(tagInput);
+                    } else if (e.key === "Backspace" && !tagInput && modalTags.length) {
+                      removeTag(modalTags[modalTags.length - 1]);
+                    }
+                  }}
+                  onFocus={() => setShowTagSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowTagSuggestions(false), 120)}
+                  placeholder={modalTags.length ? "Add more tags..." : "Type tag and press Space/Enter"}
+                  className="flex-1 min-w-[120px] bg-transparent text-xs text-text-primary placeholder:text-text-secondary/40 focus:outline-none"
+                />
+              </div>
+              {showTagSuggestions && (filteredTagSuggestions.length > 0 || canAddCustomTag) && (
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[60] rounded-xl border border-border bg-surface shadow-2xl overflow-hidden max-h-44 overflow-y-auto">
+                  {canAddCustomTag && (
+                    <button
+                      type="button"
+                      onClick={() => addTag(customTag)}
+                      className="w-full text-left px-3 py-2 text-xs text-accent hover:bg-bg"
+                    >
+                      Add #{customTag}
+                    </button>
+                  )}
+                  {filteredTagSuggestions.map((tag) => (
+                    <button
+                      type="button"
+                      key={tag}
+                      onClick={() => addTag(tag)}
+                      className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg"
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

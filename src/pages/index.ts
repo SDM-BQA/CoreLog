@@ -25,6 +25,7 @@ import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
 import Settings from "./(app)/(dashboard)/settings/Settings";
 import TargetPage from "./(app)/(dashboard)/target/TargetPage";
 import { Pricing } from "./(app)/Pricing";
+import ScreenTime from "./(app)/(dashboard)/screen-time/ScreenTime";
 const Pages = () => {
     return RouterProvider({ router });
 };
@@ -127,6 +128,10 @@ const router = createBrowserRouter([
             {
                 path: "target",
                 Component: TargetPage,
+            },
+            {
+                path: "screen-time",
+                Component: ScreenTime,
             },
         ],
     },

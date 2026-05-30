@@ -13,6 +13,7 @@ import {
   ScrollText,
   Target,
   Crown,
+  Smartphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../../@store/hooks/store.hooks";
@@ -31,6 +32,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
       { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
       { label: "Target", to: "/dashboard/target", icon: Target },
+      { label: "Screen Time", to: "/dashboard/screen-time", icon: Smartphone },
     ],
   },
 ];

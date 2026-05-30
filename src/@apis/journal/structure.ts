@@ -3,9 +3,31 @@ export const CREATE_JOURNAL_MUTATION = `
         create_journal(input: $input) {
             _id
             title
+            content
+            description
             date
+            time
             journal_type
             mood
+            location
+            location_address
+            location_city
+            location_lat
+            location_lng
+            photos
+            tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
+            is_favorite
             created_at
         }
     }
@@ -28,6 +50,17 @@ export const GET_MY_JOURNALS_QUERY = `
                 location_lng
                 photos
                 tags
+                template_blocks {
+                    id
+                    type
+                    title
+                    items {
+                        id
+                        amount
+                        note
+                        category
+                    }
+                }
                 date
                 time
                 is_favorite
@@ -81,7 +114,19 @@ export const GET_JOURNAL_QUERY = `
             photos
             video
             tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
             date
+            time
             is_favorite
             user_id
             created_at
@@ -106,7 +151,19 @@ export const UPDATE_JOURNAL_MUTATION = `
             location_lng
             photos
             tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
             date
+            time
             is_favorite
             updated_at
         }

@@ -4,6 +4,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Save,
+  Plus,
+  Trash2,
   Loader2,
   MapPin,
   Smile,
@@ -47,6 +49,13 @@ import LocationPickerMap from "../../../../@components/LocationPickerMap";
 import { toast } from "react-toast";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { JOURNAL_PREDEFINED_TAGS } from "../../../../constants/journalTags";
+import {
+  getExpenseBlocks,
+  resolveJournalTemplateBlocks,
+  stripJournalTemplateBlocks,
+  type JournalExpenseBlock,
+  type JournalTemplateBlock,
+} from "../../../../@utils/journalTemplateBlocks.utils";
 
 const JOURNAL_TYPES = [
   { value: "personal",  label: "Personal",  icon: User },
@@ -78,6 +87,115 @@ const MOODS = [
   { value: "neutral",     label: "Neutral",     emoji: "😐" },
   { value: "bad",         label: "Bad",         emoji: "😞" },
 ];
+
+type ExpenseDraftItem = {
+  id: string;
+  amount: string;
+  note: string;
+};
+
+const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const toExpenseDraft = (block: JournalExpenseBlock): ExpenseDraftItem[] =>
+  block.items.length
+    ? block.items.map((item) => ({ id: item.id || newId(), amount: String(item.amount || ""), note: item.note || "" }))
+    : [{ id: newId(), amount: "", note: "" }];
+
+const toExpenseBlock = (items: ExpenseDraftItem[]): JournalExpenseBlock | null => {
+  const cleanItems = items
+    .map((item) => ({
+      id: item.id,
+      amount: Number(item.amount),
+      note: item.note.trim(),
+    }))
+    .filter((item) => Number.isFinite(item.amount) && item.amount > 0 && item.note);
+
+  if (!cleanItems.length) return null;
+
+  return {
+    id: "expenses",
+    type: "expenses",
+    title: "Today expenses",
+    items: cleanItems,
+  };
+};
+
+const ExpensesBlockEditor = ({
+  items,
+  onChange,
+  onRemove,
+}: {
+  items: ExpenseDraftItem[];
+  onChange: (items: ExpenseDraftItem[]) => void;
+  onRemove: () => void;
+}) => {
+  const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const updateItem = (id: string, patch: Partial<ExpenseDraftItem>) => {
+    onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-bg p-3 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-text-primary text-xs font-bold">Today expenses</p>
+          <p className="text-text-secondary/60 text-[10px]">Template block</p>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="w-7 h-7 rounded-lg border border-border text-text-secondary hover:text-error hover:border-error/30 transition-colors flex items-center justify-center"
+          title="Remove expenses template"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <div key={item.id} className="grid grid-cols-[72px_minmax(0,1fr)_28px] gap-2">
+            <input
+              type="number"
+              min="0"
+              inputMode="decimal"
+              placeholder="₹"
+              value={item.amount}
+              onChange={(e) => updateItem(item.id, { amount: e.target.value })}
+              className="bg-surface border border-border rounded-lg px-2 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+            />
+            <input
+              type="text"
+              placeholder="lunch, gift, travel..."
+              value={item.note}
+              onChange={(e) => updateItem(item.id, { note: e.target.value })}
+              className="bg-surface border border-border rounded-lg px-2 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((x) => x.id !== item.id))}
+              className="rounded-lg border border-border text-text-secondary hover:text-error hover:border-error/30 transition-colors flex items-center justify-center"
+              title="Remove expense"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onChange([...items, { id: newId(), amount: "", note: "" }])}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80"
+        >
+          <Plus size={13} /> Add expense
+        </button>
+        <span className="text-xs font-bold text-text-primary">Total ₹{total}</span>
+      </div>
+    </div>
+  );
+};
 
 const TYPE_COLOR: Record<string, string> = {
   personal: "violet", plan: "blue",    finance: "emerald", travel: "amber",
@@ -458,6 +576,7 @@ const AddJournal = () => {
     is_favorite: false,
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [expenseItems, setExpenseItems] = useState<ExpenseDraftItem[] | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -498,6 +617,11 @@ const AddJournal = () => {
     setSelectedTags((prev) => prev.filter((t) => t !== tag));
   };
 
+  const templateBlocks: JournalTemplateBlock[] = (() => {
+    const expenseBlock = expenseItems ? toExpenseBlock(expenseItems) : null;
+    return expenseBlock ? [expenseBlock] : [];
+  })();
+
   useEffect(() => {
     if (!isEditMode || !existingJournal) return;
     setMeta((prev) => ({
@@ -516,8 +640,11 @@ const AddJournal = () => {
     }));
     setPhotos(existingJournal.photos ?? []);
     setSelectedTags((existingJournal.tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean));
+    const existingTemplateBlocks = resolveJournalTemplateBlocks(existingJournal);
+    const existingExpense = getExpenseBlocks(existingTemplateBlocks)[0];
+    setExpenseItems(existingExpense ? toExpenseDraft(existingExpense) : null);
     if (editorRef.current) {
-      editorRef.current.innerHTML = existingJournal.content ?? "";
+      editorRef.current.innerHTML = stripJournalTemplateBlocks(existingJournal.content ?? "");
       setIsEmpty(!editorRef.current.textContent?.trim());
     }
   }, [isEditMode, existingJournal]);
@@ -624,7 +751,7 @@ const AddJournal = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!meta.title.trim()) { toast.error("Title is required"); return; }
-    const content = editorRef.current?.innerHTML ?? "";
+    const content = stripJournalTemplateBlocks(editorRef.current?.innerHTML ?? "");
     if (!editorRef.current?.textContent?.trim()) { toast.error("Entry content is required"); return; }
     if (!meta.location_address.trim()) { toast.error("Full address is required"); return; }
     if (!meta.time) { toast.error("Time is required"); return; }
@@ -643,6 +770,7 @@ const AddJournal = () => {
         location_lng: meta.location_lng ? Number(meta.location_lng) : undefined,
         photos: photos.length ? photos : undefined,
         tags: selectedTags.length ? selectedTags : undefined,
+        template_blocks: templateBlocks,
         date: toISO(meta.date),
         time: meta.time,
         is_favorite: meta.is_favorite,
@@ -941,6 +1069,41 @@ const AddJournal = () => {
                   options={JOURNAL_TYPES.map(({ value, label, icon }) => ({ value, label, icon }))}
                   onChange={(val) => setM("journal_type", val)}
                 />
+              </div>
+
+              <div className="h-px bg-border" />
+
+              {/* Templates */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
+                    <Sparkles size={12} /> Templates
+                  </label>
+                  {!expenseItems && (
+                    <button
+                      type="button"
+                      onClick={() => setExpenseItems([{ id: newId(), amount: "", note: "" }])}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent text-[10px] font-bold hover:bg-accent/15 transition-colors"
+                    >
+                      <Plus size={11} /> Expenses
+                    </button>
+                  )}
+                </div>
+                {expenseItems ? (
+                  <ExpensesBlockEditor
+                    items={expenseItems}
+                    onChange={(items) => setExpenseItems(items.length ? items : [{ id: newId(), amount: "", note: "" }])}
+                    onRemove={() => setExpenseItems(null)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setExpenseItems([{ id: newId(), amount: "", note: "" }])}
+                    className="w-full rounded-xl border border-dashed border-border bg-bg/60 px-3 py-4 text-xs font-semibold text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Plus size={14} /> Add expenses template
+                  </button>
+                )}
               </div>
 
               <div className="h-px bg-border" />

@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
-import { formatDate, formatDayMonth } from "../../../../@utils/date.utils";
+import { formatDayMonth } from "../../../../@utils/date.utils";
 import { useGetJournalsListQuery, useGetJournalStreakQuery } from "../../../../@store/api/journal.api";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
@@ -193,7 +193,6 @@ const Journal = () => {
     return Object.entries(map).slice(-6);
   }, [journals]);
   const maxCount = Math.max(...writingByMonth.map(([, c]) => c), 1);
-
   useEffect(() => {
     const next = new URLSearchParams();
     if (view && view !== "feed") next.set("view", view);
@@ -215,7 +214,7 @@ const Journal = () => {
               {loading ? "Loading entries…" : `${journals.length} entr${journals.length === 1 ? "y" : "ies"} · Reflect, record, and remember.`}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
             {biometricSupported && !hasBiometric && (
               <button
                 onClick={handleRegisterBiometric}
@@ -230,7 +229,7 @@ const Journal = () => {
             <button
               onClick={() => setIsStreakModalOpen(true)}
               title="View writing streak"
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-400/35 rounded-xl text-sm font-bold text-orange-200 hover:from-orange-500/25 hover:to-amber-500/25 hover:border-orange-300/60 transition-colors shadow-lg shadow-orange-500/10"
+              className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-400/35 rounded-xl text-sm font-bold text-orange-200 hover:from-orange-500/25 hover:to-amber-500/25 hover:border-orange-300/60 transition-colors shadow-lg shadow-orange-500/10"
             >
               <Flame size={15} />
               <span className="hidden sm:inline">Streak{streakData?.current_streak ? ` ${streakData.current_streak}` : ""}</span>
@@ -238,14 +237,14 @@ const Journal = () => {
             <button
               onClick={lock}
               title="Lock journal"
-              className="flex items-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:border-accent/30 transition-colors"
+              className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:border-accent/30 transition-colors"
             >
               <Lock size={15} />
               <span className="hidden sm:inline">Lock</span>
             </button>
             <Link
               to="/dashboard/journal/add-entry"
-              className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-6 py-3 rounded-xl text-sm font-bold shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] w-fit"
+              className="shrink-0 inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-background px-4 sm:px-6 py-3 rounded-xl text-sm font-bold shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] whitespace-nowrap"
             >
               <Plus size={18} strokeWidth={3} />
               Write New Entry
@@ -254,10 +253,10 @@ const Journal = () => {
         </div>
 
         {/* ── Layout Grid ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start">
 
           {/* ── Sidebar ── */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
+          <div className="order-3 lg:order-2 lg:col-span-3 flex flex-col gap-6 lg:sticky lg:top-6 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto custom-scrollbar">
 
             {/* View switcher — vertical list on desktop, compact icon cards on mobile */}
             <div className="bg-surface border border-border rounded-2xl p-2">
@@ -311,32 +310,35 @@ const Journal = () => {
                 options={Object.keys(TYPE_MAP) as string[]}
                 selected={selectedType ? [selectedType] : []}
                 onSelect={(val) => setSelectedType(selectedType === val ? null : val)}
+                renderSelectedLabel={() => (selectedType ? `Type: ${TYPE_MAP[selectedType]?.label ?? selectedType}` : "Filter by Type")}
                 renderOption={(val) => TYPE_MAP[val]?.label ?? val}
               />
             </div>
 
-            <div className="hidden lg:flex bg-surface border border-border rounded-2xl p-4 flex-col gap-3">
-              <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Filter by Type</p>
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => setSelectedType(null)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${!selectedType ? "bg-accent/10 text-accent" : "text-text-secondary hover:text-text-primary hover:bg-bg"}`}
-                >
-                  All types
-                </button>
-                {Object.entries(TYPE_MAP).map(([val, { icon: Icon, label, badge }]) => (
-                  <button
-                    key={val}
-                    onClick={() => setSelectedType(selectedType === val ? null : val)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${
-                      selectedType === val ? `${badge} border-current` : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg"
-                    }`}
-                  >
-                    <Icon size={11} />
-                    {label}
-                  </button>
-                ))}
-              </div>
+            <div className="hidden lg:block">
+              <FilterDropdown
+                label="Filter by Type"
+                fullWidth
+                options={["all", ...(Object.keys(TYPE_MAP) as string[])]}
+                selected={selectedType ? [selectedType] : []}
+                onSelect={(val) => {
+                  if (val === "all") setSelectedType(null);
+                  else setSelectedType(selectedType === val ? null : val);
+                }}
+                renderSelectedLabel={() => (selectedType ? `Type: ${TYPE_MAP[selectedType]?.label ?? selectedType}` : "Filter by Type")}
+                renderOption={(val) => {
+                  if (val === "all") return "All types";
+                  const t = TYPE_MAP[val];
+                  if (!t) return val;
+                  const Icon = t.icon;
+                  return (
+                    <span className="inline-flex items-center gap-2">
+                      <Icon size={12} />
+                      {t.label}
+                    </span>
+                  );
+                }}
+              />
             </div>
 
             {/* Mood summary */}
@@ -365,7 +367,7 @@ const Journal = () => {
               </div>
             )}
 
-            {/* Quote — desktop only (mobile version is rendered after main content) */}
+            {/* Quote — desktop only */}
             <div className="hidden lg:block bg-gradient-to-br from-surface to-bg border border-border rounded-2xl p-6 relative overflow-hidden group">
               <Quote className="absolute -top-2 -right-2 text-accent/5 opacity-20" size={100} />
               <div className="relative z-10">
@@ -381,7 +383,7 @@ const Journal = () => {
           </div>
 
           {/* ── Main Content ── */}
-          <div className="lg:col-span-9 flex flex-col gap-6">
+          <div className="order-1 lg:order-1 lg:col-span-9 flex flex-col gap-6 lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
 
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-3">
@@ -403,6 +405,7 @@ const Journal = () => {
                 <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
 
             {/* Loading */}
             {loading && (
@@ -463,9 +466,9 @@ const Journal = () => {
 
                       return (
                         <Link key={entry._id} to={`/dashboard/journal/${entry._id}`} className="group bg-surface border border-border rounded-2xl overflow-hidden hover:border-accent/30 transition-all shadow-sm block">
-                          <div className="p-5 sm:p-7 flex gap-5">
+                          <div className="p-5 sm:p-7 flex flex-col sm:flex-row gap-4 sm:gap-5">
                             {/* Date column */}
-                            <div className="shrink-0 flex flex-col items-center gap-2 w-10 text-center">
+                            <div className="hidden sm:flex shrink-0 flex-col items-center gap-2 w-10 text-center">
                               <span className="text-text-secondary text-[9px] font-bold uppercase tracking-wider leading-none">
                                 {formatDayMonth(entry.date).split(" ")[1]}
                               </span>
@@ -478,7 +481,16 @@ const Journal = () => {
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-2">
+                            <div className="order-1 sm:order-none flex-1 min-w-0 flex flex-col gap-2">
+                              <div className="sm:hidden flex items-center gap-2 text-[11px] text-text-secondary/80 font-semibold uppercase tracking-wide">
+                                <span>{formatDayMonth(entry.date)}</span>
+                                {(entry as Journal & { time?: string }).time && (
+                                  <>
+                                    <span className="opacity-40">•</span>
+                                    <span>{fmt12h((entry as Journal & { time?: string }).time)}</span>
+                                  </>
+                                )}
+                              </div>
                               <div className="flex items-start justify-between gap-3">
                                 <h3 className="text-text-primary text-base sm:text-lg font-bold leading-tight group-hover:text-accent transition-colors line-clamp-1">
                                   {entry.title}
@@ -525,7 +537,7 @@ const Journal = () => {
                             </div>
 
                             {/* Right column — type badge + photo grid */}
-                            <div className="shrink-0 flex flex-col items-end gap-2 min-w-[80px]">
+                            <div className="order-2 sm:order-none shrink-0 flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
                               {/* Type badge */}
                               <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${type.badge}`}>
                                 <TypeIcon size={9} />
@@ -540,41 +552,75 @@ const Journal = () => {
 
                                 // 1 photo — full square
                                 if (count === 1) return (
-                                  <div className="w-[76px] h-[76px] rounded-lg overflow-hidden">
+                                  <div className="w-full h-28 sm:w-[76px] sm:h-[76px] rounded-lg overflow-hidden">
                                     <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
                                   </div>
                                 );
 
                                 // 2 photos — side by side
                                 if (count === 2) return (
-                                  <div className="flex gap-0.5 w-[76px] h-[76px]">
+                                  <div className="grid grid-cols-2 gap-0.5 w-full h-28 sm:w-[76px] sm:h-[76px]">
                                     {photos.slice(0, 2).map((p: string, i: number) => (
-                                      <div key={i} className="flex-1 overflow-hidden rounded-sm">
+                                      <div key={i} className="overflow-hidden rounded-sm">
                                         <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
                                       </div>
                                     ))}
                                   </div>
                                 );
 
-                                // 3 photos — one left, two stacked right
+                                // 3 photos
                                 if (count === 3) return (
-                                  <div className="flex gap-0.5 w-[76px] h-[76px]">
-                                    <div className="flex-1 overflow-hidden rounded-sm">
-                                      <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 flex flex-col gap-0.5">
-                                      {photos.slice(1, 3).map((p: string, i: number) => (
-                                        <div key={i} className="flex-1 overflow-hidden rounded-sm">
+                                  <>
+                                    <div className="grid grid-cols-3 gap-0.5 w-full h-28 sm:hidden">
+                                      {photos.slice(0, 3).map((p: string, i: number) => (
+                                        <div key={i} className="overflow-hidden rounded-sm">
                                           <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
                                         </div>
                                       ))}
                                     </div>
-                                  </div>
+                                    <div className="hidden sm:flex gap-0.5 w-[76px] h-[76px]">
+                                      <div className="flex-1 overflow-hidden rounded-sm">
+                                        <img src={get_full_image_url(photos[0], "user")} alt="" className="w-full h-full object-cover" />
+                                      </div>
+                                      <div className="flex-1 flex flex-col gap-0.5">
+                                        {photos.slice(1, 3).map((p: string, i: number) => (
+                                          <div key={i} className="flex-1 overflow-hidden rounded-sm">
+                                            <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+
+                                // 4 photos
+                                if (count === 4) return (
+                                  <>
+                                    <div className="grid grid-cols-4 gap-0.5 w-full h-28 sm:hidden">
+                                      {photos.slice(0, 4).map((p: string, i: number) => (
+                                        <div key={i} className="relative overflow-hidden rounded-sm">
+                                          <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                          {i === 3 && extra > 0 && (
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                              <span className="text-white text-[10px] font-bold">+{extra}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="hidden sm:grid grid-cols-2 gap-0.5 w-[76px] h-[76px]">
+                                      {photos.slice(0, 4).map((p: string, i: number) => (
+                                        <div key={i} className="relative overflow-hidden rounded-sm">
+                                          <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
                                 );
 
                                 // 4+ photos — 2×2 grid, +N on last
                                 return (
-                                  <div className="grid grid-cols-2 gap-0.5 w-[76px] h-[76px]">
+                                  <div className="hidden sm:grid grid-cols-2 gap-0.5 w-[76px] h-[76px]">
                                     {photos.slice(0, 4).map((p: string, i: number) => (
                                       <div key={i} className="relative overflow-hidden rounded-sm">
                                         <img src={get_full_image_url(p, "user")} alt="" className="w-full h-full object-cover" />
@@ -752,21 +798,8 @@ const Journal = () => {
             {!loading && !error && view === "map" && (
               <JournalMapView journals={journals as Journal[]} />
             )}
-
-          </div>
-
-          {/* Quote — mobile only, shown after main content */}
-          <div className="lg:hidden bg-gradient-to-br from-surface to-bg border border-border rounded-2xl p-6 relative overflow-hidden">
-            <Quote className="absolute -top-2 -right-2 text-accent/5 opacity-20" size={100} />
-            <div className="relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
-                <Quote size={14} className="text-accent" />
-              </div>
-              <p className="text-text-primary text-sm italic leading-relaxed">
-                "Journaling is like whispering to oneself and listening at the same time."
-              </p>
-              <p className="text-text-secondary text-[10px] mt-3 font-bold uppercase tracking-widest">— Mina Murray</p>
             </div>
+
           </div>
         </div>
       </div>
@@ -781,3 +814,5 @@ const Journal = () => {
 };
 
 export default Journal;
+
+

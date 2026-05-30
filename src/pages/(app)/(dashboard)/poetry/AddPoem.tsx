@@ -23,6 +23,7 @@ import { toISO } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
 import CalendarInput from "../../../../@components/@ui/CalendarInput";
 import { toast } from "react-toast";
+import { POETRY_PREDEFINED_TAGS } from "../../../../constants/poetryTags";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -95,10 +96,31 @@ const AddPoem = () => {
     mood: "",
     atmosphere: "",
     status: "draft",
-    tags: "",
     cover_image: "",
     created_at: new Date().toISOString().split('T')[0],
   });
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+
+  const normalizeTag = (raw: string) => raw.replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, "_");
+  const filteredTagSuggestions = POETRY_PREDEFINED_TAGS
+    .filter((t) => !selectedTags.includes(t))
+    .filter((t) => !tagInput.trim() || t.includes(normalizeTag(tagInput)));
+  const customTag = normalizeTag(tagInput);
+  const canAddCustomTag = !!customTag && !selectedTags.includes(customTag) && !POETRY_PREDEFINED_TAGS.includes(customTag);
+
+  const addTag = (raw: string) => {
+    const next = normalizeTag(raw);
+    if (!next || selectedTags.includes(next)) return;
+    setSelectedTags((prev) => [...prev, next]);
+    setTagInput("");
+    setShowTagSuggestions(false);
+  };
+
+  const removeTag = (tag: string) => {
+    setSelectedTags((prev) => prev.filter((t) => t !== tag));
+  };
 
   const set = (key: keyof typeof formData, value: string) =>
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -133,7 +155,7 @@ const AddPoem = () => {
         poem_type: formData.poem_type,
         mood: formData.mood || undefined,
         atmosphere: formData.atmosphere || undefined,
-        tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: selectedTags.length ? selectedTags : undefined,
         cover_image: formData.cover_image || undefined,
         status: formData.status,
         created_at: formData.created_at ? toISO(formData.created_at) : undefined,
@@ -309,19 +331,63 @@ const AddPoem = () => {
                   icon={Wind}
                 />
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative">
                   <label className="text-text-secondary text-[10px] font-black uppercase tracking-tighter flex items-center gap-2">
                     <Hash size={12} />
                     Tags
                   </label>
-                  <input
-                    type="text"
-                    placeholder="love, night, solitude..."
-                    value={formData.tags}
-                    onChange={(e) => set("tags", e.target.value)}
-                    className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none focus:border-amber-500/50 transition-colors"
-                  />
-                  <p className="text-text-secondary/40 text-[10px] pl-1">Comma separated</p>
+                  <div
+                    className="w-full bg-bg border border-border rounded-lg px-3 py-2 min-h-[42px] flex flex-wrap items-center gap-2 focus-within:border-amber-500/50 transition-colors"
+                    onClick={() => setShowTagSuggestions(true)}
+                  >
+                    {selectedTags.map((tag) => (
+                      <span key={tag} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/30 text-[10px] text-accent">
+                        #{tag}
+                        <button type="button" onClick={() => removeTag(tag)} className="text-accent/80 hover:text-accent">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={tagInput}
+                      onChange={(e) => { setTagInput(e.target.value); setShowTagSuggestions(true); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "," || e.key === " ") {
+                          e.preventDefault();
+                          if (tagInput.trim()) addTag(tagInput);
+                        } else if (e.key === "Backspace" && !tagInput && selectedTags.length) {
+                          removeTag(selectedTags[selectedTags.length - 1]);
+                        }
+                      }}
+                      onFocus={() => setShowTagSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowTagSuggestions(false), 120)}
+                      placeholder={selectedTags.length ? "Add more tags..." : "Type tag and press Space/Enter"}
+                      className="flex-1 min-w-[120px] bg-transparent text-xs text-text-primary placeholder:text-text-secondary/40 focus:outline-none"
+                    />
+                  </div>
+                  {showTagSuggestions && (filteredTagSuggestions.length > 0 || canAddCustomTag) && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[50] rounded-xl border border-border bg-surface shadow-2xl overflow-hidden max-h-44 overflow-y-auto">
+                      {canAddCustomTag && (
+                        <button
+                          type="button"
+                          onClick={() => addTag(customTag)}
+                          className="w-full text-left px-3 py-2 text-xs text-accent hover:bg-bg"
+                        >
+                          Add #{customTag}
+                        </button>
+                      )}
+                      {filteredTagSuggestions.map((tag) => (
+                        <button
+                          type="button"
+                          key={tag}
+                          onClick={() => addTag(tag)}
+                          className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:bg-bg"
+                        >
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <Select
@@ -361,4 +427,3 @@ const AddPoem = () => {
 };
 
 export default AddPoem;
-

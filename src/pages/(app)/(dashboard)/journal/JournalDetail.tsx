@@ -21,6 +21,12 @@ import { toast } from "react-toast";
 import { useDeleteJournalMutation, useGetJournalByIdQuery, useGetJournalFiltersQuery, useUpdateJournalMutation } from "../../../../@store/api/journal.api";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { JOURNAL_PREDEFINED_TAGS } from "../../../../constants/journalTags";
+import {
+  getExpenseBlocks,
+  getExpenseTotal,
+  resolveJournalTemplateBlocks,
+  stripJournalTemplateBlocks,
+} from "../../../../@utils/journalTemplateBlocks.utils";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string; bg: string }> = {
@@ -149,7 +155,7 @@ const JournalDetail = () => {
     setEditData({
     title:        j.title,
     description:  j.description ?? "",
-    content:      j.content,
+    content:      stripJournalTemplateBlocks(j.content),
     journal_type: j.journal_type,
     mood:         j.mood ?? "",
     location:     j.location ?? "",
@@ -199,7 +205,7 @@ const JournalDetail = () => {
         input: {
           title:        editData.title.trim(),
           description:  editData.description || undefined,
-          content:      editData.content,
+          content:      stripJournalTemplateBlocks(editData.content),
           journal_type: editData.journal_type,
           mood:         editData.mood || undefined,
           location:     editData.location,
@@ -212,6 +218,7 @@ const JournalDetail = () => {
           time:         editData.time || undefined,
           is_favorite:  editData.is_favorite,
           photos:       editPhotos.length ? editPhotos : undefined,
+          template_blocks: templateBlocks,
         }
       }).unwrap();
       toast.success("Entry updated");
@@ -301,7 +308,10 @@ const JournalDetail = () => {
   const type    = TYPE_MAP[journal.journal_type] ?? TYPE_MAP.other;
   const mood    = journal.mood ? MOOD_MAP[journal.mood] : null;
   const TypeIcon = type.icon;
-  const words   = wordCount(journal.content);
+  const templateBlocks = resolveJournalTemplateBlocks(journal);
+  const expenseBlocks = getExpenseBlocks(templateBlocks);
+  const visibleContent = stripJournalTemplateBlocks(journal.content);
+  const words   = wordCount(visibleContent);
   const hasPhotos = journal.photos?.length > 0;
 
   return (
@@ -374,17 +384,17 @@ const JournalDetail = () => {
       </div>
 
       {/* ── Body ── */}
-      <div className="w-full max-w-[1100px] mx-auto px-4 sm:px-8 py-8 flex flex-col gap-8">
+      <div className="w-full max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-4 py-8 flex flex-col gap-8">
 
         {/* Description */}
         {journal.description && (
           <p className="text-text-secondary text-base italic border-l-2 border-accent/40 pl-4">{journal.description}</p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
           {/* ── Sidebar ── */}
-          <aside className="order-2 md:order-none md:col-span-4 flex flex-col gap-5">
+          <aside className="order-3 lg:order-1 lg:col-span-3 xl:col-span-3 flex flex-col gap-5">
 
             {/* Meta card */}
             <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
@@ -420,18 +430,25 @@ const JournalDetail = () => {
                   <div>
                     <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Location</p>
                     <p className="text-text-primary text-sm font-semibold mt-0.5">{journal.location}</p>
-                    {journal.location_address && (
-                      <p className="text-text-secondary text-xs mt-1 leading-relaxed">{journal.location_address}</p>
-                    )}
                     {journal.location_lat && journal.location_lng && (
-                      <a
-                        href={`https://www.openstreetmap.org/?mlat=${journal.location_lat}&mlon=${journal.location_lng}#map=13/${journal.location_lat}/${journal.location_lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent text-xs font-semibold mt-1 inline-block hover:underline"
-                      >
-                        Open on map
-                      </a>
+                      <>
+                        <div className="mt-2 rounded-xl overflow-hidden border border-border bg-bg">
+                          <iframe
+                            title="Journal location map"
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${journal.location_lng - 0.01}%2C${journal.location_lat - 0.01}%2C${journal.location_lng + 0.01}%2C${journal.location_lat + 0.01}&layer=mapnik&marker=${journal.location_lat}%2C${journal.location_lng}`}
+                            className="w-full h-32"
+                            loading="lazy"
+                          />
+                        </div>
+                        <a
+                          href={`https://www.openstreetmap.org/?mlat=${journal.location_lat}&mlon=${journal.location_lng}#map=13/${journal.location_lat}/${journal.location_lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-accent text-xs font-semibold mt-1 inline-block hover:underline"
+                        >
+                          Open on map
+                        </a>
+                      </>
                     )}
                   </div>
                 </div>
@@ -477,6 +494,26 @@ const JournalDetail = () => {
               </div>
             </div>
 
+            {/* Expenses */}
+            {expenseBlocks.length > 0 && (
+              <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Expenses</p>
+                  <span className="text-text-primary text-sm font-black">
+                    ₹{expenseBlocks.reduce((sum, block) => sum + getExpenseTotal(block), 0)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {expenseBlocks.flatMap((block) => block.items).map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl bg-bg px-3 py-2">
+                      <span className="text-text-secondary text-xs leading-relaxed">{item.note}</span>
+                      <span className="text-text-primary text-xs font-bold shrink-0">₹{item.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Tags */}
             {journal.tags?.length > 0 && (
               <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-3">
@@ -513,23 +550,26 @@ const JournalDetail = () => {
           </aside>
 
           {/* ── Main content ── */}
-          <main className="order-1 md:order-none md:col-span-8 flex flex-col gap-6">
+          <main className="order-1 lg:order-2 lg:col-span-7 xl:col-span-7 flex flex-col gap-6">
 
             {/* HTML Content */}
             <div className="bg-surface border border-border rounded-3xl p-7 sm:p-10 min-h-[300px] shadow-sm">
               <div
                 className="journal-detail-content text-text-primary text-sm sm:text-base leading-[1.9]"
-                dangerouslySetInnerHTML={{ __html: journal.content }}
+                dangerouslySetInnerHTML={{ __html: visibleContent }}
               />
             </div>
 
-            {/* Photo grid */}
+          </main>
+
+          {/* Right photo column */}
+          <aside className="order-2 lg:order-3 lg:col-span-2 xl:col-span-2 flex flex-col gap-5">
             {hasPhotos && (
               <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
                 <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                   <ImageIcon size={11} /> Photos · {journal.photos.length}
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2">
                   {journal.photos.map((photo, idx) => (
                     <button
                       key={idx}
@@ -546,7 +586,7 @@ const JournalDetail = () => {
                 </div>
               </div>
             )}
-          </main>
+          </aside>
         </div>
       </div>
 
@@ -826,3 +866,5 @@ const JournalDetail = () => {
 };
 
 export default JournalDetail;
+
+
