@@ -396,23 +396,23 @@ const SeriesDetail = () => {
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
-      <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-4 sm:py-6">
         
         {/* Back Button */}
         <button
           onClick={() => navigate("/dashboard/series")}
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-semibold mb-8 transition-all group"
+          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-semibold mb-4 transition-all group"
         >
           <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
           Back to collection
         </button>
 
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row gap-8 lg:gap-12 mb-12">
+        <div className="relative overflow-hidden rounded-lg border border-border bg-surface/40 p-4 sm:p-6 flex flex-col md:flex-row gap-5 lg:gap-8 mb-6">
           
           {/* Poster Section */}
-          <div className="w-full sm:w-[240px] lg:w-[280px] shrink-0">
-            <div className="relative group aspect-[2/3] rounded-2xl overflow-hidden bg-surface border border-border shadow-2xl">
+          <div className="w-[150px] sm:w-[190px] lg:w-[220px] mx-auto md:mx-0 shrink-0">
+            <div className="relative group aspect-[2/3] rounded-lg overflow-hidden bg-surface border border-border shadow-2xl">
               <img
                 src={get_full_image_url(series.poster_image, "series")}
                 alt={series.title}
@@ -421,7 +421,7 @@ const SeriesDetail = () => {
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-white/30 transition-all"
+                  className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white/30 transition-all"
                 >
                   Change Poster
                 </button>
@@ -436,9 +436,11 @@ const SeriesDetail = () => {
           </div>
 
           {/* Info Section */}
-          <div className="flex-1 min-w-0 flex flex-col pt-2">
+          <div className="flex-1 min-w-0 flex flex-col justify-center pt-0">
+            <div className="grid grid-cols-1 gap-6 items-center">
+              <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-2">
-              <h1 className="text-text-primary text-3xl sm:text-4xl font-bold tracking-tight font-inter leading-tight">
+              <h1 className="text-text-primary text-3xl sm:text-5xl font-bold tracking-tight font-inter leading-tight">
                 {series.title}
               </h1>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-current opacity-80 ${STATUS_COLORS[series.status]}`}>
@@ -446,7 +448,7 @@ const SeriesDetail = () => {
               </span>
             </div>
 
-            <div className="flex items-center justify-center sm:justify-start gap-4 text-text-primary text-lg font-medium mb-6">
+            <div className="flex items-center justify-center sm:justify-start gap-4 text-text-primary text-sm sm:text-base font-medium mb-5">
               <div className="flex items-center gap-2">
                 <Globe size={18} className="text-text-secondary" />
                 <span className="capitalize">{get_language_name(series.language)}</span>
@@ -458,7 +460,7 @@ const SeriesDetail = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-5">
               <Select
                 value={series.status}
                 options={STATUS_OPTIONS}
@@ -484,9 +486,12 @@ const SeriesDetail = () => {
                 Delete
               </button>
             </div>
+              </div>
+
+            </div>
 
             {/* Meta Grid */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-4 sm:gap-6 text-sm text-text-secondary bg-surface/50 p-4 rounded-xl border border-border/50">
+            <div className="grid grid-cols-2 items-center gap-x-10 gap-y-4 text-sm text-text-secondary bg-bg/60 p-4 rounded-lg border border-border/50">
               <div className="flex flex-col gap-1">
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Rating</span>
                 <div className="flex items-center gap-1.5">
@@ -578,11 +583,9 @@ const SeriesDetail = () => {
           </div>
         </div>
 
-        {/* Separator Divider */}
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent my-4 opacity-50" />
-
         {/* Synopsis & Review Sections */}
-        <div className="grid grid-cols-1 gap-12">
+        <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-6">
           {/* Synopsis */}
           <section>
             <div className="flex items-center justify-between mb-4 group/header">
@@ -646,6 +649,78 @@ const SeriesDetail = () => {
               onPremiumLockedClick={() => setIsPremiumPromptOpen(true)}
             />
           )}
+          </div>
+
+          <aside className="hidden">
+            <div className="bg-surface border border-border rounded-lg p-4">
+              <h2 className="text-text-primary text-sm font-bold mb-4 flex items-center gap-2">
+                <Clapperboard size={16} className="text-accent" />
+                Quick Facts
+              </h2>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Rating</p>
+                  <p className="text-text-primary font-semibold mt-1 flex items-center gap-1.5">
+                    <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                    {series.rating.toFixed(1)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Released</p>
+                  <p className="text-text-primary font-semibold mt-1">{series.release_year}</p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Seasons</p>
+                  <p className="text-text-primary font-semibold mt-1">
+                    {series.seasons_watched > 0 && series.seasons_watched < series.seasons ? `${series.seasons_watched} / ${series.seasons}` : series.seasons}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Episodes</p>
+                  <p className="text-text-primary font-semibold mt-1">{series.episodes || 0}</p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Platform</p>
+                  <p className="text-text-primary font-semibold mt-1 capitalize">{series.platform || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-text-secondary text-[11px] uppercase font-semibold">Added</p>
+                  <p className="text-text-primary font-semibold mt-1">{formatDate(series.created_at || Date.now())}</p>
+                </div>
+                {(series.status === "watching" || series.status === "watched" || series.status === "rewatching" || series.status === "not_finished") && series.started_from && (
+                  <div>
+                    <p className="text-text-secondary text-[11px] uppercase font-semibold">Started</p>
+                    <p className="text-text-primary font-semibold mt-1">{formatDate(series.started_from)}</p>
+                  </div>
+                )}
+                {series.finished_on && (series.status === "watched" || series.status === "rewatching") && (
+                  <div>
+                    <p className="text-text-secondary text-[11px] uppercase font-semibold">Finished</p>
+                    <p className="text-text-primary font-semibold mt-1">{formatDate(series.finished_on)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {series.genres && series.genres.length > 0 && (
+              <div className="bg-surface border border-border rounded-lg p-4">
+                <h2 className="text-text-primary text-sm font-bold mb-3 flex items-center gap-2">
+                  <Tag size={16} className="text-accent" />
+                  Genres
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {series.genres.map(g => (
+                    <span
+                      key={g}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg bg-bg border border-border text-text-secondary"
+                    >
+                      {get_genre_display(g)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
       </div>
 

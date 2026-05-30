@@ -5,6 +5,7 @@ import {
   Plus,
   X,
   NotebookPen,
+  PlayCircle,
   Flame,
   CheckCircle2,
   Trash2,
@@ -55,6 +56,7 @@ const MediaLog = ({
   const isCompleted = sortedLogs.length > 0 && total > 0 && clampedPosition >= total;
 
   const [formOpen, setFormOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ date: "", position: "", note: "" });
@@ -93,13 +95,244 @@ const MediaLog = ({
 
   const unitPlural = `${unitLabel}s`;
   const remainingCount = total ? Math.max(0, total - clampedPosition) : 0;
+  const recentLogs = [...sortedLogs].reverse();
+  const visibleLogs = showAll ? recentLogs : recentLogs.slice(0, 3);
+  const firstLog = sortedLogs[0];
+  const latestLog = recentLogs[0];
+
+  if (unitLabel === "page" || unitLabel === "episode") {
+    const isReading = unitLabel === "page";
+    const logTitle = isReading ? "Reading Log" : "Watch Log";
+    const newUpdateLabel = isReading ? "New Reading Update" : "New Session";
+    const uptoLabel = isReading ? "Read up to page" : "Watched up to episode";
+    const unitTitle = isReading ? "Page" : "Episode";
+    const emptyTitle = isReading ? "No reading progress yet" : "No watch progress yet";
+    const emptySub = isReading
+      ? "Use Log to add your next reading update."
+      : "Use Log to add your next watch update.";
+    return (
+      <section className="bg-surface border border-border rounded-lg overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-border/70">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-text-primary text-base font-bold flex items-center gap-2">
+                <TrendingUp size={18} className="text-text-secondary" />
+                {logTitle}
+              </h2>
+              <p className="text-text-secondary text-xs mt-1">
+                {logs.length > 0
+                  ? `${logs.length} update${logs.length !== 1 ? "s" : ""} recorded`
+                  : "No progress logged yet"}
+              </p>
+            </div>
+
+            {isActive && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={openForm}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                    isPremiumLocked
+                      ? "bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+                      : "bg-bg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30"
+                  }`}
+                >
+                  {isPremiumLocked ? <Crown size={13} /> : <Plus size={13} />}
+                  {isReading ? "Log" : "Log Session"}
+                  {isPremiumLocked && (
+                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 border border-amber-500/30">
+                      Pro
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={onFinish}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                >
+                  <CheckCircle2 size={13} />
+                  Finished
+                </button>
+              </div>
+            )}
+          </div>
+
+          {total > 0 && (
+            <div className="mt-4 rounded-lg bg-bg/70 border border-border p-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-text-primary text-sm font-bold">
+                  {unitTitle} {clampedPosition} <span className="text-text-secondary font-normal">of {total}</span>
+                </span>
+                <span className="text-accent text-sm font-bold">{progressPct}%</span>
+              </div>
+              <div className="relative w-full h-2 bg-border/50 rounded-full overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-700"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-text-secondary">
+                <span className="flex items-center gap-1.5">{unitIcon}{remainingCount} {unitPlural} remaining</span>
+                {recentLogs[0] && <span>Last: {formatDate(recentLogs[0].date)}</span>}
+              </div>
+              {firstLog && latestLog && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+                    <div className="flex items-center gap-1.5 text-blue-400 text-[10px] font-bold uppercase">
+                      <PlayCircle size={12} />
+                      Started
+                    </div>
+                    <p className="mt-1 text-text-primary text-xs font-semibold">
+                      {unitTitle} {firstLog.position}
+                    </p>
+                    <p className="text-text-secondary text-[11px]">{formatDate(firstLog.date)}</p>
+                  </div>
+                  <div className={`rounded-lg border px-3 py-2 ${isCompleted ? "border-emerald-500/25 bg-emerald-500/10" : "border-accent/25 bg-accent/10"}`}>
+                    <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase ${isCompleted ? "text-emerald-400" : "text-accent"}`}>
+                      {isCompleted ? <CheckCircle2 size={12} /> : <NotebookPen size={12} />}
+                      {isCompleted ? "Finished" : "Current"}
+                    </div>
+                    <p className="mt-1 text-text-primary text-xs font-semibold">
+                      {unitTitle} {latestLog.position}
+                    </p>
+                    <p className="text-text-secondary text-[11px]">{formatDate(latestLog.date)}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {isActive && formOpen && (
+          <div className="p-4 border-b border-border/70 bg-bg/35">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-text-primary text-sm font-semibold flex items-center gap-2">
+                <NotebookPen size={15} className="text-accent" /> {newUpdateLabel}
+              </span>
+              <button onClick={() => setFormOpen(false)} className="text-text-secondary hover:text-text-primary p-1 rounded-lg hover:bg-surface transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[150px_180px_minmax(0,1fr)_auto] gap-2">
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
+                className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:outline-none focus:border-accent"
+              />
+              <input
+                type="number"
+                min={clampedPosition + 1}
+                max={total || undefined}
+                placeholder={clampedPosition > 0 ? `> ${clampedPosition}` : unitTitle}
+                value={form.position}
+                onChange={e => { setForm(f => ({ ...f, position: e.target.value })); setError(""); }}
+                className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:outline-none focus:border-accent"
+              />
+              <input
+                type="text"
+                placeholder="Short note..."
+                value={form.note}
+                onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm placeholder:text-text-secondary/40 focus:outline-none focus:border-accent"
+              />
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-accent hover:bg-accent/90 text-background transition-colors disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+            {error && (
+              <p className="mt-2 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+          </div>
+        )}
+
+        {logs.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className="text-text-secondary/60 text-sm font-medium">{emptyTitle}</p>
+            {isActive && (
+              <p className="text-text-secondary/40 text-xs mt-1">{emptySub}</p>
+            )}
+          </div>
+        ) : (
+          <div className="divide-y divide-border/60">
+            {isCompleted && (
+              <div className="px-4 py-3 bg-emerald-500/10 text-emerald-400 text-sm font-semibold flex items-center gap-2">
+                <CheckCircle2 size={15} />
+                {completedLabel}
+              </div>
+            )}
+            {visibleLogs.map((log, i) => {
+              const isLatest = i === 0;
+              const isFirst = firstLog?._id === log._id;
+              return (
+                <div key={log._id} className="px-4 py-3 flex items-start gap-3 group">
+                  <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
+                    isCompleted && isLatest ? "bg-emerald-400" : isLatest ? "bg-accent" : isFirst ? "bg-blue-400" : "bg-border"
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-text-primary text-sm font-semibold">{unitTitle} {log.position}</span>
+                      <span className="text-text-secondary text-xs">{formatDate(log.date)}</span>
+                      {isFirst && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">
+                          <PlayCircle size={10} />
+                          Started
+                        </span>
+                      )}
+                      {isLatest && isCompleted && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 size={10} />
+                          Finished
+                        </span>
+                      )}
+                      {isLatest && !isCompleted && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                          <NotebookPen size={10} />
+                          Current
+                        </span>
+                      )}
+                    </div>
+                    {log.note && (
+                      <p className="mt-1 text-text-secondary text-xs leading-relaxed line-clamp-1">{log.note}</p>
+                    )}
+                  </div>
+                  {isActive && (
+                    <button
+                      onClick={() => onDelete(log._id)}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-text-secondary/40 hover:text-rose-400 transition-all p-1.5 rounded-lg hover:bg-rose-500/5 shrink-0"
+                      aria-label="Delete log"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {recentLogs.length > 3 && (
+              <button
+                type="button"
+                onClick={() => setShowAll((value) => !value)}
+                className="w-full px-4 py-3 text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg/40 transition-colors"
+              >
+                {showAll ? "Show recent only" : `Show ${recentLogs.length - 3} older update${recentLogs.length - 3 !== 1 ? "s" : ""}`}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section>
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-text-primary text-lg font-bold flex items-center gap-2">
           <TrendingUp size={20} className="text-text-secondary" />
-          {unitLabel === "page" ? "Reading Log" : "Watch Log"}
+          Watch Log
         </h2>
         {isActive && (
           <div className="flex items-center gap-2">
@@ -137,7 +370,7 @@ const MediaLog = ({
               <NotebookPen size={14} /> Progress
             </span>
             <span className="text-text-primary text-sm font-bold">
-              {unitLabel === "page" ? "Page" : "Episode"} {clampedPosition}{" "}
+              Episode {clampedPosition}{" "}
               <span className="text-text-secondary font-normal">of {total}</span>
             </span>
           </div>
@@ -184,7 +417,7 @@ const MediaLog = ({
               </div>
               <div>
                 <label className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70 mb-1.5 block">
-                  {unitLabel === "page" ? "Read up to page" : "Watched up to episode"}
+                  Watched up to episode
                   {total ? <span className="font-normal opacity-50 ml-1">/ {total}</span> : null}
                 </label>
                 <input type="number" min={clampedPosition + 1} max={total || undefined}
@@ -270,7 +503,7 @@ const MediaLog = ({
                           )}
                         </div>
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent/10 px-2.5 py-1 rounded-full">
-                          {unitLabel === "page" ? `Up to page ${log.position}` : `Up to episode ${log.position}`}
+                          {`Up to episode ${log.position}`}
                         </span>
                         {log.note && (
                           <p className="mt-2.5 text-text-secondary text-xs leading-relaxed italic border-l-2 border-accent/30 pl-3">

@@ -250,22 +250,22 @@ const BooksList = () => {
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-4 sm:py-8 flex flex-col">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-5 flex flex-col">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between mb-3 sm:mb-6">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
           <div>
             <h1 className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight font-inter">
               My Collection
             </h1>
-            <p className="text-text-secondary text-sm mt-1 hidden sm:block">
+            <p className="text-text-secondary text-xs sm:text-sm mt-0.5 hidden sm:block">
               Manage and explore your personal library of{" "}
               <span className="text-accent font-semibold">{stats.total}</span> books
             </p>
           </div>
           <Link
             to="/dashboard/books/add-book"
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-accent hover:bg-accent/80 text-text-primary text-xs sm:text-sm font-semibold px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-accent hover:bg-accent/80 text-text-primary text-xs sm:text-sm font-semibold px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors shrink-0"
           >
             <Plus size={16} />
             Add Book
@@ -274,31 +274,33 @@ const BooksList = () => {
 
 
         {/* ── Stats Row ── */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-8 shrink-0">
+        <div className="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 mb-2.5 sm:mb-3 shrink-0 overflow-x-auto pb-1 snap-x hide-scrollbar">
           {[
             { label: "Total Collection", value: stats.total },
             { label: "Completed", value: stats.completed },
             { label: "Reading Now", value: stats.readingNow },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-surface border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-center shadow-sm">
-              <h3 className="text-text-secondary text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate">{label}</h3>
-              <span className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight">{value}</span>
+            <div key={label} className="bg-surface border border-border px-3 py-2 sm:px-4 sm:py-3 rounded-xl flex flex-col justify-center shadow-sm min-h-[68px] sm:min-h-[86px] min-w-[120px] sm:min-w-0 snap-start">
+              <h3 className="text-text-secondary text-[10px] sm:text-xs font-semibold mb-0.5 truncate">{label}</h3>
+              <span className="text-text-primary text-lg sm:text-2xl font-bold tracking-tight leading-none">{value}</span>
             </div>
           ))}
         </div>
-        
-        <TargetBanner category="books" label="read" />
+
+        <div className="mb-2.5 sm:mb-3">
+          <TargetBanner category="books" label="read" />
+        </div>
 
         {/* ── Toolbar ── */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6 shrink-0">
+        <div className="flex flex-col lg:flex-row gap-2 mb-2.5 sm:mb-3 shrink-0">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
             <input
               type="text"
               placeholder="Search by title or author..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-surface border border-border rounded-xl py-3 pl-11 pr-10 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent transition-colors shadow-sm"
+              className="w-full bg-surface border border-border rounded-xl py-2.5 pl-10 pr-9 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent transition-colors shadow-sm"
             />
             {searchQuery && (
               <button
@@ -311,7 +313,7 @@ const BooksList = () => {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
             <FilterDropdown
               label="Genre"
               options={genreOptions.map(get_genre_display)}
@@ -349,7 +351,7 @@ const BooksList = () => {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-error hover:bg-error/10 rounded-lg transition-colors border border-transparent hover:border-error/20"
+                className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-bold text-error hover:bg-error/10 rounded-lg transition-colors border border-transparent hover:border-error/20"
               >
                 <X size={13} />
                 Clear
@@ -359,13 +361,14 @@ const BooksList = () => {
         </div>
 
         {/* ── View Toggle ── */}
-        <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6 shrink-0">
-          <div className="flex items-center gap-6 relative">
+        <div className="border-b border-border/50 pb-1.5 sm:pb-2 mb-2.5 sm:mb-3 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-4 sm:gap-6 relative overflow-x-auto hide-scrollbar pr-2">
             {(["grid", "list", "calendar", "series"] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex items-center gap-2 text-sm font-semibold transition-colors relative pb-4 ${
+                className={`flex items-center gap-1.5 sm:gap-2 text-sm font-semibold transition-colors relative pb-2 ${
                   viewMode === mode ? "text-accent" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
@@ -382,7 +385,18 @@ const BooksList = () => {
             />
           </div>
           {!isLoading && (
-            <p className="text-text-secondary text-xs">
+            <p className="hidden sm:block text-text-secondary text-[11px] sm:text-xs whitespace-nowrap">
+              {total === 0 ? "No results" : (
+                <>
+                  <span className="text-text-primary font-semibold">{books.length}</span> of{" "}
+                  <span className="text-accent font-semibold">{total}</span> books
+                </>
+              )}
+            </p>
+          )}
+          </div>
+          {!isLoading && (
+            <p className="sm:hidden text-text-secondary text-[11px] whitespace-nowrap text-right">
               {total === 0 ? "No results" : (
                 <>
                   <span className="text-text-primary font-semibold">{books.length}</span> of{" "}
