@@ -99,12 +99,12 @@ const MediaLog = ({
   const visibleLogs = showAll ? recentLogs : recentLogs.slice(0, 3);
   const firstLog = sortedLogs[0];
   const latestLog = recentLogs[0];
+  const hasKnownTotal = total > 0;
 
   if (unitLabel === "page" || unitLabel === "episode") {
     const isReading = unitLabel === "page";
     const logTitle = isReading ? "Reading Log" : "Watch Log";
     const newUpdateLabel = isReading ? "New Reading Update" : "New Session";
-    const uptoLabel = isReading ? "Read up to page" : "Watched up to episode";
     const unitTitle = isReading ? "Page" : "Episode";
     const emptyTitle = isReading ? "No reading progress yet" : "No watch progress yet";
     const emptySub = isReading
@@ -155,22 +155,32 @@ const MediaLog = ({
             )}
           </div>
 
-          {total > 0 && (
+          {logs.length > 0 && (
             <div className="mt-4 rounded-lg bg-bg/70 border border-border p-3">
               <div className="flex items-center justify-between gap-3 mb-2">
                 <span className="text-text-primary text-sm font-bold">
-                  {unitTitle} {clampedPosition} <span className="text-text-secondary font-normal">of {total}</span>
+                  {unitTitle} {clampedPosition}
+                  {hasKnownTotal && <span className="text-text-secondary font-normal"> of {total}</span>}
                 </span>
-                <span className="text-accent text-sm font-bold">{progressPct}%</span>
+                {hasKnownTotal && <span className="text-accent text-sm font-bold">{progressPct}%</span>}
               </div>
               <div className="relative w-full h-2 bg-border/50 rounded-full overflow-hidden">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-700"
-                  style={{ width: `${progressPct}%` }}
-                />
+                {hasKnownTotal ? (
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all duration-700"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                ) : (
+                  <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-gradient-to-r from-accent/40 via-accent to-accent/40 opacity-90" />
+                )}
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px] text-text-secondary">
-                <span className="flex items-center gap-1.5">{unitIcon}{remainingCount} {unitPlural} remaining</span>
+                <span className="flex items-center gap-1.5">
+                  {unitIcon}
+                  {hasKnownTotal
+                    ? `${remainingCount} ${unitPlural} remaining`
+                    : "Total not set yet"}
+                </span>
                 {recentLogs[0] && <span>Last: {formatDate(recentLogs[0].date)}</span>}
               </div>
               {firstLog && latestLog && (
