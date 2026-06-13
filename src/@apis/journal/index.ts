@@ -6,6 +6,10 @@ import {
     GET_JOURNAL_QUERY,
     UPDATE_JOURNAL_MUTATION,
     DELETE_JOURNAL_MUTATION,
+    GET_JOURNAL_TEMPLATES_QUERY,
+    CREATE_JOURNAL_TEMPLATE_MUTATION,
+    UPDATE_JOURNAL_TEMPLATE_MUTATION,
+    DELETE_JOURNAL_TEMPLATE_MUTATION,
 } from "./structure";
 
 export interface JournalExpenseItem {
@@ -20,6 +24,22 @@ export interface JournalTemplateBlock {
     type: string;
     title: string;
     items?: JournalExpenseItem[];
+}
+
+export interface SavedJournalTemplate {
+    _id: string;
+    name: string;
+    content: string;
+    category?: string;
+    user_id?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface SavedJournalTemplateInput {
+    name: string;
+    content: string;
+    category?: string;
 }
 
 export interface JournalInput {
@@ -136,4 +156,32 @@ export const delete_journal_mutation = async (id: string): Promise<boolean> => {
     const { data } = await service({ data: { query: DELETE_JOURNAL_MUTATION, variables: { id } } });
     check_graphql_error(data);
     return data.data.delete_journal;
+};
+
+export const get_journal_templates_query = async (): Promise<SavedJournalTemplate[]> => {
+    const service = axios_graphql_service_auth();
+    const { data } = await service({ data: { query: GET_JOURNAL_TEMPLATES_QUERY } });
+    check_graphql_error(data);
+    return data.data.get_journal_templates;
+};
+
+export const create_journal_template_mutation = async (input: SavedJournalTemplateInput): Promise<SavedJournalTemplate> => {
+    const service = axios_graphql_service_auth();
+    const { data } = await service({ data: { query: CREATE_JOURNAL_TEMPLATE_MUTATION, variables: { input } } });
+    check_graphql_error(data);
+    return data.data.create_journal_template;
+};
+
+export const update_journal_template_mutation = async (id: string, input: SavedJournalTemplateInput): Promise<SavedJournalTemplate> => {
+    const service = axios_graphql_service_auth();
+    const { data } = await service({ data: { query: UPDATE_JOURNAL_TEMPLATE_MUTATION, variables: { id, input } } });
+    check_graphql_error(data);
+    return data.data.update_journal_template;
+};
+
+export const delete_journal_template_mutation = async (id: string): Promise<boolean> => {
+    const service = axios_graphql_service_auth();
+    const { data } = await service({ data: { query: DELETE_JOURNAL_TEMPLATE_MUTATION, variables: { id } } });
+    check_graphql_error(data);
+    return data.data.delete_journal_template;
 };

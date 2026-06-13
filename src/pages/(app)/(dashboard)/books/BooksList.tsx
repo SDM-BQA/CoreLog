@@ -46,6 +46,27 @@ const STATUS_MAP: Record<string, string> = {
   not_finished: "Not Finished",
 };
 const ITEMS_PER_PAGE = 10;
+const STATUS_ORDER = ["reading", "want_to_read", "read", "not_finished"];
+
+const sortBooksForGroupedView = (items: Book[]) => {
+  const grouped = items.reduce((acc, item) => {
+    const status = item.status || "unknown";
+    if (!acc[status]) acc[status] = [];
+    acc[status].push(item);
+    return acc;
+  }, {} as Record<string, Book[]>);
+
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      const indexA = STATUS_ORDER.indexOf(a.toLowerCase());
+      const indexB = STATUS_ORDER.indexOf(b.toLowerCase());
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .flatMap((status) => grouped[status]);
+};
 
 
 
@@ -134,6 +155,8 @@ const BooksList = () => {
   // All books for calendar view (unpaginated)
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [allFilteredBooks, setAllFilteredBooks] = useState<Book[]>([]);
+  const [isGroupedViewLoading, setIsGroupedViewLoading] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -193,6 +216,62 @@ const BooksList = () => {
     };
     fetchAll();
   }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "grid" && viewMode !== "list") return;
+
+    let isMounted = true;
+
+    const fetchGroupedViewBooks = async () => {
+      setIsGroupedViewLoading(true);
+      try {
+        const result = await get_my_books_query({
+          search: committedSearch || undefined,
+          genres: genreFilter.length ? genreFilter : undefined,
+          status: statusFilter.length ? statusFilter : undefined,
+          author: authorFilter.length === 1 ? authorFilter[0] : undefined,
+          rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+          limit: 1000,
+        });
+
+        if (isMounted) {
+          setAllFilteredBooks(result.books as unknown as Book[]);
+        }
+      } catch (error) {
+        console.error("Error fetching books for grouped view:", error);
+        if (isMounted) setAllFilteredBooks([]);
+      } finally {
+        if (isMounted) setIsGroupedViewLoading(false);
+      }
+    };
+
+    fetchGroupedViewBooks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [viewMode, committedSearch, genreFilter, statusFilter, ratingFilter, authorFilter]);
+
+  const groupedViewBooks = sortBooksForGroupedView(allFilteredBooks);
+  const groupedViewTotal = groupedViewBooks.length;
+  const groupedViewTotalPages = Math.max(1, Math.ceil(groupedViewTotal / ITEMS_PER_PAGE));
+  const paginatedGroupedBooks = groupedViewBooks.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+  const displayBooks = viewMode === "grid" || viewMode === "list" ? paginatedGroupedBooks : books;
+  const displayTotal = viewMode === "grid" || viewMode === "list" ? groupedViewTotal : total;
+  const displayTotalPages = viewMode === "grid" || viewMode === "list" ? groupedViewTotalPages : totalPages;
+  const displayHasNextPage = viewMode === "grid" || viewMode === "list" ? currentPage < groupedViewTotalPages : hasNextPage;
+  const displayIsLoading = (viewMode === "grid" || viewMode === "list")
+    ? (isLoading || isGroupedViewLoading)
+    : isLoading;
+
+  useEffect(() => {
+    if ((viewMode === "grid" || viewMode === "list") && currentPage > groupedViewTotalPages) {
+      setCurrentPage(groupedViewTotalPages);
+    }
+  }, [viewMode, currentPage, groupedViewTotalPages]);
 
   // Sync state FROM URL when navigating back (popstate)
   useEffect(() => {
@@ -384,23 +463,23 @@ const BooksList = () => {
               }}
             />
           </div>
-          {!isLoading && (
+          {!displayIsLoading && (
             <p className="hidden sm:block text-text-secondary text-[11px] sm:text-xs whitespace-nowrap">
-              {total === 0 ? "No results" : (
+              {displayTotal === 0 ? "No results" : (
                 <>
-                  <span className="text-text-primary font-semibold">{books.length}</span> of{" "}
-                  <span className="text-accent font-semibold">{total}</span> books
+                  <span className="text-text-primary font-semibold">{displayBooks.length}</span> of{" "}
+                  <span className="text-accent font-semibold">{displayTotal}</span> books
                 </>
               )}
             </p>
           )}
           </div>
-          {!isLoading && (
+          {!displayIsLoading && (
             <p className="sm:hidden text-text-secondary text-[11px] whitespace-nowrap text-right">
-              {total === 0 ? "No results" : (
+              {displayTotal === 0 ? "No results" : (
                 <>
-                  <span className="text-text-primary font-semibold">{books.length}</span> of{" "}
-                  <span className="text-accent font-semibold">{total}</span> books
+                  <span className="text-text-primary font-semibold">{displayBooks.length}</span> of{" "}
+                  <span className="text-accent font-semibold">{displayTotal}</span> books
                 </>
               )}
             </p>
@@ -412,7 +491,7 @@ const BooksList = () => {
           
           {/* ── Content Area ── */}
           <div className="flex-1 flex flex-col pr-2">
-            {isLoading ? (
+            {displayIsLoading ? (
                 <div className="animate-reveal">
                   {viewMode === "grid" ? <GridSkeleton /> : viewMode === "list" ? <ListSkeleton /> : <GridSkeleton />}
                 </div>
@@ -520,7 +599,7 @@ const BooksList = () => {
                 })()
           ) : (
             <MediaDisplay
-              items={books.map((book: any) => ({
+              items={displayBooks.map((book: any) => ({
                 _id: book._id,
                 title: book.title,
                 subtitle: book.author,
@@ -532,7 +611,7 @@ const BooksList = () => {
               }))}
               type="book"
               viewMode={viewMode === "grid" || viewMode === "list" ? viewMode : "grid"}
-              isLoading={isLoading}
+              isLoading={displayIsLoading}
               hasFilters={hasFilters}
               onClearFilters={clearFilters}
               statusMap={STATUS_MAP}
@@ -544,11 +623,11 @@ const BooksList = () => {
           </div>
 
           {/* ── Pagination — hidden in calendar and series view ── */}
-          {!isLoading && total > 0 && viewMode !== "calendar" && viewMode !== "series" && (
+          {!displayIsLoading && displayTotal > 0 && viewMode !== "calendar" && viewMode !== "series" && (
             <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0 lg:sticky lg:top-8 lg:self-start">
               
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
-                Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
+                Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{displayTotalPages}</span>
               </p>
 
               <div className="flex lg:flex-col items-center gap-1.5 shrink-0">
@@ -561,7 +640,7 @@ const BooksList = () => {
                   <ChevronLeft size={16} className="lg:-rotate-90" />
                 </button>
                 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                {Array.from({ length: displayTotalPages }, (_, i) => i + 1).map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -578,7 +657,7 @@ const BooksList = () => {
                 
                 <button
                   type="button"
-                  disabled={!hasNextPage}
+                  disabled={!displayHasNextPage}
                   onClick={() => setCurrentPage(currentPage + 1)}
                   className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
