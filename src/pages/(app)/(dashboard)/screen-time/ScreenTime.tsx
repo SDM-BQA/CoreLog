@@ -9,6 +9,10 @@ import {
 } from "../../../../@store/api/screenTime.api";
 import { toast } from "react-toast";
 import CalendarInput from "../../../../@components/@ui/CalendarInput";
+import {
+  getScreenTimeParseErrorMessage,
+  isScreenTimeParserUnavailable,
+} from "../../../../@utils/screenTime.utils";
 
 type AppUsage = { app_name: string; minutes: number };
 type CategoryUsage = { name: string; minutes: number };
@@ -44,6 +48,7 @@ const ScreenTime = () => {
   const [apps, setApps] = useState<AppUsage[]>([]);
   const [parsedTotalMinutes, setParsedTotalMinutes] = useState(0);
   const [uploadName, setUploadName] = useState("");
+  const [parseNotice, setParseNotice] = useState("");
 
   const { data: summary, isLoading: summaryLoading } = useGetScreenTimeSummaryQuery({});
   const { data: entries, isLoading: entriesLoading } = useGetScreenTimeEntriesQuery({});
@@ -58,6 +63,7 @@ const ScreenTime = () => {
     if (!file) return;
     try {
       setUploadName(file.name);
+      setParseNotice("");
       const image_base64 = await toBase64(file);
       const parsed = await parseImage({ image_base64 }).unwrap();
       setRawText(parsed.raw_text ?? "");
@@ -65,8 +71,16 @@ const ScreenTime = () => {
       setApps(parsed.apps ?? []);
       setParsedTotalMinutes(Number(parsed.total_minutes) || 0);
       toast.success("Screenshot analyzed");
-    } catch {
-      toast.error("Failed to analyze screenshot");
+    } catch (error) {
+      const message = getScreenTimeParseErrorMessage(error);
+      setParseNotice(message);
+      if (isScreenTimeParserUnavailable(error)) {
+        setRawText("");
+        setCategories([]);
+        setApps([]);
+        setParsedTotalMinutes(0);
+      }
+      toast.error(message);
     } finally {
       e.target.value = "";
     }
@@ -151,6 +165,12 @@ const ScreenTime = () => {
             <span className="text-sm">{uploadName || "Choose screenshot image"}</span>
             <input type="file" accept="image/*" className="hidden" onChange={onUpload} />
           </label>
+
+          {parseNotice && (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              {parseNotice}
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

@@ -47,6 +47,27 @@ const STATUS_MAP: Record<string, string> = {
   not_finished: "Not Finished",
 };
 const ITEMS_PER_PAGE = 10;
+const STATUS_ORDER = ["watching", "rewatching", "watchlist", "watched", "not_finished"];
+
+const sortSeriesForGroupedView = (items: Series[]) => {
+  const grouped = items.reduce((acc, item) => {
+    const status = item.status || "unknown";
+    if (!acc[status]) acc[status] = [];
+    acc[status].push(item);
+    return acc;
+  }, {} as Record<string, Series[]>);
+
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      const indexA = STATUS_ORDER.indexOf(a.toLowerCase());
+      const indexB = STATUS_ORDER.indexOf(b.toLowerCase());
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .flatMap((status) => grouped[status]);
+};
 
 // ── Skeleton cards ───────────────────────────────────────────
 const GridSkeleton = () => (
@@ -99,6 +120,8 @@ const SeriesList = () => {
   // All series for calendar view (unpaginated)
   const [allSeries, setAllSeries] = useState<Series[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [allFilteredSeries, setAllFilteredSeries] = useState<Series[]>([]);
+  const [isGroupedViewLoading, setIsGroupedViewLoading] = useState(false);
 
   const [genreFilter, setGenreFilter] = useState<string[]>(
     searchParams.get("genres")?.split(",").filter(Boolean) || [],
@@ -209,6 +232,62 @@ const SeriesList = () => {
     };
     fetchAll();
   }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "grid" && viewMode !== "list") return;
+
+    let isMounted = true;
+
+    const fetchGroupedViewSeries = async () => {
+      setIsGroupedViewLoading(true);
+      try {
+        const result = await get_my_series_query({
+          search: committedSearch || undefined,
+          genres: genreFilter.length ? genreFilter : undefined,
+          status: statusFilter.length ? statusFilter : undefined,
+          platforms: platformFilter.length ? platformFilter : undefined,
+          rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+          limit: 1000,
+        });
+
+        if (isMounted) {
+          setAllFilteredSeries(result.series as unknown as Series[]);
+        }
+      } catch (error) {
+        console.error("Error fetching series for grouped view:", error);
+        if (isMounted) setAllFilteredSeries([]);
+      } finally {
+        if (isMounted) setIsGroupedViewLoading(false);
+      }
+    };
+
+    fetchGroupedViewSeries();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [viewMode, committedSearch, genreFilter, statusFilter, ratingFilter, platformFilter]);
+
+  const groupedViewSeries = sortSeriesForGroupedView(allFilteredSeries);
+  const groupedViewTotal = groupedViewSeries.length;
+  const groupedViewTotalPages = Math.max(1, Math.ceil(groupedViewTotal / ITEMS_PER_PAGE));
+  const paginatedGroupedSeries = groupedViewSeries.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+  const displaySeries = viewMode === "grid" || viewMode === "list" ? paginatedGroupedSeries : seriesList;
+  const displayTotal = viewMode === "grid" || viewMode === "list" ? groupedViewTotal : total;
+  const displayTotalPages = viewMode === "grid" || viewMode === "list" ? groupedViewTotalPages : totalPages;
+  const displayHasNextPage = viewMode === "grid" || viewMode === "list" ? currentPage < groupedViewTotalPages : hasNextPage;
+  const displayIsLoading = (viewMode === "grid" || viewMode === "list")
+    ? (isLoading || isGroupedViewLoading)
+    : isLoading;
+
+  useEffect(() => {
+    if ((viewMode === "grid" || viewMode === "list") && currentPage > groupedViewTotalPages) {
+      setCurrentPage(groupedViewTotalPages);
+    }
+  }, [viewMode, currentPage, groupedViewTotalPages]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -416,32 +495,32 @@ const SeriesList = () => {
               }}
             />
           </div>
-          {!isLoading && (
+          {!displayIsLoading && (
             <p className="hidden sm:block text-text-secondary text-[11px] sm:text-xs whitespace-nowrap">
-              {total === 0 ? (
+              {displayTotal === 0 ? (
                 "No results"
               ) : (
                 <>
                   <span className="text-text-primary font-semibold">
-                    {seriesList.length}
+                    {displaySeries.length}
                   </span>{" "}
-                  of <span className="text-accent font-semibold">{total}</span>{" "}
+                  of <span className="text-accent font-semibold">{displayTotal}</span>{" "}
                   series
                 </>
               )}
             </p>
           )}
           </div>
-          {!isLoading && (
+          {!displayIsLoading && (
             <p className="sm:hidden text-text-secondary text-[11px] whitespace-nowrap text-right">
-              {total === 0 ? (
+              {displayTotal === 0 ? (
                 "No results"
               ) : (
                 <>
                   <span className="text-text-primary font-semibold">
-                    {seriesList.length}
+                    {displaySeries.length}
                   </span>{" "}
-                  of <span className="text-accent font-semibold">{total}</span>{" "}
+                  of <span className="text-accent font-semibold">{displayTotal}</span>{" "}
                   series
                 </>
               )}
@@ -450,9 +529,9 @@ const SeriesList = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          <div className="flex-1 flex flex-col pr-2">
-            {isLoading ? (
+        <div className="flex min-w-0 flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="flex-1 min-w-0 flex flex-col pr-2">
+            {displayIsLoading ? (
               <div className="animate-reveal">
                 {viewMode === "grid" ? (
                   <GridSkeleton />
@@ -514,9 +593,9 @@ const SeriesList = () => {
                   }
 
                   return (
-                    <div className="flex flex-col gap-10 pb-8 animate-reveal">
+                    <div className="flex min-w-0 flex-col gap-10 pb-8 animate-reveal">
                       {sortedGroups.map(([platformName, seriesList]) => (
-                        <div key={platformName} className="flex flex-col gap-4">
+                        <div key={platformName} className="flex min-w-0 flex-col gap-4">
                           <h3 className="text-lg font-bold text-text-primary flex items-center gap-2 border-b border-border/50 pb-2">
                             <Tv size={18} className="text-accent" />
                             {platformName}
@@ -524,7 +603,7 @@ const SeriesList = () => {
                               {seriesList.length} Series
                             </span>
                           </h3>
-                          <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+                          <div className="flex w-full max-w-full min-w-0 overflow-x-auto gap-4 pb-4 snap-x custom-scrollbar">
                             {seriesList.map((series) => (
                               <Link
                                 to={`/dashboard/series/${series._id}`}
@@ -590,7 +669,7 @@ const SeriesList = () => {
               )
             ) : (
               <MediaDisplay
-                items={seriesList.map((series: any) => ({
+                items={displaySeries.map((series: any) => ({
                   _id: series._id,
                   title: series.title,
                   subtitle: series.creator,
@@ -601,7 +680,7 @@ const SeriesList = () => {
                 }))}
                 type="series"
                 viewMode={viewMode as "grid" | "list"}
-                isLoading={isLoading}
+                isLoading={displayIsLoading}
                 hasFilters={hasFilters}
                 onClearFilters={clearFilters}
                 statusMap={STATUS_MAP}
@@ -613,14 +692,14 @@ const SeriesList = () => {
           </div>
 
           {/* Pagination — hidden in calendar and platform view */}
-          {!isLoading &&
-            total > 0 &&
+          {!displayIsLoading &&
+            displayTotal > 0 &&
             viewMode !== "calendar" &&
             viewMode !== "platform" && (
               <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0 lg:sticky lg:top-8 lg:self-start">
                 <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
                   Page <span className="text-text-primary">{currentPage}</span>{" "}
-                  / <span className="text-accent">{totalPages}</span>
+                  / <span className="text-accent">{displayTotalPages}</span>
                 </p>
 
                 <div className="flex lg:flex-col items-center gap-1.5 shrink-0">
@@ -633,7 +712,7 @@ const SeriesList = () => {
                     <ChevronLeft size={16} className="lg:-rotate-90" />
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  {Array.from({ length: displayTotalPages }, (_, i) => i + 1).map(
                     (p) => (
                       <button
                         key={p}
@@ -652,7 +731,7 @@ const SeriesList = () => {
 
                   <button
                     type="button"
-                    disabled={!hasNextPage}
+                    disabled={!displayHasNextPage}
                     onClick={() => setCurrentPage(currentPage + 1)}
                     className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >

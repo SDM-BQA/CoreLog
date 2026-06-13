@@ -23,6 +23,11 @@ import { update_user } from "../../../../@store/slices/user/user.slice";
 import { toast } from "react-toast";
 import { useJournalLock } from "../journal/useJournalLock";
 import Modal from "../../../../@components/Modal";
+import { useJournalTemplates } from "../../../../@hooks/useJournalTemplates";
+import {
+  getJournalTemplatePlaceholders,
+  humanizeJournalTemplatePlaceholder,
+} from "../../../../@utils/journalTemplates.utils";
 
 import {
   User,
@@ -40,6 +45,8 @@ import {
   Trash2,
   KeyRound,
   Crown,
+  Sparkles,
+  Pencil,
 } from "lucide-react";
 
 // ── PIN OTP input (4 boxes) ───────────────────────────────────────────────────
@@ -125,6 +132,13 @@ const Settings = () => {
   const [cancelOtp, setCancelOtp] = useState("");
   const [cancelOtpSent, setCancelOtpSent] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const { templates, createTemplate, updateTemplate, deleteTemplate } = useJournalTemplates(user?._id);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    category: "",
+    content: "",
+  });
 
   // ── Journal lock ──────────────────────────────────────────────────────────
   const journalLock = useJournalLock();
@@ -176,6 +190,51 @@ const Settings = () => {
     }
     setBioLoading(false);
   }, [journalLock]);
+
+  const resetTemplateForm = useCallback(() => {
+    setEditingTemplateId(null);
+    setTemplateForm({ name: "", category: "", content: "" });
+  }, []);
+
+  const handleSaveJournalTemplate = useCallback(async () => {
+    const name = templateForm.name.trim();
+    const content = templateForm.content.trim();
+
+    if (!name) {
+      toast.error("Template name is required.");
+      return;
+    }
+
+    if (!content) {
+      toast.error("Template content is required.");
+      return;
+    }
+
+    try {
+      if (editingTemplateId) {
+        await updateTemplate(editingTemplateId, templateForm);
+        toast.success("Journal template updated.");
+      } else {
+        await createTemplate(templateForm);
+        toast.success("Journal template created.");
+      }
+
+      resetTemplateForm();
+    } catch (error: any) {
+      toast.error(error?.data || error?.message || "Failed to save journal template.");
+    }
+  }, [createTemplate, editingTemplateId, resetTemplateForm, templateForm, updateTemplate]);
+
+  const startEditingTemplate = useCallback((template: { id: string; name: string; category?: string; content: string }) => {
+    setEditingTemplateId(template.id);
+    setTemplateForm({
+      name: template.name,
+      category: template.category || "",
+      content: template.content,
+    });
+  }, []);
+
+  const templatePlaceholders = getJournalTemplatePlaceholders(templateForm.content);
 
   const {
     values,
@@ -383,6 +442,7 @@ const Settings = () => {
 
   const settingsOptions = [
     { id: "profile", label: "Profile", icon: User, description: "Manage your personal information and public profile" },
+    { id: "journal_templates", label: "Journal Templates", icon: Sparkles, description: "Create reusable personal templates for journal entries" },
     { id: "inner_circle", label: "Inner Circle", icon: Crown, description: "Activate and renew your Inner Circle membership" },
     { id: "appearance", label: "Appearance", icon: Palette, description: "Customise how CoreLog looks and feels on your device" },
     { id: "notifications", label: "Notifications", icon: Bell, description: "Choose what updates and alerts you want to receive" },
@@ -391,51 +451,53 @@ const Settings = () => {
   ];
 
   return (
-    <div className="bg-bg flex-1 overflow-y-auto">
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-8 py-10 flex flex-col gap-10">
+    <div className="bg-bg flex-1 overflow-hidden">
+      <div className="h-full w-full max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8 flex flex-col gap-6">
         
         {/* Header */}
-        <div className="space-y-1">
+        <div className="space-y-1 shrink-0">
           <h1 className="text-text-primary text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-text-secondary text-sm">Manage your account preferences and application settings.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           
           {/* Sidebar Nav */}
-          <div className="lg:col-span-4 flex flex-col gap-2">
-            {settingsOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => {
-                  setActiveTab(option.id);
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set("tab", option.id);
-                    return next;
-                  });
-                }}
-                className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${
-                  activeTab === option.id 
-                    ? "bg-accent/10 border-accent/20 text-text-primary shadow-sm" 
-                    : "bg-surface border-border hover:border-accent/40 text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <div className={`p-2 rounded-xl ${activeTab === option.id ? "bg-accent text-background" : "bg-bg text-text-secondary"} transition-colors`}>
-                  <option.icon size={20} />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold">{option.label}</p>
-                  <p className="text-[10px] mt-0.5 opacity-60 leading-tight line-clamp-1">{option.description}</p>
-                </div>
-                {activeTab === option.id && <ChevronRight size={16} className="ml-auto mt-1 text-accent" />}
-              </button>
-            ))}
+          <div className="lg:col-span-4 lg:min-h-0">
+            <div className="flex flex-col gap-2 lg:sticky lg:top-6">
+              {settingsOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    setActiveTab(option.id);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set("tab", option.id);
+                      return next;
+                    });
+                  }}
+                  className={`flex items-start gap-4 p-4 rounded-2xl transition-all border ${
+                    activeTab === option.id 
+                      ? "bg-accent/10 border-accent/20 text-text-primary shadow-sm" 
+                      : "bg-surface border-border hover:border-accent/40 text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <div className={`p-2 rounded-xl ${activeTab === option.id ? "bg-accent text-background" : "bg-bg text-text-secondary"} transition-colors`}>
+                    <option.icon size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold">{option.label}</p>
+                    <p className="text-[10px] mt-0.5 opacity-60 leading-tight line-clamp-1">{option.description}</p>
+                  </div>
+                  {activeTab === option.id && <ChevronRight size={16} className="ml-auto mt-1 text-accent" />}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Settings Content Area */}
-          <div className="lg:col-span-8">
-            <div className="bg-surface border border-border rounded-3xl p-8 flex flex-col gap-8 shadow-sm">
+          <div className="lg:col-span-8 min-h-0">
+            <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 flex flex-col gap-8 shadow-sm h-full min-h-0 overflow-y-auto custom-scrollbar">
               
               {activeTab === "profile" && (
                 <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -560,6 +622,189 @@ const Settings = () => {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {activeTab === "journal_templates" && (
+                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div>
+                    <h2 className="text-text-primary text-lg font-bold">Journal Templates</h2>
+                    <p className="text-text-secondary text-sm mt-1">
+                      Create reusable writing patterns with placeholders like <span className="text-text-primary font-semibold">{"{pages}"}</span> and <span className="text-text-primary font-semibold">{"{book}"}</span>.
+                    </p>
+                  </div>
+
+                  <div className="bg-bg border border-border rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-text-primary text-sm font-bold">
+                          {editingTemplateId ? "Edit Template" : "Create Template"}
+                        </p>
+                        <p className="text-text-secondary text-xs mt-1">
+                          Use curly braces for placeholders. Example: `Today I read till {"{pages}"} pages of {"{book}"}.`
+                        </p>
+                      </div>
+                      {editingTemplateId && (
+                        <button
+                          type="button"
+                          onClick={resetTemplateForm}
+                          className="text-text-secondary text-xs font-semibold hover:text-text-primary transition-colors"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Template Name</label>
+                        <input
+                          type="text"
+                          value={templateForm.name}
+                          onChange={(e) => setTemplateForm((current) => ({ ...current, name: e.target.value }))}
+                          placeholder="Reading update"
+                          className="w-full bg-surface border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Category</label>
+                        <input
+                          type="text"
+                          value={templateForm.category}
+                          onChange={(e) => setTemplateForm((current) => ({ ...current, category: e.target.value }))}
+                          placeholder="Reading"
+                          className="w-full bg-surface border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_260px] gap-4 items-start">
+                      <div className="space-y-1.5">
+                        <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Template Content</label>
+                        <textarea
+                          rows={6}
+                          value={templateForm.content}
+                          onChange={(e) => setTemplateForm((current) => ({ ...current, content: e.target.value }))}
+                          placeholder="Today I read till {pages} pages of the book {book}."
+                          className="w-full bg-surface border border-border rounded-xl py-3 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors resize-y"
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-surface/60 p-3 h-full">
+                        <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest mb-2">Detected Placeholders</p>
+                        <div className="flex flex-wrap gap-2">
+                          {templatePlaceholders.length > 0 ? templatePlaceholders.map((placeholder) => (
+                            <span key={placeholder} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold">
+                              {humanizeJournalTemplatePlaceholder(placeholder)}
+                            </span>
+                          )) : (
+                            <span className="text-text-secondary text-xs">No placeholders detected. Add tokens like {"{pages}"} or {"{book}"}.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleSaveJournalTemplate}
+                        className="bg-accent hover:bg-accent/90 text-background px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
+                      >
+                        {editingTemplateId ? "Update Template" : "Save Template"}
+                      </button>
+                      {editingTemplateId && (
+                        <button
+                          type="button"
+                          onClick={resetTemplateForm}
+                          className="px-5 py-2.5 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary border border-border transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-bg border border-border rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-text-primary text-sm font-bold">Saved Templates</p>
+                        <p className="text-text-secondary text-xs mt-1">
+                          {templates.length} template{templates.length === 1 ? "" : "s"} ready to insert into your journal.
+                        </p>
+                      </div>
+                    </div>
+
+                    {templates.length === 0 ? (
+                      <div className="border border-dashed border-border rounded-2xl p-8 text-center">
+                        <p className="text-text-primary text-sm font-bold">No templates yet</p>
+                        <p className="text-text-secondary text-xs mt-2">
+                          Create your first personalized journal template and it will appear in the journal editor.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        {templates.map((template: { id: string; name: string; category?: string; content: string }) => {
+                          const placeholders = getJournalTemplatePlaceholders(template.content);
+
+                          return (
+                            <div key={template.id} className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-3 min-w-0">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-text-primary text-sm font-bold break-words">{template.name}</p>
+                                    {template.category && (
+                                      <span className="px-2 py-0.5 rounded-full bg-bg border border-border text-text-secondary text-[10px] font-semibold uppercase tracking-wide">
+                                        {template.category}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-text-secondary text-xs mt-2 whitespace-pre-line break-words line-clamp-4">{template.content}</p>
+                                </div>
+                              </div>
+
+                              {placeholders.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {placeholders.map((placeholder) => (
+                                    <span key={placeholder} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium">
+                                      {humanizeJournalTemplatePlaceholder(placeholder)}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditingTemplate(template)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors text-xs font-semibold"
+                                >
+                                  <Pencil size={13} />
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await deleteTemplate(template.id);
+                                      if (editingTemplateId === template.id) resetTemplateForm();
+                                      toast.success("Journal template deleted.");
+                                    } catch (error: any) {
+                                      toast.error(error?.data || error?.message || "Failed to delete journal template.");
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 transition-colors text-xs font-semibold"
+                                >
+                                  <Trash2 size={13} />
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               {activeTab === "inner_circle" && (
@@ -882,7 +1127,7 @@ const Settings = () => {
               )}
 
               {/* ── Other placeholder tabs ── */}
-              {activeTab !== "profile" && activeTab !== "privacy" && activeTab !== "inner_circle" && (
+              {activeTab !== "profile" && activeTab !== "privacy" && activeTab !== "inner_circle" && activeTab !== "journal_templates" && (
                 <div className="py-20 flex flex-col items-center justify-center text-center gap-4 animate-in fade-in zoom-in-95 duration-300">
                   <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
                     <Lock size={32} />

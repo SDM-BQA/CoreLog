@@ -175,3 +175,51 @@ export const DELETE_JOURNAL_MUTATION = `
         delete_journal(id: $id)
     }
 `;
+
+export const GET_JOURNAL_TEMPLATES_QUERY = `
+    query GetJournalTemplates {
+        get_journal_templates {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const CREATE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation CreateJournalTemplate($input: SavedJournalTemplateInput!) {
+        create_journal_template(input: $input) {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const UPDATE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation UpdateJournalTemplate($id: ID!, $input: SavedJournalTemplateInput!) {
+        update_journal_template(id: $id, input: $input) {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const DELETE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation DeleteJournalTemplate($id: ID!) {
+        delete_journal_template(id: $id)
+    }
+`;

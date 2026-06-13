@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatDate } from "../@utils/date.utils";
+import CalendarPicker from "./CalendarPicker";
 import {
   TrendingUp,
   Plus,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   Trash2,
   Crown,
+  Calendar,
 } from "lucide-react";
 
 export interface LogEntry {
@@ -56,6 +58,7 @@ const MediaLog = ({
   const isCompleted = sortedLogs.length > 0 && total > 0 && clampedPosition >= total;
 
   const [formOpen, setFormOpen] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -222,12 +225,14 @@ const MediaLog = ({
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[150px_180px_minmax(0,1fr)_auto] gap-2">
-              <input
-                type="date"
-                value={form.date}
-                onChange={e => { setForm(f => ({ ...f, date: e.target.value })); setError(""); }}
-                className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:outline-none focus:border-accent"
-              />
+              <button
+                type="button"
+                onClick={() => setShowCalendar(true)}
+                className="w-full bg-bg border border-border rounded-lg py-2 px-3 text-text-primary text-sm focus:outline-none focus:border-accent text-left flex items-center gap-2"
+              >
+                <Calendar size={14} className="text-text-secondary shrink-0" />
+                <span>{form.date ? formatDate(`${form.date}T12:00:00`) : "Select date"}</span>
+              </button>
               <input
                 type="number"
                 min={clampedPosition + 1}
@@ -258,6 +263,18 @@ const MediaLog = ({
               </p>
             )}
           </div>
+        )}
+
+        {showCalendar && (
+          <CalendarPicker
+            value={form.date}
+            onSelect={(value) => {
+              setForm((current) => ({ ...current, date: value }));
+              setError("");
+              setShowCalendar(false);
+            }}
+            onClose={() => setShowCalendar(false)}
+          />
         )}
 
         {logs.length === 0 ? (
