@@ -45,7 +45,7 @@ const STATUS_MAP: Record<string, string> = {
   read: "Read",
   not_finished: "Not Finished",
 };
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 const STATUS_ORDER = ["reading", "want_to_read", "read", "not_finished"];
 
 const sortBooksForGroupedView = (items: Book[]) => {
@@ -72,7 +72,7 @@ const sortBooksForGroupedView = (items: Book[]) => {
 
 // ── Skeleton card ────────────────────────────────────────────
 const GridSkeleton = () => (
-  <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
+  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
     {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
       <div key={i} className="flex flex-col gap-3 animate-pulse">
         <div className="aspect-[2/3] w-full rounded-xl bg-surface border border-border/30" />
