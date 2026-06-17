@@ -14,6 +14,7 @@ import {
   Target,
   Crown,
   Smartphone,
+  BarChart3,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../../@store/hooks/store.hooks";
@@ -33,6 +34,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
       { label: "Target", to: "/dashboard/target", icon: Target },
       { label: "Screen Time", to: "/dashboard/screen-time", icon: Smartphone },
+      { label: "Report",      to: "/dashboard/report",      icon: BarChart3 },
     ],
   },
 ];

@@ -25,6 +25,7 @@ import {
   Moon,
   User,
   MoreHorizontal,
+  Eye,
   Bold,
   Italic,
   Underline,
@@ -290,8 +291,8 @@ const CalendarPicker = ({ value, onSelect, onClose }: {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden">
+      <div className="fixed inset-0 z-[1200] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed z-[1210] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden">
 
         {/* Month nav */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -442,8 +443,8 @@ const ClockPicker = ({ value, onChange, onClose }: {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[260px] overflow-hidden">
+      <div className="fixed inset-0 z-[1200] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed z-[1210] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[260px] overflow-hidden">
 
         {/* Time header */}
         <div className="bg-bg/70 px-4 py-3 flex items-center gap-1">
@@ -577,6 +578,7 @@ const AddJournal = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const savedSelectionRef = useRef<Range | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addressBoxRef = useRef<HTMLDivElement>(null);
   const tagBoxRef = useRef<HTMLDivElement>(null);
   const [createJournalMutation, { isLoading: isCreatingMutation }] = useCreateJournalMutation();
@@ -585,6 +587,8 @@ const AddJournal = () => {
   const { data: existingJournal, isLoading: isJournalLoading } = useGetJournalByIdQuery(editJournalId ?? "", { skip: !isEditMode });
   const [isUploading, setIsUploading] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showCal, setShowCal]     = useState(false);
   const [showClock, setShowClock] = useState(false);
   const [isScreenTimeModalOpen, setIsScreenTimeModalOpen] = useState(false);
@@ -611,6 +615,7 @@ const AddJournal = () => {
     is_favorite: false,
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [expenseItems, setExpenseItems] = useState<ExpenseDraftItem[] | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -684,12 +689,65 @@ const AddJournal = () => {
     }
   }, [isEditMode, existingJournal]);
 
+  // Restore draft on mount (new entries only)
+  useEffect(() => {
+    if (isEditMode) return;
+    try {
+      const raw = localStorage.getItem("journal_draft_new");
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        meta: typeof meta;
+        content: string;
+        selectedTags: string[];
+        photos: string[];
+        expenseItems: ExpenseDraftItem[] | null;
+        savedAt: number;
+      };
+      setMeta(draft.meta);
+      setSelectedTags(draft.selectedTags ?? []);
+      setPhotos(draft.photos ?? []);
+      setExpenseItems(draft.expenseItems ?? null);
+      if (editorRef.current && draft.content) {
+        editorRef.current.innerHTML = draft.content;
+        setIsEmpty(!editorRef.current.textContent?.trim());
+      }
+      const agoMins = Math.round((Date.now() - draft.savedAt) / 60000);
+      toast.success(agoMins < 1 ? "Draft restored" : `Draft restored (saved ${agoMins}m ago)`);
+    } catch { /* corrupt/missing draft */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave to localStorage (new entries only, 1.5s debounce)
+  useEffect(() => {
+    if (isEditMode) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    setAutosaveStatus("saving");
+    autosaveTimerRef.current = setTimeout(() => {
+      const content = editorRef.current?.innerHTML ?? "";
+      try {
+        localStorage.setItem("journal_draft_new", JSON.stringify({
+          meta,
+          content,
+          selectedTags,
+          photos,
+          expenseItems,
+          savedAt: Date.now(),
+        }));
+      } catch { /* storage full */ }
+      setAutosaveStatus("saved");
+    }, 1500);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+  // draftVersion tracks contentEditable changes that don't update React state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, meta, selectedTags, photos, expenseItems, draftVersion]);
+
   const color = TYPE_COLOR[meta.journal_type] ?? "violet";
   const ac = AC[color];
 
   const onEditorInput = useCallback(() => {
     setIsEmpty(!editorRef.current?.textContent?.trim());
-  }, []);
+    if (!isEditMode) setDraftVersion((v) => v + 1);
+  }, [isEditMode]);
 
   const saveEditorSelection = useCallback(() => {
     const editor = editorRef.current;
@@ -947,6 +1005,7 @@ const AddJournal = () => {
         navigate(`/dashboard/journal/${editJournalId}`);
       } else {
         await createJournalMutation(payload).unwrap();
+        localStorage.removeItem("journal_draft_new");
         toast.success("Journal entry saved");
         navigate("/dashboard/journal");
       }
@@ -1121,6 +1180,41 @@ const AddJournal = () => {
           </Link>
           <div className="w-px h-4 bg-border shrink-0" />
           <span className="text-text-primary font-bold text-sm flex-1 truncate">{isEditMode ? "Edit Entry" : "New Entry"}</span>
+          {!isEditMode && autosaveStatus !== "idle" && (
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lg bg-surface border border-border">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary">
+                {autosaveStatus === "saving" ? (
+                  <><Loader2 size={10} className="animate-spin text-accent" /> Saving…</>
+                ) : (
+                  <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Draft saved</>
+                )}
+              </span>
+              <div className="w-px h-3 bg-border" />
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("journal_draft_new");
+                  setMeta({
+                    title: "", description: "", journal_type: "personal", mood: "",
+                    location: "", location_address: "", location_lat: "", location_lng: "",
+                    date: new Date().toISOString().split("T")[0],
+                    time: defaultTime, is_favorite: false,
+                  });
+                  setSelectedTags([]);
+                  setPhotos([]);
+                  setExpenseItems(null);
+                  if (editorRef.current) { editorRef.current.innerHTML = ""; }
+                  setIsEmpty(true);
+                  setAutosaveStatus("idle");
+                  toast.success("Draft cleared");
+                }}
+                className="flex items-center gap-1 text-[10px] font-semibold text-text-secondary hover:text-error transition-colors"
+                title="Clear draft"
+              >
+                <X size={10} /> Clear
+              </button>
+            </div>
+          )}
           <span className="text-text-secondary/50 text-xs hidden md:block shrink-0">
             {formatDate(meta.date, { weekday: "short", day: "numeric", month: "short" })}
           </span>
@@ -1327,9 +1421,14 @@ const AddJournal = () => {
                   <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                     <Calendar size={12} /> Date <span className="text-rose-500">*</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCal(true)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddressSuggestions(false);
+                        setShowTagSuggestions(false);
+                        setShowClock(false);
+                        setShowCal(true);
+                      }}
                     className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none transition-colors text-left flex items-center gap-1.5 ${ac.ring}`}
                   >
                     <Calendar size={12} className="text-text-secondary shrink-0" />
@@ -1342,9 +1441,14 @@ const AddJournal = () => {
                   <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                     <Clock size={12} /> Time <span className="text-rose-500">*</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowClock(true)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddressSuggestions(false);
+                        setShowTagSuggestions(false);
+                        setShowCal(false);
+                        setShowClock(true);
+                      }}
                     className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none transition-colors text-left flex items-center gap-1.5 ${ac.ring}`}
                   >
                     <Clock size={12} className="text-text-secondary shrink-0" />
@@ -1520,13 +1624,24 @@ const AddJournal = () => {
                 {photos.map((url, idx) => (
                   <div key={idx} className="relative shrink-0 h-full aspect-square rounded-xl overflow-hidden group">
                     <img src={get_full_image_url(url, "user")} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPhotos((p) => p.filter((_, i) => i !== idx))}
-                      className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={16} className="text-white" />
-                    </button>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhotoUrl(url)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors"
+                      >
+                        <Eye size={13} />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPhotos((p) => p.filter((_, i) => i !== idx))}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm hover:bg-rose-500/30 transition-colors"
+                      >
+                        <X size={13} />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {photos.length < photoLimit && (
@@ -1714,6 +1829,33 @@ const AddJournal = () => {
           toast.success("Screen time added to journal");
         }}
       />
+      <Modal
+        isOpen={!!previewPhotoUrl}
+        onClose={() => setPreviewPhotoUrl(null)}
+        title="Photo Preview"
+        maxWidth="900px"
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setPreviewPhotoUrl(null)}
+              className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {previewPhotoUrl && (
+          <div className="rounded-2xl overflow-hidden border border-border bg-bg/40">
+            <img
+              src={get_full_image_url(previewPhotoUrl, "user")}
+              alt="Journal preview"
+              className="w-full max-h-[75vh] object-contain bg-black/20"
+            />
+          </div>
+        )}
+      </Modal>
       </form>
 
       {/* Editor typography styles */}

@@ -26,6 +26,7 @@ import Settings from "./(app)/(dashboard)/settings/Settings";
 import TargetPage from "./(app)/(dashboard)/target/TargetPage";
 import { Pricing } from "./(app)/Pricing";
 import ScreenTime from "./(app)/(dashboard)/screen-time/ScreenTime";
+import Report from "./(app)/(dashboard)/report/Report";
 const Pages = () => {
     return RouterProvider({ router });
 };
@@ -132,6 +133,10 @@ const router = createBrowserRouter([
             {
                 path: "screen-time",
                 Component: ScreenTime,
+            },
+            {
+                path: "report",
+                Component: Report,
             },
         ],
     },
