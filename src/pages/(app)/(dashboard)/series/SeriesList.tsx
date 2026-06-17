@@ -46,7 +46,7 @@ const STATUS_MAP: Record<string, string> = {
   watched: "Watched",
   not_finished: "Not Finished",
 };
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 const STATUS_ORDER = ["watching", "rewatching", "watchlist", "watched", "not_finished"];
 
 const sortSeriesForGroupedView = (items: Series[]) => {

@@ -48,9 +48,12 @@ import { toISO, formatDate } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
 import LocationPickerMap from "../../../../@components/LocationPickerMap";
 import Modal from "../../../../@components/Modal";
+import Modal from "../../../../@components/Modal";
 import { toast } from "react-toast";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { JOURNAL_PREDEFINED_TAGS } from "../../../../constants/journalTags";
+import ScreenTimeImportModal, { type ScreenTimeAppDraft } from "../../../../@components/ScreenTimeImportModal";
+import { useJournalTemplates } from "../../../../@hooks/useJournalTemplates";
 import ScreenTimeImportModal, { type ScreenTimeAppDraft } from "../../../../@components/ScreenTimeImportModal";
 import { useJournalTemplates } from "../../../../@hooks/useJournalTemplates";
 import {
@@ -60,6 +63,13 @@ import {
   type JournalExpenseBlock,
   type JournalTemplateBlock,
 } from "../../../../@utils/journalTemplateBlocks.utils";
+import {
+  getJournalTemplatePlaceholders,
+  humanizeJournalTemplatePlaceholder,
+  journalTemplateTextToHtml,
+  renderJournalTemplateContent,
+  type JournalSavedTemplate,
+} from "../../../../@utils/journalTemplates.utils";
 import {
   getJournalTemplatePlaceholders,
   humanizeJournalTemplatePlaceholder,
@@ -130,6 +140,23 @@ const toExpenseBlock = (items: ExpenseDraftItem[]): JournalExpenseBlock | null =
     items: cleanItems,
   };
 };
+
+const minsToLabel = (mins: number) => {
+  const safeMinutes = Math.max(0, Number(mins) || 0);
+  const h = Math.floor(safeMinutes / 60);
+  const m = safeMinutes % 60;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const minsToLabel = (mins: number) => {
   const safeMinutes = Math.max(0, Number(mins) || 0);
@@ -581,6 +608,7 @@ const AddJournal = () => {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addressBoxRef = useRef<HTMLDivElement>(null);
   const tagBoxRef = useRef<HTMLDivElement>(null);
+  const tagBoxRef = useRef<HTMLDivElement>(null);
   const [createJournalMutation, { isLoading: isCreatingMutation }] = useCreateJournalMutation();
   const [updateJournalMutation, { isLoading: isUpdatingMutation }] = useUpdateJournalMutation();
   const { data: journalFilters } = useGetJournalFiltersQuery(undefined);
@@ -591,6 +619,12 @@ const AddJournal = () => {
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showCal, setShowCal]     = useState(false);
   const [showClock, setShowClock] = useState(false);
+  const [isScreenTimeModalOpen, setIsScreenTimeModalOpen] = useState(false);
+  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templateValues, setTemplateValues] = useState<Record<string, string>>({});
+  const { templates: savedJournalTemplates } = useJournalTemplates(user?._id);
   const [isScreenTimeModalOpen, setIsScreenTimeModalOpen] = useState(false);
   const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
   const [templateSearch, setTemplateSearch] = useState("");
@@ -1151,6 +1185,9 @@ const AddJournal = () => {
       if (tagBoxRef.current && !tagBoxRef.current.contains(e.target as Node)) {
         setShowTagSuggestions(false);
       }
+      if (tagBoxRef.current && !tagBoxRef.current.contains(e.target as Node)) {
+        setShowTagSuggestions(false);
+      }
     };
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
@@ -1246,6 +1283,7 @@ const AddJournal = () => {
 
         {/* ── Split pane ────────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)_auto] overflow-y-auto lg:overflow-hidden custom-scrollbar">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)_auto] overflow-y-auto lg:overflow-hidden custom-scrollbar">
 
           {/* LEFT — writing area */}
           <div className="lg:min-h-0 flex flex-col overflow-hidden min-h-[58vh] lg:col-start-1 lg:row-start-1">
@@ -1310,6 +1348,20 @@ const AddJournal = () => {
                 <Clock size={13} />
                 Screen Time
               </button>
+              <div className="w-px h-4 bg-border mx-1.5 shrink-0" />
+              <button
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  saveEditorSelection();
+                }}
+                onClick={() => setIsScreenTimeModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg transition-colors"
+                title="Add screen time"
+              >
+                <Clock size={13} />
+                Screen Time
+              </button>
             </div>
 
             {/* Editor — fills remaining height */}
@@ -1327,6 +1379,8 @@ const AddJournal = () => {
                 onKeyDown={handleEditorKeyDown}
                 onMouseUp={saveEditorSelection}
                 onKeyUp={saveEditorSelection}
+                onMouseUp={saveEditorSelection}
+                onKeyUp={saveEditorSelection}
                 className="w-full h-full min-h-[44vh] sm:min-h-[320px] p-5 sm:p-7 text-text-primary focus:outline-none leading-[1.9] text-sm sm:text-base journal-editor"
                 style={{ wordBreak: "break-word" }}
               />
@@ -1334,6 +1388,7 @@ const AddJournal = () => {
           </div>
 
           {/* RIGHT — sidebar */}
+          <div className="border-t lg:border-t-0 lg:border-l border-border bg-surface/40 lg:col-start-2 lg:row-span-2 lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
           <div className="border-t lg:border-t-0 lg:border-l border-border bg-surface/40 lg:col-start-2 lg:row-span-2 lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
             <div className="p-4 flex flex-col gap-4">
 
@@ -1357,6 +1412,44 @@ const AddJournal = () => {
                   <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                     <Sparkles size={12} /> Templates
                   </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
+                      onClick={() => setIsTemplateLibraryOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent text-[10px] font-bold hover:bg-accent/15 transition-colors"
+                    >
+                      <Sparkles size={11} /> Library
+                    </button>
+                    {!expenseItems && (
+                      <button
+                        type="button"
+                        onClick={() => setExpenseItems([{ id: newId(), amount: "", note: "" }])}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent text-[10px] font-bold hover:bg-accent/15 transition-colors"
+                      >
+                        <Plus size={11} /> Expenses
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-bg/40 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-text-primary text-xs font-semibold">
+                      {savedJournalTemplates.length} saved template{savedJournalTemplates.length === 1 ? "" : "s"}
+                    </p>
+                    <Link
+                      to="/dashboard/settings?tab=journal_templates"
+                      className="text-accent text-[11px] font-bold hover:underline"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                  <p className="text-text-secondary text-[11px] mt-1">
+                    Use personalized templates with placeholders like {"{pages}"} and {"{book}"}.
+                  </p>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1517,6 +1610,7 @@ const AddJournal = () => {
               </div>
 
               {/* Tags */}
+              <div ref={tagBoxRef} className="space-y-1.5 relative z-[240]">
               <div ref={tagBoxRef} className="space-y-1.5 relative z-[240]">
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                   <Hash size={12} /> Tags
