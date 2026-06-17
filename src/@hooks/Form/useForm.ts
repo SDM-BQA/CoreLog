@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
 
-type ValidatorFn = (value: any) => string | null;
+type ValidatorFn<T = any> = (value: any, formValues: T) => string | null;
 
 type ValidationSchema<T> = {
-    [K in keyof T]?: ValidatorFn;
+    [K in keyof T]?: ValidatorFn<T>;
 };
 
 type UseFormProps<T> = {
@@ -29,7 +29,7 @@ export function useForm<T extends Record<string, any>>({
     const validateField = (name: keyof T, value: any) => {
         const validator = validationSchema[name];
         if (!validator) return null;
-        return validator(value);
+        return validator(value, values);
     };
 
     const validateForm = () => {

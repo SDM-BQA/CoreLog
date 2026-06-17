@@ -11,11 +11,14 @@ import {
   ChevronRight,
   Tv,
   ScrollText,
+  Target,
+  Crown,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useAppDispatch } from "../../../@store/hooks/store.hooks";
+import { useAppDispatch, useAppSelector } from "../../../@store/hooks/store.hooks";
 import { clear_user } from "../../../@store/slices/user/user.slice";
 import { toast } from "react-toast";
+import PremiumFeatureModal from "../../../@components/PremiumFeatureModal";
 
 const SIDEBAR_SECTIONS = [
   {
@@ -27,6 +30,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Books", to: "/dashboard/books", icon: BookOpen },
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
       { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
+      { label: "Target", to: "/dashboard/target", icon: Target },
     ],
   },
 ];
@@ -39,7 +43,9 @@ const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.user);
   const [collapsed, setCollapsed] = useState(window.innerWidth < 1024);
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -89,9 +95,16 @@ const DashboardSidebar = () => {
             />
           </div>
           {!collapsed && (
-            <span className="text-text-primary font-bold font-inter text-lg tracking-tight">
-              {appConfig.appName}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-text-primary font-bold font-inter text-lg tracking-tight">
+                {appConfig.appName}
+              </span>
+              {user?.plan === "inner_circle" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  Inner Circle
+                </span>
+              )}
+            </div>
           )}
         </Link>
       </div>
@@ -147,6 +160,30 @@ const DashboardSidebar = () => {
         {/* Divider */}
         <div className="mx-1 h-px bg-border mb-2" />
 
+        <button
+          type="button"
+          title={collapsed ? "Inner Circle" : undefined}
+          onClick={() => {
+            if (user?.plan === "inner_circle") {
+              navigate("/dashboard/settings?tab=inner_circle");
+            } else {
+              setIsPremiumModalOpen(true);
+            }
+          }}
+          className={`
+            w-full flex items-center gap-3 rounded-lg transition-all duration-200 mb-1
+            ${collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"}
+            bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/15
+          `}
+        >
+          <Crown size={18} />
+          {!collapsed && (
+            <span className="text-sm font-semibold">
+              {user?.plan === "inner_circle" ? "Manage Inner Circle" : "Join Inner Circle"}
+            </span>
+          )}
+        </button>
+
         {BOTTOM_LINKS.map(({ label, to, icon: Icon }) => {
           const active = isActive(to);
           return (
@@ -199,6 +236,13 @@ const DashboardSidebar = () => {
           {!collapsed && <span className="text-sm font-medium">Collapse</span>}
         </button>
       </div>
+
+      <PremiumFeatureModal
+        isOpen={isPremiumModalOpen}
+        onClose={() => setIsPremiumModalOpen(false)}
+        featureTitle="Join CoreLog Inner Circle"
+        featureMessage="Want to unlock premium logs and pro tracking perks? Enter the circle and make your media journey legendary."
+      />
     </aside>
   );
 };

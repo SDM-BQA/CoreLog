@@ -10,6 +10,8 @@ export interface Book {
   description?: string;
   publicationYear?: string;
   addedOn?: string;
+  startedFrom?: string;
+  finishedOn?: string;
 }
 
 export const booksData: Book[] = [
@@ -21,6 +23,8 @@ export const booksData: Book[] = [
     rating: 4.2,
     genre: ["Fiction", "Fantasy"],
     status: "Read",
+    startedFrom: "2024-12-01",
+    finishedOn: "2024-12-18",
   },
   {
     id: "2",
@@ -39,6 +43,7 @@ export const booksData: Book[] = [
     rating: 4.0,
     genre: ["Sci-Fi", "Literary"],
     status: "Reading",
+    startedFrom: "2026-04-10",
   },
   {
     id: "4",

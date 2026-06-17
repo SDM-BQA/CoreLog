@@ -9,6 +9,10 @@ query Get_all_user_accounts {
     mobile_no
     user_name
     gender
+    plan
+    inner_circle_email
+    inner_circle_started_at
+    inner_circle_expires_at
   }
 }
 `
@@ -23,6 +27,10 @@ query Get_user_account($getUserAccountId: ID!) {
     mobile_no
     user_name
     gender
+    plan
+    inner_circle_email
+    inner_circle_started_at
+    inner_circle_expires_at
   }
 }
 `
@@ -54,12 +62,22 @@ mutation Create_user_account($input: CreateUserInput!) {
       mobile_no
       user_name
       gender
+      plan
+      inner_circle_email
+      inner_circle_started_at
+      inner_circle_expires_at
     }
   }
 }`
 export const SEND_OTP_MUTATION = `
 mutation Send_otp($email: String!) {
   send_otp(email: $email)
+}
+`
+
+export const SEND_JOURNAL_PIN_RESET_OTP_MUTATION = `
+mutation Send_journal_pin_reset_otp($email: String!) {
+  send_journal_pin_reset_otp(email: $email)
 }
 `
 
@@ -83,6 +101,10 @@ mutation Login_user_account($emailId: String!, $password: String!) {
       mobile_no
       user_name
       gender
+      plan
+      inner_circle_email
+      inner_circle_started_at
+      inner_circle_expires_at
     }
   }
 }
@@ -98,7 +120,71 @@ mutation Update_user_account($id: ID!, $input: UpdateUserInput!) {
     mobile_no
     user_name
     gender
+    plan
+    inner_circle_email
+    inner_circle_started_at
+    inner_circle_expires_at
   }
 }
 `
 
+
+export const GET_DASHBOARD_STATS_QUERY = `
+query Get_dashboard_stats {
+  get_dashboard_stats {
+    movies
+    series
+    books
+    poems
+    journal_entries
+  }
+}
+`
+
+export const GET_INNER_CIRCLE_STATUS_QUERY = `
+query Get_inner_circle_status {
+  get_inner_circle_status {
+    plan
+    is_active
+    started_at
+    expires_at
+    days_left
+    renewal_cycle
+    email
+  }
+}
+`
+
+export const SEND_INNER_CIRCLE_OTP_MUTATION = `
+mutation Send_inner_circle_otp($email: String!) {
+  send_inner_circle_otp(email: $email)
+}
+`
+
+export const VERIFY_INNER_CIRCLE_OTP_MUTATION = `
+mutation Verify_inner_circle_otp($email: String!, $otp: String!) {
+  verify_inner_circle_otp(email: $email, otp: $otp) {
+    plan
+    is_active
+    started_at
+    expires_at
+    days_left
+    renewal_cycle
+    email
+  }
+}
+`
+
+export const CANCEL_INNER_CIRCLE_MEMBERSHIP_MUTATION = `
+mutation Cancel_inner_circle_membership($email: String!, $otp: String!) {
+  cancel_inner_circle_membership(email: $email, otp: $otp) {
+    plan
+    is_active
+    started_at
+    expires_at
+    days_left
+    renewal_cycle
+    email
+  }
+}
+`
