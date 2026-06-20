@@ -31,6 +31,6 @@ const axiosBaseQuery = (): BaseQueryFn<{
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: axiosBaseQuery(),
-  tagTypes: ["Series", "Movies", "Books", "Poetry", "Journal", "JournalStreak", "JournalTemplate", "ScreenTime"],
+  tagTypes: ["Series", "Movies", "Books", "Poetry", "Journal", "JournalStreak", "JournalTemplate", "ScreenTime", "Songs", "Albums", "Playlists"],
   endpoints: () => ({}),
 });

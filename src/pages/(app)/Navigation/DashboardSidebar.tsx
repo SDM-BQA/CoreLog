@@ -15,6 +15,7 @@ import {
   Crown,
   Smartphone,
   BarChart3,
+  Music,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../../@store/hooks/store.hooks";
@@ -30,6 +31,7 @@ const SIDEBAR_SECTIONS = [
       { label: "Movies", to: "/dashboard/movies", icon: Film },
       { label: "Web Series", to: "/dashboard/series", icon: Tv },
       { label: "Books", to: "/dashboard/books", icon: BookOpen },
+      { label: "Music", to: "/dashboard/music", icon: Music },
       { label: "Journal", to: "/dashboard/journal", icon: PenLine },
       { label: "Poetry", to: "/dashboard/poetry", icon: ScrollText },
       { label: "Target", to: "/dashboard/target", icon: Target },
