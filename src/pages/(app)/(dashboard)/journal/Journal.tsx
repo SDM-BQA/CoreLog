@@ -38,6 +38,7 @@ import { type Journal } from "../../../../@apis/journal";
 import { get_full_image_url } from "../../../../@utils/api.utils";
 import { formatDayMonth } from "../../../../@utils/date.utils";
 import { useGetJournalsListQuery, useGetJournalStreakQuery } from "../../../../@store/api/journal.api";
+import CalendarInput from "../../../../@components/@ui/CalendarInput";
 
 // ── Mood & Type config ───────────────────────────────────────────────────────
 const MOOD_MAP: Record<string, { emoji: string; color: string }> = {
@@ -102,6 +103,8 @@ const Journal = () => {
   const [search, setSearch]           = useState(searchParams.get("q") ?? "");
   const [selectedMood, setSelectedMood] = useState<string | null>(searchParams.get("mood"));
   const [selectedType, setSelectedType] = useState<string | null>(searchParams.get("type"));
+  const [dateFrom, setDateFrom]        = useState<string>(searchParams.get("from") ?? "");
+  const [dateTo, setDateTo]            = useState<string>(searchParams.get("to") ?? "");
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [view, setView]               = useState<"feed" | "calendar" | "trends" | "map">(
     (searchParams.get("view") as "feed" | "calendar" | "trends" | "map") || "feed"
@@ -115,6 +118,8 @@ const Journal = () => {
   const { data: journalsData, isLoading: loading, refetch: load } = useGetJournalsListQuery({
     limit: 200,
     page: 1,
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo   ? { date_to:   dateTo   } : {}),
   });
   const { data: streakData } = useGetJournalStreakQuery(undefined);
 
@@ -199,8 +204,10 @@ const Journal = () => {
     if (search.trim()) next.set("q", search.trim());
     if (selectedMood) next.set("mood", selectedMood);
     if (selectedType) next.set("type", selectedType);
+    if (dateFrom) next.set("from", dateFrom);
+    if (dateTo)   next.set("to",   dateTo);
     setSearchParams(next, { replace: true });
-  }, [view, search, selectedMood, selectedType, setSearchParams]);
+  }, [view, search, selectedMood, selectedType, dateFrom, dateTo, setSearchParams]);
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
@@ -386,24 +393,52 @@ const Journal = () => {
           <div className="order-1 lg:order-1 lg:col-span-9 flex flex-col gap-6 lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
 
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary/50" size={16} />
-                <input
-                  type="text"
-                  placeholder="Search entries, tags or thoughts…"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setVisibleCount(FEED_PAGE_SIZE); }}
-                  className="w-full bg-surface border border-border rounded-xl py-3 pl-11 pr-4 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-accent transition-colors"
-                />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary/50" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search entries, tags or thoughts…"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setVisibleCount(FEED_PAGE_SIZE); }}
+                    className="w-full bg-surface border border-border rounded-xl py-3 pl-11 pr-4 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+                <button
+                  onClick={load}
+                  className="flex items-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <RefreshCw size={15} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
               </div>
-              <button
-                onClick={load}
-                className="flex items-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-              >
-                <RefreshCw size={15} />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
+
+              {/* Date range filter */}
+              <div className="flex flex-wrap items-center gap-2">
+                <CalendarIcon size={14} className="text-text-secondary/50 shrink-0" />
+                <CalendarInput
+                  placeholder="From date"
+                  value={dateFrom}
+                  max={dateTo || undefined}
+                  onChange={(val) => { setDateFrom(val); setVisibleCount(FEED_PAGE_SIZE); }}
+                />
+                <span className="text-text-secondary/50 text-xs">to</span>
+                <CalendarInput
+                  placeholder="To date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(val) => { setDateTo(val); setVisibleCount(FEED_PAGE_SIZE); }}
+                />
+                {(dateFrom || dateTo) && (
+                  <button
+                    onClick={() => { setDateFrom(""); setDateTo(""); setVisibleCount(FEED_PAGE_SIZE); }}
+                    className="text-xs text-text-secondary hover:text-rose-400 transition-colors px-2 py-1 rounded-lg hover:bg-rose-500/10"
+                  >
+                    Clear dates
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
 

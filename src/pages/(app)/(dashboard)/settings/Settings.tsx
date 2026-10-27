@@ -451,17 +451,17 @@ const Settings = () => {
   ];
 
   return (
-    <div className="bg-bg flex-1 overflow-hidden">
-      <div className="h-full w-full max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8 flex flex-col gap-6">
-        
+    <div className="bg-bg flex-1 overflow-y-auto lg:overflow-hidden custom-scrollbar">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-8 flex flex-col gap-6 lg:h-full">
+
         {/* Header */}
         <div className="space-y-1 shrink-0">
           <h1 className="text-text-primary text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-text-secondary text-sm">Manage your account preferences and application settings.</p>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-          
+        <div className="grid lg:min-h-0 lg:flex-1 grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
           {/* Sidebar Nav */}
           <div className="lg:col-span-4 lg:min-h-0">
             <div className="flex flex-col gap-2 lg:sticky lg:top-6">
@@ -496,8 +496,8 @@ const Settings = () => {
           </div>
 
           {/* Settings Content Area */}
-          <div className="lg:col-span-8 min-h-0">
-            <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 flex flex-col gap-8 shadow-sm h-full min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="lg:col-span-8 lg:min-h-0">
+            <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 flex flex-col gap-8 shadow-sm lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
               
               {activeTab === "profile" && (
                 <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
