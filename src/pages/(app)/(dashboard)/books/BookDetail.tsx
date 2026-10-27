@@ -388,9 +388,9 @@ const BookDetail = () => {
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
       {/* ── Hero Section with blurred cover background ── */}
-      <div className="relative overflow-hidden border-b border-border">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-4 sm:py-6">
         {/* Blurred backdrop */}
-        <div className="absolute inset-0 z-0 select-none pointer-events-none">
+        <div className="hidden">
           <img
             src={get_full_image_url(book.cover_image)}
             alt=""
@@ -401,11 +401,11 @@ const BookDetail = () => {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 max-w-[920px] mx-auto px-6 pt-8 pb-12">
+        <div className="relative z-10 rounded-lg border border-border bg-surface/40 p-4 sm:p-6">
           {/* Back button */}
           <button
             onClick={() => navigate("/dashboard/books")}
-            className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-medium mb-8 transition-colors group w-fit"
+            className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-medium mb-4 transition-colors group w-fit"
           >
             <ArrowLeft
               size={16}
@@ -414,11 +414,11 @@ const BookDetail = () => {
             Back to collection
           </button>
 
-          <div className="flex flex-col sm:flex-row gap-8 md:gap-10 items-center sm:items-start text-center sm:text-left">
+          <div className="flex flex-col md:flex-row gap-5 lg:gap-8 items-center md:items-start text-center md:text-left">
             {/* ── Cover Image ── */}
-            <div className="w-[200px] sm:w-[240px] shrink-0">
+            <div className="w-[150px] sm:w-[190px] lg:w-[220px] shrink-0">
               <div
-                className="relative w-full aspect-[2/3] rounded-xl overflow-hidden ring-1 ring-border shadow-2xl bg-surface group cursor-pointer"
+                className="relative w-full aspect-[2/3] rounded-lg overflow-hidden ring-1 ring-border shadow-2xl bg-surface group cursor-pointer"
                 onClick={() => coverInputRef.current?.click()}
               >
                 <img
@@ -450,9 +450,9 @@ const BookDetail = () => {
             </div>
 
             {/* ── Book Info ── */}
-            <div className="flex-1 min-w-0 flex flex-col pt-2">
+            <div className="flex-1 min-w-0 flex flex-col justify-center pt-0">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-2">
-                <h1 className="text-text-primary text-3xl sm:text-4xl font-bold tracking-tight font-inter leading-tight">
+                <h1 className="text-text-primary text-3xl sm:text-5xl font-bold tracking-tight font-inter leading-tight">
                   {book.title}
                 </h1>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-current opacity-80 ${STATUS_COLORS[currentStatus] || "text-text-secondary border-border"}`}>
@@ -460,13 +460,13 @@ const BookDetail = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-text-primary text-lg font-medium mb-6">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-text-primary text-sm sm:text-base font-medium mb-5">
                 <User size={18} className="text-text-secondary" />
                 {book.author}
               </div>
 
               {/* Status and Action Buttons Row */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-5">
                 {/* Interactive Status Changer */}
                 <Select
                   value={currentStatus}
@@ -498,7 +498,7 @@ const BookDetail = () => {
               </div>
 
               {/* Meta details grid */}
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-4 sm:gap-6 text-sm text-text-secondary bg-surface/50 p-4 rounded-xl border border-border/50">
+              <div className="grid grid-cols-2 items-center gap-x-10 gap-y-4 text-sm text-text-secondary bg-bg/60 p-4 rounded-lg border border-border/50">
                 {/* Rating */}
                 {(currentStatus === "read" || book.rating > 0) && (
                   <div className="flex flex-col gap-1">
@@ -639,7 +639,7 @@ const BookDetail = () => {
       </div>
 
       {/* ── Content Sections ── */}
-      <div className="max-w-[920px] mx-auto px-6 py-10 flex flex-col gap-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 flex flex-col gap-6">
         {/* Synopsis Section */}
         <section>
           <div className="flex items-center justify-between mb-4 group/header">

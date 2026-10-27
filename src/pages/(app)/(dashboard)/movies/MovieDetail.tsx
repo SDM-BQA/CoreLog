@@ -316,23 +316,23 @@ const MovieDetail = () => {
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
-      <div className="max-w-[1000px] mx-auto px-4 sm:px-8 py-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-4 sm:py-6">
 
         {/* Back Button */}
         <button
           onClick={() => navigate("/dashboard/movies")}
-          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-semibold mb-8 transition-all group"
+          className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary text-sm font-semibold mb-4 transition-all group"
         >
           <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
           Back to collection
         </button>
 
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row gap-8 lg:gap-12 mb-12">
+        <div className="relative overflow-hidden rounded-lg border border-border bg-surface/40 p-4 sm:p-6 flex flex-col md:flex-row gap-5 lg:gap-8 mb-6">
 
           {/* Poster */}
-          <div className="w-full sm:w-[240px] lg:w-[280px] shrink-0">
-            <div className="relative group aspect-[2/3] rounded-2xl overflow-hidden bg-surface border border-border shadow-2xl">
+          <div className="w-[150px] sm:w-[190px] lg:w-[220px] mx-auto md:mx-0 shrink-0">
+            <div className="relative group aspect-[2/3] rounded-lg overflow-hidden bg-surface border border-border shadow-2xl">
               <img
                 src={get_full_image_url(movie.poster_image, "movie")}
                 alt={movie.title}
@@ -341,7 +341,7 @@ const MovieDetail = () => {
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-white/30 transition-all"
+                  className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white/30 transition-all"
                 >
                   Change Poster
                 </button>
@@ -356,9 +356,9 @@ const MovieDetail = () => {
           </div>
 
           {/* Info */}
-          <div className="flex-1 min-w-0 flex flex-col pt-2">
+          <div className="flex-1 min-w-0 flex flex-col justify-center pt-0">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-2">
-              <h1 className="text-text-primary text-3xl sm:text-4xl font-bold tracking-tight font-inter leading-tight">
+              <h1 className="text-text-primary text-3xl sm:text-5xl font-bold tracking-tight font-inter leading-tight">
                 {movie.title}
               </h1>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-current opacity-80 ${STATUS_COLORS[movie.status]}`}>
@@ -374,7 +374,7 @@ const MovieDetail = () => {
             )} */}
 
             {(movie.language || movie.origin_country) && (
-              <div className="flex items-center justify-center sm:justify-start gap-4 text-text-primary text-base font-medium mb-6">
+              <div className="flex items-center justify-center sm:justify-start gap-4 text-text-primary text-sm sm:text-base font-medium mb-5">
                 {movie.language && (
                   <div className="flex items-center gap-2">
                     <Globe size={16} className="text-text-secondary" />
@@ -391,7 +391,7 @@ const MovieDetail = () => {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-8">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-5">
               <Select
                 value={movie.status}
                 options={STATUS_OPTIONS}
@@ -419,7 +419,7 @@ const MovieDetail = () => {
             </div>
 
             {/* Meta Grid */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-4 sm:gap-6 text-sm text-text-secondary bg-surface/50 p-4 rounded-xl border border-border/50">
+            <div className="grid grid-cols-2 items-center gap-x-10 gap-y-4 text-sm text-text-secondary bg-bg/60 p-4 rounded-lg border border-border/50">
               <div className="flex flex-col gap-1">
                 <span className="text-[11px] uppercase tracking-wider font-semibold text-text-secondary/70">Rating</span>
                 <div className="flex items-center gap-1.5">
@@ -505,11 +505,8 @@ const MovieDetail = () => {
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent my-4 opacity-50" />
-
         {/* Synopsis & Review */}
-        <div className="grid grid-cols-1 gap-12">
+        <div className="grid grid-cols-1 gap-6">
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-text-primary text-lg font-bold flex items-center gap-2">

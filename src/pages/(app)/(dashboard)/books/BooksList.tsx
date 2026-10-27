@@ -45,13 +45,34 @@ const STATUS_MAP: Record<string, string> = {
   read: "Read",
   not_finished: "Not Finished",
 };
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
+const STATUS_ORDER = ["reading", "want_to_read", "read", "not_finished"];
+
+const sortBooksForGroupedView = (items: Book[]) => {
+  const grouped = items.reduce((acc, item) => {
+    const status = item.status || "unknown";
+    if (!acc[status]) acc[status] = [];
+    acc[status].push(item);
+    return acc;
+  }, {} as Record<string, Book[]>);
+
+  return Object.keys(grouped)
+    .sort((a, b) => {
+      const indexA = STATUS_ORDER.indexOf(a.toLowerCase());
+      const indexB = STATUS_ORDER.indexOf(b.toLowerCase());
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .flatMap((status) => grouped[status]);
+};
 
 
 
 // ── Skeleton card ────────────────────────────────────────────
 const GridSkeleton = () => (
-  <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
+  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-6 xl:gap-8 pb-8">
     {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
       <div key={i} className="flex flex-col gap-3 animate-pulse">
         <div className="aspect-[2/3] w-full rounded-xl bg-surface border border-border/30" />
@@ -134,6 +155,8 @@ const BooksList = () => {
   // All books for calendar view (unpaginated)
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [allFilteredBooks, setAllFilteredBooks] = useState<Book[]>([]);
+  const [isGroupedViewLoading, setIsGroupedViewLoading] = useState(false);
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -194,6 +217,62 @@ const BooksList = () => {
     fetchAll();
   }, [viewMode]);
 
+  useEffect(() => {
+    if (viewMode !== "grid" && viewMode !== "list") return;
+
+    let isMounted = true;
+
+    const fetchGroupedViewBooks = async () => {
+      setIsGroupedViewLoading(true);
+      try {
+        const result = await get_my_books_query({
+          search: committedSearch || undefined,
+          genres: genreFilter.length ? genreFilter : undefined,
+          status: statusFilter.length ? statusFilter : undefined,
+          author: authorFilter.length === 1 ? authorFilter[0] : undefined,
+          rating: ratingFilter.length ? Math.min(...ratingFilter) : undefined,
+          limit: 1000,
+        });
+
+        if (isMounted) {
+          setAllFilteredBooks(result.books as unknown as Book[]);
+        }
+      } catch (error) {
+        console.error("Error fetching books for grouped view:", error);
+        if (isMounted) setAllFilteredBooks([]);
+      } finally {
+        if (isMounted) setIsGroupedViewLoading(false);
+      }
+    };
+
+    fetchGroupedViewBooks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [viewMode, committedSearch, genreFilter, statusFilter, ratingFilter, authorFilter]);
+
+  const groupedViewBooks = sortBooksForGroupedView(allFilteredBooks);
+  const groupedViewTotal = groupedViewBooks.length;
+  const groupedViewTotalPages = Math.max(1, Math.ceil(groupedViewTotal / ITEMS_PER_PAGE));
+  const paginatedGroupedBooks = groupedViewBooks.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+  const displayBooks = viewMode === "grid" || viewMode === "list" ? paginatedGroupedBooks : books;
+  const displayTotal = viewMode === "grid" || viewMode === "list" ? groupedViewTotal : total;
+  const displayTotalPages = viewMode === "grid" || viewMode === "list" ? groupedViewTotalPages : totalPages;
+  const displayHasNextPage = viewMode === "grid" || viewMode === "list" ? currentPage < groupedViewTotalPages : hasNextPage;
+  const displayIsLoading = (viewMode === "grid" || viewMode === "list")
+    ? (isLoading || isGroupedViewLoading)
+    : isLoading;
+
+  useEffect(() => {
+    if ((viewMode === "grid" || viewMode === "list") && currentPage > groupedViewTotalPages) {
+      setCurrentPage(groupedViewTotalPages);
+    }
+  }, [viewMode, currentPage, groupedViewTotalPages]);
+
   // Sync state FROM URL when navigating back (popstate)
   useEffect(() => {
     const page = Number(searchParams.get("page")) || 1;
@@ -250,22 +329,22 @@ const BooksList = () => {
 
   return (
     <div className="bg-bg flex-1 overflow-y-auto custom-scrollbar">
-      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-4 sm:py-8 flex flex-col">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 py-3 sm:py-5 flex flex-col">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between mb-3 sm:mb-6">
+        <div className="flex items-start justify-between mb-2 sm:mb-3">
           <div>
             <h1 className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight font-inter">
               My Collection
             </h1>
-            <p className="text-text-secondary text-sm mt-1 hidden sm:block">
+            <p className="text-text-secondary text-xs sm:text-sm mt-0.5 hidden sm:block">
               Manage and explore your personal library of{" "}
               <span className="text-accent font-semibold">{stats.total}</span> books
             </p>
           </div>
           <Link
             to="/dashboard/books/add-book"
-            className="inline-flex items-center gap-1.5 sm:gap-2 bg-accent hover:bg-accent/80 text-text-primary text-xs sm:text-sm font-semibold px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 sm:gap-2 bg-accent hover:bg-accent/80 text-text-primary text-xs sm:text-sm font-semibold px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors shrink-0"
           >
             <Plus size={16} />
             Add Book
@@ -274,31 +353,33 @@ const BooksList = () => {
 
 
         {/* ── Stats Row ── */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-8 shrink-0">
+        <div className="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 mb-2.5 sm:mb-3 shrink-0 overflow-x-auto pb-1 snap-x hide-scrollbar">
           {[
             { label: "Total Collection", value: stats.total },
             { label: "Completed", value: stats.completed },
             { label: "Reading Now", value: stats.readingNow },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-surface border border-border p-3 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col justify-center shadow-sm">
-              <h3 className="text-text-secondary text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate">{label}</h3>
-              <span className="text-text-primary text-xl sm:text-3xl font-bold tracking-tight">{value}</span>
+            <div key={label} className="bg-surface border border-border px-3 py-2 sm:px-4 sm:py-3 rounded-xl flex flex-col justify-center shadow-sm min-h-[68px] sm:min-h-[86px] min-w-[120px] sm:min-w-0 snap-start">
+              <h3 className="text-text-secondary text-[10px] sm:text-xs font-semibold mb-0.5 truncate">{label}</h3>
+              <span className="text-text-primary text-lg sm:text-2xl font-bold tracking-tight leading-none">{value}</span>
             </div>
           ))}
         </div>
-        
-        <TargetBanner category="books" label="read" />
+
+        <div className="mb-2.5 sm:mb-3">
+          <TargetBanner category="books" label="read" />
+        </div>
 
         {/* ── Toolbar ── */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6 shrink-0">
+        <div className="flex flex-col lg:flex-row gap-2 mb-2.5 sm:mb-3 shrink-0">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
             <input
               type="text"
               placeholder="Search by title or author..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full bg-surface border border-border rounded-xl py-3 pl-11 pr-10 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent transition-colors shadow-sm"
+              className="w-full bg-surface border border-border rounded-xl py-2.5 pl-10 pr-9 text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent transition-colors shadow-sm"
             />
             {searchQuery && (
               <button
@@ -311,7 +392,7 @@ const BooksList = () => {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
             <FilterDropdown
               label="Genre"
               options={genreOptions.map(get_genre_display)}
@@ -349,7 +430,7 @@ const BooksList = () => {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-error hover:bg-error/10 rounded-lg transition-colors border border-transparent hover:border-error/20"
+                className="inline-flex shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-bold text-error hover:bg-error/10 rounded-lg transition-colors border border-transparent hover:border-error/20"
               >
                 <X size={13} />
                 Clear
@@ -359,13 +440,14 @@ const BooksList = () => {
         </div>
 
         {/* ── View Toggle ── */}
-        <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6 shrink-0">
-          <div className="flex items-center gap-6 relative">
+        <div className="border-b border-border/50 pb-1.5 sm:pb-2 mb-2.5 sm:mb-3 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-4 sm:gap-6 relative overflow-x-auto hide-scrollbar pr-2">
             {(["grid", "list", "calendar", "series"] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex items-center gap-2 text-sm font-semibold transition-colors relative pb-4 ${
+                className={`flex items-center gap-1.5 sm:gap-2 text-sm font-semibold transition-colors relative pb-2 ${
                   viewMode === mode ? "text-accent" : "text-text-secondary hover:text-text-primary"
                 }`}
               >
@@ -381,12 +463,23 @@ const BooksList = () => {
               }}
             />
           </div>
-          {!isLoading && (
-            <p className="text-text-secondary text-xs">
-              {total === 0 ? "No results" : (
+          {!displayIsLoading && (
+            <p className="hidden sm:block text-text-secondary text-[11px] sm:text-xs whitespace-nowrap">
+              {displayTotal === 0 ? "No results" : (
                 <>
-                  <span className="text-text-primary font-semibold">{books.length}</span> of{" "}
-                  <span className="text-accent font-semibold">{total}</span> books
+                  <span className="text-text-primary font-semibold">{displayBooks.length}</span> of{" "}
+                  <span className="text-accent font-semibold">{displayTotal}</span> books
+                </>
+              )}
+            </p>
+          )}
+          </div>
+          {!displayIsLoading && (
+            <p className="sm:hidden text-text-secondary text-[11px] whitespace-nowrap text-right">
+              {displayTotal === 0 ? "No results" : (
+                <>
+                  <span className="text-text-primary font-semibold">{displayBooks.length}</span> of{" "}
+                  <span className="text-accent font-semibold">{displayTotal}</span> books
                 </>
               )}
             </p>
@@ -398,7 +491,7 @@ const BooksList = () => {
           
           {/* ── Content Area ── */}
           <div className="flex-1 flex flex-col pr-2">
-            {isLoading ? (
+            {displayIsLoading ? (
                 <div className="animate-reveal">
                   {viewMode === "grid" ? <GridSkeleton /> : viewMode === "list" ? <ListSkeleton /> : <GridSkeleton />}
                 </div>
@@ -506,7 +599,7 @@ const BooksList = () => {
                 })()
           ) : (
             <MediaDisplay
-              items={books.map((book: any) => ({
+              items={displayBooks.map((book: any) => ({
                 _id: book._id,
                 title: book.title,
                 subtitle: book.author,
@@ -518,7 +611,7 @@ const BooksList = () => {
               }))}
               type="book"
               viewMode={viewMode === "grid" || viewMode === "list" ? viewMode : "grid"}
-              isLoading={isLoading}
+              isLoading={displayIsLoading}
               hasFilters={hasFilters}
               onClearFilters={clearFilters}
               statusMap={STATUS_MAP}
@@ -530,11 +623,11 @@ const BooksList = () => {
           </div>
 
           {/* ── Pagination — hidden in calendar and series view ── */}
-          {!isLoading && total > 0 && viewMode !== "calendar" && viewMode !== "series" && (
+          {!displayIsLoading && displayTotal > 0 && viewMode !== "calendar" && viewMode !== "series" && (
             <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-4 lg:w-16 shrink-0 mt-auto lg:mt-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-6 pb-4 lg:pb-0 lg:sticky lg:top-8 lg:self-start">
               
               <p className="text-text-secondary text-xs lg:text-[10px] font-bold tracking-widest uppercase lg:[writing-mode:vertical-rl] lg:rotate-180 shrink-0">
-                Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{totalPages}</span>
+                Page <span className="text-text-primary">{currentPage}</span> / <span className="text-accent">{displayTotalPages}</span>
               </p>
 
               <div className="flex lg:flex-col items-center gap-1.5 shrink-0">
@@ -547,7 +640,7 @@ const BooksList = () => {
                   <ChevronLeft size={16} className="lg:-rotate-90" />
                 </button>
                 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                {Array.from({ length: displayTotalPages }, (_, i) => i + 1).map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -564,7 +657,7 @@ const BooksList = () => {
                 
                 <button
                   type="button"
-                  disabled={!hasNextPage}
+                  disabled={!displayHasNextPage}
                   onClick={() => setCurrentPage(currentPage + 1)}
                   className="p-1.5 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >

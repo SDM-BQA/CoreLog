@@ -1,19 +1,21 @@
 /** Parses any date value the API might return: ms timestamp string, ISO string, or YYYY-MM-DD */
-export const parseDate = (val?: string | number | null): Date | null => {
+export const parseDate = (val?: string | number | Date | null): Date | null => {
   if (val == null || val === "") return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
   const num = Number(val);
   const d = isNaN(num) ? new Date(val as string) : new Date(num);
   return isNaN(d.getTime()) ? null : d;
 };
 
 /** Formats a date value for display in IST: "23 Apr 2024" */
-export const formatDate = (val?: string | number | null): string => {
+export const formatDate = (val?: string | number | Date | null, options?: Intl.DateTimeFormatOptions): string => {
   const d = parseDate(val);
   if (!d) return "—";
   return d.toLocaleDateString("en-IN", { 
     day: "numeric", 
     month: "short", 
     year: "numeric",
+    ...options,
     timeZone: "Asia/Kolkata" 
   });
 };

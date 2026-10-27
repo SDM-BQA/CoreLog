@@ -115,10 +115,10 @@ const TargetBanner = ({ category, label, year: propYear }: TargetBannerProps) =>
     }
 
     return (
-        <div className={`flex items-center gap-4 px-5 py-3 ${s.bg} ${s.border} border rounded-2xl mb-6`}>
-            <Target size={15} className={`${s.text} shrink-0`} />
-            <div className="flex-1 flex flex-wrap items-center gap-x-4 gap-y-1 min-w-0">
-                <span className="text-text-secondary text-sm font-medium shrink-0">{year} Goal</span>
+        <div className={`flex items-start sm:items-center gap-2.5 sm:gap-4 px-3.5 sm:px-5 py-2.5 sm:py-3 ${s.bg} ${s.border} border rounded-2xl mb-3 sm:mb-6`}>
+            <Target size={14} className={`${s.text} shrink-0 mt-0.5 sm:mt-0`} />
+            <div className="flex-1 min-w-0">
+                <span className="text-text-secondary text-xs sm:text-sm font-medium shrink-0">{year} Goal</span>
                 {isEditing ? (
                     <div className="flex items-center gap-2">
                         <input
@@ -138,17 +138,29 @@ const TargetBanner = ({ category, label, year: propYear }: TargetBannerProps) =>
                     </div>
                 ) : (
                     <>
-                        <span className={`${s.text} font-bold text-sm shrink-0`}>
-                            {progress} / {goal} {label}
-                        </span>
-                        <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden min-w-[80px]">
-                            <div className={`h-full ${s.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <span className={`${s.text} font-bold text-xs sm:text-sm shrink-0`}>
+                                {progress} / {goal} {label}
+                            </span>
+                            <div className="hidden sm:flex flex-1 h-1.5 bg-border rounded-full overflow-hidden min-w-[120px]">
+                                <div className={`h-full ${s.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="hidden sm:block text-text-secondary text-[11px] sm:text-xs font-bold shrink-0">{pct}%</span>
+                            <button onClick={() => { setEditValue(String(goal)); setIsEditing(true); }}
+                                className="hidden sm:block text-text-secondary hover:text-text-primary transition-colors p-1 shrink-0">
+                                <Pencil size={13} />
+                            </button>
                         </div>
-                        <span className="text-text-secondary text-xs font-bold shrink-0">{pct}%</span>
-                        <button onClick={() => { setEditValue(String(goal)); setIsEditing(true); }}
-                            className="text-text-secondary hover:text-text-primary transition-colors p-1 shrink-0">
-                            <Pencil size={13} />
-                        </button>
+                        <div className="mt-1.5 sm:hidden flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden min-w-[100px]">
+                                <div className={`h-full ${s.bar} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-text-secondary text-[11px] font-bold shrink-0">{pct}%</span>
+                            <button onClick={() => { setEditValue(String(goal)); setIsEditing(true); }}
+                                className="text-text-secondary hover:text-text-primary transition-colors p-1 shrink-0">
+                                <Pencil size={13} />
+                            </button>
+                        </div>
                     </>
                 )}
             </div>

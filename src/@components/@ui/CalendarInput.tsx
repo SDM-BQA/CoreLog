@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CalendarInputProps {
@@ -47,7 +48,9 @@ const CalendarInput: React.FC<CalendarInputProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [jumpDate, setJumpDate] = useState("");
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties | null>(null);
 
   const selectedDate = useMemo(() => {
     if (!value) return null;
@@ -62,13 +65,58 @@ const CalendarInput: React.FC<CalendarInputProps> = ({
 
   useEffect(() => {
     const onOutside = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedInsideRoot = !!rootRef.current?.contains(target);
+      const clickedInsidePanel = !!panelRef.current?.contains(target);
+      if (!clickedInsideRoot && !clickedInsidePanel) {
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    const updatePosition = () => {
+      if (!rootRef.current) return;
+
+      const rect = rootRef.current.getBoundingClientRect();
+      const viewportPadding = 8;
+      const panelWidth = Math.min(Math.max(rect.width, 280), 360);
+      const panelHeight = panelRef.current?.getBoundingClientRect().height ?? 420;
+
+      let top = rect.bottom + 8;
+      if (top + panelHeight > window.innerHeight - viewportPadding) {
+        top = Math.max(viewportPadding, rect.top - panelHeight - 8);
+      }
+
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth - viewportPadding) {
+        left = window.innerWidth - panelWidth - viewportPadding;
+      }
+      left = Math.max(viewportPadding, left);
+
+      setPanelStyle({
+        position: "fixed",
+        top,
+        left,
+        width: panelWidth,
+        maxWidth: "calc(100vw - 16px)",
+      });
+    };
+
+    const raf = window.requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, value, viewDate, min, max]);
 
   const monthStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
@@ -138,8 +186,12 @@ const CalendarInput: React.FC<CalendarInputProps> = ({
 
       {error && <p className="text-error text-xs mt-1.5 pl-1">{error}</p>}
 
-      {isOpen && (
-        <div className="absolute z-[100] mt-2 w-full min-w-[280px] sm:min-w-[320px] max-w-[360px] bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div
+          ref={panelRef}
+          style={panelStyle ?? { position: "fixed", top: 0, left: 0, visibility: "hidden" }}
+          className="z-[10050] w-full min-w-[280px] sm:min-w-[320px] max-w-[360px] bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-16px)] overflow-y-auto"
+        >
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <button
@@ -231,7 +283,8 @@ const CalendarInput: React.FC<CalendarInputProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -4,6 +4,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Save,
+  Plus,
+  Trash2,
   Loader2,
   MapPin,
   Smile,
@@ -23,6 +25,7 @@ import {
   Moon,
   User,
   MoreHorizontal,
+  Eye,
   Bold,
   Italic,
   Underline,
@@ -44,9 +47,27 @@ import { get_full_image_url } from "../../../../@utils/api.utils";
 import { toISO, formatDate } from "../../../../@utils/date.utils";
 import Select from "../../../../@components/@ui/Select";
 import LocationPickerMap from "../../../../@components/LocationPickerMap";
+import Modal from "../../../../@components/Modal";
 import { toast } from "react-toast";
 import { useAppSelector } from "../../../../@store/hooks/store.hooks";
 import { JOURNAL_PREDEFINED_TAGS } from "../../../../constants/journalTags";
+ import {
+  getExpenseBlocks,
+  resolveJournalTemplateBlocks,
+  stripJournalTemplateBlocks,
+  type JournalExpenseBlock,
+  type JournalTemplateBlock,
+} from "../../../../@utils/journalTemplateBlocks.utils";
+import {
+  getJournalTemplatePlaceholders,
+  humanizeJournalTemplatePlaceholder,
+  journalTemplateTextToHtml,
+  renderJournalTemplateContent,
+  type JournalSavedTemplate,
+} from "../../../../@utils/journalTemplates.utils";
+import { useJournalTemplates } from "../../../../@hooks/useJournalTemplates";
+import ScreenTimeImportModal, { type ScreenTimeAppDraft } from "../../../../@components/ScreenTimeImportModal";
+
 
 const JOURNAL_TYPES = [
   { value: "personal",  label: "Personal",  icon: User },
@@ -78,6 +99,133 @@ const MOODS = [
   { value: "neutral",     label: "Neutral",     emoji: "😐" },
   { value: "bad",         label: "Bad",         emoji: "😞" },
 ];
+
+type ExpenseDraftItem = {
+  id: string;
+  amount: string;
+  note: string;
+};
+
+const newId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const toExpenseDraft = (block: JournalExpenseBlock): ExpenseDraftItem[] =>
+  block.items.length
+    ? block.items.map((item) => ({ id: item.id || newId(), amount: String(item.amount || ""), note: item.note || "" }))
+    : [{ id: newId(), amount: "", note: "" }];
+
+const toExpenseBlock = (items: ExpenseDraftItem[]): JournalExpenseBlock | null => {
+  const cleanItems = items
+    .map((item) => ({
+      id: item.id,
+      amount: Number(item.amount),
+      note: item.note.trim(),
+    }))
+    .filter((item) => Number.isFinite(item.amount) && item.amount > 0 && item.note);
+
+  if (!cleanItems.length) return null;
+
+  return {
+    id: "expenses",
+    type: "expenses",
+    title: "Today expenses",
+    items: cleanItems,
+  };
+};
+
+const minsToLabel = (mins: number) => {
+  const safeMinutes = Math.max(0, Number(mins) || 0);
+  const h = Math.floor(safeMinutes / 60);
+  const m = safeMinutes % 60;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
+};
+
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const ExpensesBlockEditor = ({
+  items,
+  onChange,
+  onRemove,
+}: {
+  items: ExpenseDraftItem[];
+  onChange: (items: ExpenseDraftItem[]) => void;
+  onRemove: () => void;
+}) => {
+  const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  const updateItem = (id: string, patch: Partial<ExpenseDraftItem>) => {
+    onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-bg p-3 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-text-primary text-xs font-bold">Today expenses</p>
+          <p className="text-text-secondary/60 text-[10px]">Template block</p>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="w-7 h-7 rounded-lg border border-border text-text-secondary hover:text-error hover:border-error/30 transition-colors flex items-center justify-center"
+          title="Remove expenses template"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {items.map((item) => (
+          <div key={item.id} className="grid grid-cols-[72px_minmax(0,1fr)_28px] gap-2">
+            <input
+              type="number"
+              min="0"
+              inputMode="decimal"
+              placeholder="₹"
+              value={item.amount}
+              onChange={(e) => updateItem(item.id, { amount: e.target.value })}
+              className="bg-surface border border-border rounded-lg px-2 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+            />
+            <input
+              type="text"
+              placeholder="lunch, gift, travel..."
+              value={item.note}
+              onChange={(e) => updateItem(item.id, { note: e.target.value })}
+              className="bg-surface border border-border rounded-lg px-2 py-2 text-xs text-text-primary focus:outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((x) => x.id !== item.id))}
+              className="rounded-lg border border-border text-text-secondary hover:text-error hover:border-error/30 transition-colors flex items-center justify-center"
+              title="Remove expense"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onChange([...items, { id: newId(), amount: "", note: "" }])}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80"
+        >
+          <Plus size={13} /> Add expense
+        </button>
+        <span className="text-xs font-bold text-text-primary">Total ₹{total}</span>
+      </div>
+    </div>
+  );
+};
 
 const TYPE_COLOR: Record<string, string> = {
   personal: "violet", plan: "blue",    finance: "emerald", travel: "amber",
@@ -145,8 +293,8 @@ const CalendarPicker = ({ value, onSelect, onClose }: {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden">
+      <div className="fixed inset-0 z-[1200] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed z-[1210] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden">
 
         {/* Month nav */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -297,8 +445,8 @@ const ClockPicker = ({ value, onChange, onClose }: {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[260px] overflow-hidden">
+      <div className="fixed inset-0 z-[1200] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed z-[1210] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface border border-border rounded-2xl shadow-2xl w-[260px] overflow-hidden">
 
         {/* Time header */}
         <div className="bg-bg/70 px-4 py-3 flex items-center gap-1">
@@ -431,15 +579,26 @@ const AddJournal = () => {
   const navigate = useNavigate();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addressBoxRef = useRef<HTMLDivElement>(null);
+  const tagBoxRef = useRef<HTMLDivElement>(null);
   const [createJournalMutation, { isLoading: isCreatingMutation }] = useCreateJournalMutation();
   const [updateJournalMutation, { isLoading: isUpdatingMutation }] = useUpdateJournalMutation();
   const { data: journalFilters } = useGetJournalFiltersQuery(undefined);
   const { data: existingJournal, isLoading: isJournalLoading } = useGetJournalByIdQuery(editJournalId ?? "", { skip: !isEditMode });
   const [isUploading, setIsUploading] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showCal, setShowCal]     = useState(false);
   const [showClock, setShowClock] = useState(false);
+  const { templates: savedJournalTemplates } = useJournalTemplates(user?._id);
+  const [isScreenTimeModalOpen, setIsScreenTimeModalOpen] = useState(false);
+  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templateValues, setTemplateValues] = useState<Record<string, string>>({});
 
   const nowForDefault = new Date();
   const defaultTime = `${String(nowForDefault.getHours()).padStart(2, "0")}:${String(nowForDefault.getMinutes()).padStart(2, "0")}`;
@@ -458,6 +617,8 @@ const AddJournal = () => {
     is_favorite: false,
   });
   const [photos, setPhotos] = useState<string[]>([]);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [expenseItems, setExpenseItems] = useState<ExpenseDraftItem[] | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -498,6 +659,11 @@ const AddJournal = () => {
     setSelectedTags((prev) => prev.filter((t) => t !== tag));
   };
 
+  const templateBlocks: JournalTemplateBlock[] = (() => {
+    const expenseBlock = expenseItems ? toExpenseBlock(expenseItems) : null;
+    return expenseBlock ? [expenseBlock] : [];
+  })();
+
   useEffect(() => {
     if (!isEditMode || !existingJournal) return;
     setMeta((prev) => ({
@@ -516,18 +682,203 @@ const AddJournal = () => {
     }));
     setPhotos(existingJournal.photos ?? []);
     setSelectedTags((existingJournal.tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean));
+    const existingTemplateBlocks = resolveJournalTemplateBlocks(existingJournal);
+    const existingExpense = getExpenseBlocks(existingTemplateBlocks)[0];
+    setExpenseItems(existingExpense ? toExpenseDraft(existingExpense) : null);
     if (editorRef.current) {
-      editorRef.current.innerHTML = existingJournal.content ?? "";
+      editorRef.current.innerHTML = stripJournalTemplateBlocks(existingJournal.content ?? "");
       setIsEmpty(!editorRef.current.textContent?.trim());
     }
   }, [isEditMode, existingJournal]);
+
+  // Restore draft on mount (new entries only)
+  useEffect(() => {
+    if (isEditMode) return;
+    try {
+      const raw = localStorage.getItem("journal_draft_new");
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        meta: typeof meta;
+        content: string;
+        selectedTags: string[];
+        photos: string[];
+        expenseItems: ExpenseDraftItem[] | null;
+        savedAt: number;
+      };
+      setMeta(draft.meta);
+      setSelectedTags(draft.selectedTags ?? []);
+      setPhotos(draft.photos ?? []);
+      setExpenseItems(draft.expenseItems ?? null);
+      if (editorRef.current && draft.content) {
+        editorRef.current.innerHTML = draft.content;
+        setIsEmpty(!editorRef.current.textContent?.trim());
+      }
+      const agoMins = Math.round((Date.now() - draft.savedAt) / 60000);
+      toast.success(agoMins < 1 ? "Draft restored" : `Draft restored (saved ${agoMins}m ago)`);
+    } catch { /* corrupt/missing draft */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave to localStorage (new entries only, 1.5s debounce)
+  useEffect(() => {
+    if (isEditMode) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    setAutosaveStatus("saving");
+    autosaveTimerRef.current = setTimeout(() => {
+      const content = editorRef.current?.innerHTML ?? "";
+      try {
+        localStorage.setItem("journal_draft_new", JSON.stringify({
+          meta,
+          content,
+          selectedTags,
+          photos,
+          expenseItems,
+          savedAt: Date.now(),
+        }));
+      } catch { /* storage full */ }
+      setAutosaveStatus("saved");
+    }, 1500);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+  // draftVersion tracks contentEditable changes that don't update React state
+  }, [isEditMode, meta, selectedTags, photos, expenseItems, draftVersion]);
 
   const color = TYPE_COLOR[meta.journal_type] ?? "violet";
   const ac = AC[color];
 
   const onEditorInput = useCallback(() => {
     setIsEmpty(!editorRef.current?.textContent?.trim());
+    if (!isEditMode) setDraftVersion((v) => v + 1);
+  }, [isEditMode]);
+
+  const saveEditorSelection = useCallback(() => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    savedSelectionRef.current = range.cloneRange();
   }, []);
+
+  const placeCaretAtEnd = useCallback(() => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    savedSelectionRef.current = range.cloneRange();
+  }, []);
+
+  const insertScreenTimeSummary = useCallback((payload: { totalMinutes: number; apps: ScreenTimeAppDraft[] }) => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection) return;
+
+    editor.focus();
+
+    if (savedSelectionRef.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelectionRef.current);
+    } else {
+      placeCaretAtEnd();
+    }
+
+    if (!selection.rangeCount) {
+      placeCaretAtEnd();
+    }
+
+    const apps = payload.apps.filter((app) => app.app_name.trim() && app.minutes > 0).slice(0, 3);
+    const total = payload.totalMinutes > 0
+      ? payload.totalMinutes
+      : apps.reduce((sum, app) => sum + app.minutes, 0);
+
+    const lines = [
+      "<p><strong>Screen Time</strong></p>",
+      `<p>Total | ${escapeHtml(minsToLabel(total))}</p>`,
+      "<p>App | Time</p>",
+      ...apps.map((app) => `<p>${escapeHtml(app.app_name.trim())} | ${escapeHtml(minsToLabel(app.minutes))}</p>`),
+      "<p><br></p>",
+    ];
+
+    document.execCommand("insertHTML", false, lines.join(""));
+    savedSelectionRef.current = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    onEditorInput();
+  }, [onEditorInput, placeCaretAtEnd]);
+
+  const closeTemplateLibrary = useCallback(() => {
+    setIsTemplateLibraryOpen(false);
+    setTemplateSearch("");
+    setSelectedTemplateId(null);
+    setTemplateValues({});
+  }, []);
+
+  const insertJournalTemplate = useCallback((template: JournalSavedTemplate, values: Record<string, string>) => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection) return;
+
+    editor.focus();
+
+    if (savedSelectionRef.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelectionRef.current);
+    } else {
+      placeCaretAtEnd();
+    }
+
+    if (!selection.rangeCount) {
+      placeCaretAtEnd();
+    }
+
+    const resolved = renderJournalTemplateContent(template.content, values);
+    const html = `${journalTemplateTextToHtml(resolved)}<p><br></p>`;
+    document.execCommand("insertHTML", false, html);
+    savedSelectionRef.current = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    onEditorInput();
+  }, [onEditorInput, placeCaretAtEnd]);
+
+  const filteredJournalTemplates = savedJournalTemplates.filter((template: JournalSavedTemplate) => {
+    const query = templateSearch.trim().toLowerCase();
+    if (!query) return true;
+
+    return [template.name, template.category || "", template.content]
+      .some((value) => value.toLowerCase().includes(query));
+  });
+
+  const selectedTemplate = selectedTemplateId
+    ? savedJournalTemplates.find((template: JournalSavedTemplate) => template.id === selectedTemplateId) ?? null
+    : null;
+  const selectedTemplatePlaceholders = selectedTemplate
+    ? getJournalTemplatePlaceholders(selectedTemplate.content)
+    : [];
+
+  const handleChooseTemplate = useCallback((template: JournalSavedTemplate) => {
+    setSelectedTemplateId(template.id);
+    setTemplateValues(
+      Object.fromEntries(
+        getJournalTemplatePlaceholders(template.content).map((placeholder) => [placeholder, ""]),
+      ),
+    );
+  }, []);
+
+  const handleApplySelectedTemplate = useCallback(() => {
+    if (!selectedTemplate) return;
+
+    const placeholders = getJournalTemplatePlaceholders(selectedTemplate.content);
+    const missing = placeholders.find((placeholder) => !templateValues[placeholder]?.trim());
+    if (missing) {
+      toast.error(`${humanizeJournalTemplatePlaceholder(missing)} is required.`);
+      return;
+    }
+
+    insertJournalTemplate(selectedTemplate, templateValues);
+    closeTemplateLibrary();
+    toast.success(`Inserted "${selectedTemplate.name}" template`);
+  }, [closeTemplateLibrary, insertJournalTemplate, selectedTemplate, templateValues]);
 
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
 
@@ -624,7 +975,7 @@ const AddJournal = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!meta.title.trim()) { toast.error("Title is required"); return; }
-    const content = editorRef.current?.innerHTML ?? "";
+    const content = stripJournalTemplateBlocks(editorRef.current?.innerHTML ?? "");
     if (!editorRef.current?.textContent?.trim()) { toast.error("Entry content is required"); return; }
     if (!meta.location_address.trim()) { toast.error("Full address is required"); return; }
     if (!meta.time) { toast.error("Time is required"); return; }
@@ -643,6 +994,7 @@ const AddJournal = () => {
         location_lng: meta.location_lng ? Number(meta.location_lng) : undefined,
         photos: photos.length ? photos : undefined,
         tags: selectedTags.length ? selectedTags : undefined,
+        template_blocks: templateBlocks,
         date: toISO(meta.date),
         time: meta.time,
         is_favorite: meta.is_favorite,
@@ -654,6 +1006,7 @@ const AddJournal = () => {
         navigate(`/dashboard/journal/${editJournalId}`);
       } else {
         await createJournalMutation(payload).unwrap();
+        localStorage.removeItem("journal_draft_new");
         toast.success("Journal entry saved");
         navigate("/dashboard/journal");
       }
@@ -661,16 +1014,6 @@ const AddJournal = () => {
       toast.error(error instanceof Error ? error.message : "Failed to save entry");
     }
   };
-
-  const isSubmitting = isEditMode ? isUpdatingMutation : isCreatingMutation;
-
-  if (isEditMode && isJournalLoading) {
-    return (
-      <div className="bg-bg flex-1 flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-accent" />
-      </div>
-    );
-  }
 
   const handleGeocodeAddress = async (addressValue: string, silent = false) => {
     if (!addressValue.trim()) return;
@@ -718,7 +1061,7 @@ const AddJournal = () => {
         return;
       }
       setAddressSuggestions(
-        data.map((item: any) => ({
+        data.map((item: { display_name: string; lat: string; lon: string; address?: { city?: string; town?: string; village?: string; hamlet?: string } }) => ({
           display_name: item.display_name,
           lat: item.lat,
           lon: item.lon,
@@ -766,7 +1109,6 @@ const AddJournal = () => {
     }
   };
 
-
   useEffect(() => {
     document.addEventListener("selectionchange", checkActive);
     return () => document.removeEventListener("selectionchange", checkActive);
@@ -796,10 +1138,23 @@ const AddJournal = () => {
       if (addressBoxRef.current && !addressBoxRef.current.contains(e.target as Node)) {
         setShowAddressSuggestions(false);
       }
+      if (tagBoxRef.current && !tagBoxRef.current.contains(e.target as Node)) {
+        setShowTagSuggestions(false);
+      }
     };
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
+
+  const isSubmitting = isEditMode ? isUpdatingMutation : isCreatingMutation;
+
+  if (isEditMode && isJournalLoading) {
+    return (
+      <div className="bg-bg flex-1 flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-accent" />
+      </div>
+    );
+  }
 
 
   const currentType = JOURNAL_TYPES.find((t) => t.value === meta.journal_type);
@@ -825,6 +1180,41 @@ const AddJournal = () => {
           </Link>
           <div className="w-px h-4 bg-border shrink-0" />
           <span className="text-text-primary font-bold text-sm flex-1 truncate">{isEditMode ? "Edit Entry" : "New Entry"}</span>
+          {!isEditMode && autosaveStatus !== "idle" && (
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-lg bg-surface border border-border">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary">
+                {autosaveStatus === "saving" ? (
+                  <><Loader2 size={10} className="animate-spin text-accent" /> Saving…</>
+                ) : (
+                  <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Draft saved</>
+                )}
+              </span>
+              <div className="w-px h-3 bg-border" />
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("journal_draft_new");
+                  setMeta({
+                    title: "", description: "", journal_type: "personal", mood: "",
+                    location: "", location_address: "", location_lat: "", location_lng: "",
+                    date: new Date().toISOString().split("T")[0],
+                    time: defaultTime, is_favorite: false,
+                  });
+                  setSelectedTags([]);
+                  setPhotos([]);
+                  setExpenseItems(null);
+                  if (editorRef.current) { editorRef.current.innerHTML = ""; }
+                  setIsEmpty(true);
+                  setAutosaveStatus("idle");
+                  toast.success("Draft cleared");
+                }}
+                className="flex items-center gap-1 text-[10px] font-semibold text-text-secondary hover:text-error transition-colors"
+                title="Clear draft"
+              >
+                <X size={10} /> Clear
+              </button>
+            </div>
+          )}
           <span className="text-text-secondary/50 text-xs hidden md:block shrink-0">
             {formatDate(meta.date, { weekday: "short", day: "numeric", month: "short" })}
           </span>
@@ -855,7 +1245,7 @@ const AddJournal = () => {
         </div>
 
         {/* ── Split pane ────────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)_auto] overflow-y-auto custom-scrollbar">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[minmax(0,1fr)_auto] overflow-y-auto lg:overflow-hidden custom-scrollbar">
 
           {/* LEFT — writing area */}
           <div className="lg:min-h-0 flex flex-col overflow-hidden min-h-[58vh] lg:col-start-1 lg:row-start-1">
@@ -906,6 +1296,20 @@ const AddJournal = () => {
               </div>
               <div className="w-px h-4 bg-border mx-1.5 shrink-0" />
               <ToolbarBtn cmd="insertHorizontalRule" icon={Minus} title="Divider" isActive={false} activeClass={ac2} onExec={checkActive} editorRef={editorRef} />
+              <div className="w-px h-4 bg-border mx-1.5 shrink-0" />
+              <button
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  saveEditorSelection();
+                }}
+                onClick={() => setIsScreenTimeModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg transition-colors"
+                title="Add screen time"
+              >
+                <Clock size={13} />
+                Screen Time
+              </button>
             </div>
 
             {/* Editor — fills remaining height */}
@@ -921,6 +1325,8 @@ const AddJournal = () => {
                 suppressContentEditableWarning
                 onInput={onEditorInput}
                 onKeyDown={handleEditorKeyDown}
+                onMouseUp={saveEditorSelection}
+                onKeyUp={saveEditorSelection}
                 className="w-full h-full min-h-[44vh] sm:min-h-[320px] p-5 sm:p-7 text-text-primary focus:outline-none leading-[1.9] text-sm sm:text-base journal-editor"
                 style={{ wordBreak: "break-word" }}
               />
@@ -928,7 +1334,7 @@ const AddJournal = () => {
           </div>
 
           {/* RIGHT — sidebar */}
-          <div className="border-t lg:border-t-0 lg:border-l border-border bg-surface/40 lg:col-start-2 lg:row-span-2 lg:h-full">
+          <div className="border-t lg:border-t-0 lg:border-l border-border bg-surface/40 lg:col-start-2 lg:row-span-2 lg:h-full lg:min-h-0 lg:overflow-y-auto custom-scrollbar">
             <div className="p-4 flex flex-col gap-4">
 
               {/* Type */}
@@ -945,15 +1351,84 @@ const AddJournal = () => {
 
               <div className="h-px bg-border" />
 
+              {/* Templates */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
+                    <Sparkles size={12} /> Templates
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        saveEditorSelection();
+                      }}
+                      onClick={() => setIsTemplateLibraryOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent text-[10px] font-bold hover:bg-accent/15 transition-colors"
+                    >
+                      <Sparkles size={11} /> Library
+                    </button>
+                    {!expenseItems && (
+                      <button
+                        type="button"
+                        onClick={() => setExpenseItems([{ id: newId(), amount: "", note: "" }])}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/10 text-accent text-[10px] font-bold hover:bg-accent/15 transition-colors"
+                      >
+                        <Plus size={11} /> Expenses
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border bg-bg/40 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-text-primary text-xs font-semibold">
+                      {savedJournalTemplates.length} saved template{savedJournalTemplates.length === 1 ? "" : "s"}
+                    </p>
+                    <Link
+                      to="/dashboard/settings?tab=journal_templates"
+                      className="text-accent text-[11px] font-bold hover:underline"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                  <p className="text-text-secondary text-[11px] mt-1">
+                    Use personalized templates with placeholders like {"{pages}"} and {"{book}"}.
+                  </p>
+                </div>
+                {expenseItems ? (
+                  <ExpensesBlockEditor
+                    items={expenseItems}
+                    onChange={(items) => setExpenseItems(items.length ? items : [{ id: newId(), amount: "", note: "" }])}
+                    onRemove={() => setExpenseItems(null)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setExpenseItems([{ id: newId(), amount: "", note: "" }])}
+                    className="w-full rounded-xl border border-dashed border-border bg-bg/60 px-3 py-4 text-xs font-semibold text-text-secondary hover:text-text-primary hover:border-accent/40 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Plus size={14} /> Add expenses template
+                  </button>
+                )}
+              </div>
+
+              <div className="h-px bg-border" />
+
               {/* Date + Time — side by side */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
                   <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                     <Calendar size={12} /> Date <span className="text-rose-500">*</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCal(true)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddressSuggestions(false);
+                        setShowTagSuggestions(false);
+                        setShowClock(false);
+                        setShowCal(true);
+                      }}
                     className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none transition-colors text-left flex items-center gap-1.5 ${ac.ring}`}
                   >
                     <Calendar size={12} className="text-text-secondary shrink-0" />
@@ -966,9 +1441,14 @@ const AddJournal = () => {
                   <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                     <Clock size={12} /> Time <span className="text-rose-500">*</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowClock(true)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddressSuggestions(false);
+                        setShowTagSuggestions(false);
+                        setShowCal(false);
+                        setShowClock(true);
+                      }}
                     className={`w-full bg-bg border border-border rounded-lg py-2 px-3 text-xs text-text-primary focus:outline-none transition-colors text-left flex items-center gap-1.5 ${ac.ring}`}
                   >
                     <Clock size={12} className="text-text-secondary shrink-0" />
@@ -1037,7 +1517,7 @@ const AddJournal = () => {
               </div>
 
               {/* Tags */}
-              <div className="space-y-1.5 relative z-[240]">
+              <div ref={tagBoxRef} className="space-y-1.5 relative z-[240]">
                 <label className="text-text-secondary text-xs font-black uppercase tracking-tighter flex items-center gap-1.5">
                   <Hash size={12} /> Tags
                 </label>
@@ -1144,13 +1624,24 @@ const AddJournal = () => {
                 {photos.map((url, idx) => (
                   <div key={idx} className="relative shrink-0 h-full aspect-square rounded-xl overflow-hidden group">
                     <img src={get_full_image_url(url, "user")} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPhotos((p) => p.filter((_, i) => i !== idx))}
-                      className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={16} className="text-white" />
-                    </button>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhotoUrl(url)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors"
+                      >
+                        <Eye size={13} />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPhotos((p) => p.filter((_, i) => i !== idx))}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm hover:bg-rose-500/30 transition-colors"
+                      >
+                        <X size={13} />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {photos.length < photoLimit && (
@@ -1184,6 +1675,187 @@ const AddJournal = () => {
           onClose={() => setShowClock(false)}
         />
       )}
+      <Modal
+        isOpen={isTemplateLibraryOpen}
+        onClose={closeTemplateLibrary}
+        title={selectedTemplate ? selectedTemplate.name : "Journal Templates"}
+        maxWidth="760px"
+        footer={
+          selectedTemplate ? (
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTemplateId(null);
+                  setTemplateValues({});
+                }}
+                className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleApplySelectedTemplate}
+                className="bg-accent hover:bg-accent/90 text-background px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              >
+                Insert Template
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-between gap-3">
+              <Link
+                to="/dashboard/settings?tab=journal_templates"
+                onClick={closeTemplateLibrary}
+                className="inline-flex items-center gap-2 text-accent text-sm font-bold hover:underline"
+              >
+                Manage templates in Settings
+              </Link>
+              <button
+                type="button"
+                onClick={closeTemplateLibrary}
+                className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        {selectedTemplate ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-border bg-bg/40 p-4">
+              <p className="text-text-secondary text-[10px] font-black uppercase tracking-widest">Template Preview</p>
+              <p className="text-text-primary text-sm whitespace-pre-line mt-2">{selectedTemplate.content}</p>
+            </div>
+
+            {selectedTemplatePlaceholders.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedTemplatePlaceholders.map((placeholder) => (
+                  <div key={placeholder} className="space-y-1.5">
+                    <label className="text-text-secondary text-[10px] font-black uppercase tracking-widest">
+                      {humanizeJournalTemplatePlaceholder(placeholder)}
+                    </label>
+                    <input
+                      type="text"
+                      value={templateValues[placeholder] || ""}
+                      onChange={(e) => setTemplateValues((current) => ({ ...current, [placeholder]: e.target.value }))}
+                      placeholder={`Enter ${humanizeJournalTemplatePlaceholder(placeholder).toLowerCase()}`}
+                      className="w-full bg-surface border border-border rounded-xl py-2.5 px-4 text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border bg-bg/40 p-4">
+                <p className="text-text-secondary text-sm">
+                  This template has no placeholders. It will be inserted exactly as saved.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                placeholder="Search templates by name, category or content..."
+                className="w-full bg-surface border border-border rounded-xl py-3 px-4 text-sm text-text-primary placeholder:text-text-secondary/40 focus:outline-none focus:border-accent/50 transition-colors"
+              />
+              <p className="text-text-secondary text-xs">
+                Pick a saved template and fill its placeholders before inserting it into your journal.
+              </p>
+            </div>
+
+            {filteredJournalTemplates.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-bg/30 p-10 text-center">
+                <p className="text-text-primary text-sm font-bold">No templates found</p>
+                <p className="text-text-secondary text-xs mt-2">
+                  Create templates in Settings and they’ll appear here. Your expenses template stays separate.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {filteredJournalTemplates.map((template: JournalSavedTemplate) => {
+                  const placeholders = getJournalTemplatePlaceholders(template.content);
+
+                  return (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => handleChooseTemplate(template)}
+                      className="text-left rounded-2xl border border-border bg-bg/35 p-4 hover:border-accent/40 hover:bg-bg/60 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-text-primary text-sm font-bold">{template.name}</p>
+                            {template.category && (
+                              <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px] font-semibold uppercase tracking-wide">
+                                {template.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-text-secondary text-xs mt-2 whitespace-pre-line line-clamp-3">
+                            {template.content}
+                          </p>
+                        </div>
+                        <span className="text-accent text-xs font-bold shrink-0">Use</span>
+                      </div>
+                      {placeholders.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {placeholders.map((placeholder) => (
+                            <span key={placeholder} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-border text-text-secondary text-[11px]">
+                              {humanizeJournalTemplatePlaceholder(placeholder)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+      <ScreenTimeImportModal
+        isOpen={isScreenTimeModalOpen}
+        onClose={() => setIsScreenTimeModalOpen(false)}
+        onAdd={(payload) => {
+          insertScreenTimeSummary(payload);
+          setIsScreenTimeModalOpen(false);
+          toast.success("Screen time added to journal");
+        }}
+      />
+      <Modal
+        isOpen={!!previewPhotoUrl}
+        onClose={() => setPreviewPhotoUrl(null)}
+        title="Photo Preview"
+        maxWidth="900px"
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setPreviewPhotoUrl(null)}
+              className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {previewPhotoUrl && (
+          <div className="rounded-2xl overflow-hidden border border-border bg-bg/40">
+            <img
+              src={get_full_image_url(previewPhotoUrl, "user")}
+              alt="Journal preview"
+              className="w-full max-h-[75vh] object-contain bg-black/20"
+            />
+          </div>
+        )}
+      </Modal>
       </form>
 
       {/* Editor typography styles */}

@@ -22,9 +22,17 @@ import JournalLayout from "./(app)/(dashboard)/journal/JournalLayout";
 import PoetryList from "./(app)/(dashboard)/poetry/PoetryList";
 import AddPoem from "./(app)/(dashboard)/poetry/AddPoem";
 import PoetryDetail from "./(app)/(dashboard)/poetry/PoetryDetail";
+import MusicHub from "./(app)/(dashboard)/music/MusicHub";
+import AddMusic from "./(app)/(dashboard)/music/AddMusic";
+import SongDetail from "./(app)/(dashboard)/music/SongDetail";
+import AlbumDetail from "./(app)/(dashboard)/music/AlbumDetail";
+import PlaylistDetail from "./(app)/(dashboard)/music/PlaylistDetail";
+import CreatePlaylist from "./(app)/(dashboard)/music/CreatePlaylist";
 import Settings from "./(app)/(dashboard)/settings/Settings";
 import TargetPage from "./(app)/(dashboard)/target/TargetPage";
 import { Pricing } from "./(app)/Pricing";
+import ScreenTime from "./(app)/(dashboard)/screen-time/ScreenTime";
+import Report from "./(app)/(dashboard)/report/Report";
 const Pages = () => {
     return RouterProvider({ router });
 };
@@ -121,12 +129,44 @@ const router = createBrowserRouter([
                 Component: PoetryDetail,
             },
             {
+                path: "music",
+                Component: MusicHub,
+            },
+            {
+                path: "music/add",
+                Component: AddMusic,
+            },
+            {
+                path: "music/song/:id",
+                Component: SongDetail,
+            },
+            {
+                path: "music/album/:id",
+                Component: AlbumDetail,
+            },
+            {
+                path: "music/playlist/create",
+                Component: CreatePlaylist,
+            },
+            {
+                path: "music/playlist/:id",
+                Component: PlaylistDetail,
+            },
+            {
                 path: "settings",
                 Component: Settings,
             },
             {
                 path: "target",
                 Component: TargetPage,
+            },
+            {
+                path: "screen-time",
+                Component: ScreenTime,
+            },
+            {
+                path: "report",
+                Component: Report,
             },
         ],
     },

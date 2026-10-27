@@ -43,7 +43,7 @@ const getStatusStyle = (status: string) => {
 };
 
 const GridSkeleton = ({ count }: { count: number }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8">
+  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-6 pb-8">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="flex flex-col gap-3 animate-pulse">
         <div className="aspect-[2/3] w-full rounded-2xl bg-surface border border-border/30" />
@@ -172,7 +172,7 @@ export const MediaDisplay = ({
             </div>
 
             {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-6">
                 {statusItems.map((item) => (
                   <Link
                     key={item._id}

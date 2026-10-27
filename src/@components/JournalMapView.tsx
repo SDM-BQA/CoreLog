@@ -69,7 +69,7 @@ const JournalMapView = ({ journals }: JournalMapViewProps) => {
   return (
     <div className="bg-surface border border-border rounded-3xl p-3 sm:p-4">
       <div className="h-[520px] w-full overflow-hidden rounded-2xl border border-border">
-        <MapContainer center={center} zoom={5} scrollWheelZoom className="h-full w-full">
+        <MapContainer center={center} zoom={15} scrollWheelZoom className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

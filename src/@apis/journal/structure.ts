@@ -3,9 +3,31 @@ export const CREATE_JOURNAL_MUTATION = `
         create_journal(input: $input) {
             _id
             title
+            content
+            description
             date
+            time
             journal_type
             mood
+            location
+            location_address
+            location_city
+            location_lat
+            location_lng
+            photos
+            tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
+            is_favorite
             created_at
         }
     }
@@ -28,6 +50,17 @@ export const GET_MY_JOURNALS_QUERY = `
                 location_lng
                 photos
                 tags
+                template_blocks {
+                    id
+                    type
+                    title
+                    items {
+                        id
+                        amount
+                        note
+                        category
+                    }
+                }
                 date
                 time
                 is_favorite
@@ -81,7 +114,19 @@ export const GET_JOURNAL_QUERY = `
             photos
             video
             tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
             date
+            time
             is_favorite
             user_id
             created_at
@@ -106,7 +151,19 @@ export const UPDATE_JOURNAL_MUTATION = `
             location_lng
             photos
             tags
+            template_blocks {
+                id
+                type
+                title
+                items {
+                    id
+                    amount
+                    note
+                    category
+                }
+            }
             date
+            time
             is_favorite
             updated_at
         }
@@ -116,5 +173,53 @@ export const UPDATE_JOURNAL_MUTATION = `
 export const DELETE_JOURNAL_MUTATION = `
     mutation DeleteJournal($id: ID!) {
         delete_journal(id: $id)
+    }
+`;
+
+export const GET_JOURNAL_TEMPLATES_QUERY = `
+    query GetJournalTemplates {
+        get_journal_templates {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const CREATE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation CreateJournalTemplate($input: SavedJournalTemplateInput!) {
+        create_journal_template(input: $input) {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const UPDATE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation UpdateJournalTemplate($id: ID!, $input: SavedJournalTemplateInput!) {
+        update_journal_template(id: $id, input: $input) {
+            _id
+            name
+            content
+            category
+            user_id
+            created_at
+            updated_at
+        }
+    }
+`;
+
+export const DELETE_JOURNAL_TEMPLATE_MUTATION = `
+    mutation DeleteJournalTemplate($id: ID!) {
+        delete_journal_template(id: $id)
     }
 `;
