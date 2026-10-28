@@ -93,13 +93,11 @@ const DashboardSidebar = () => {
           to="/dashboard"
           className="flex items-center gap-2.5 shrink-0 group"
         >
-          <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-border group-hover:ring-accent transition-all duration-300 shrink-0">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <img
+            src="/logo.png"
+            alt={`${appConfig.appName} logo`}
+            className="h-9 w-9 shrink-0 object-contain transition-transform duration-300 group-hover:scale-105"
+          />
           {!collapsed && (
             <div className="flex items-center gap-2">
               <span className="text-text-primary font-bold font-inter text-lg tracking-tight">

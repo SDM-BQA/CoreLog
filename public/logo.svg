@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="CoreLog">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d1d52"/>
+      <stop offset="1" stop-color="#0a0a1f"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7f8cff" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#3b3bff" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#00f2ff" stop-opacity=".25"/>
+    </linearGradient>
+    <linearGradient id="core" gradientUnits="userSpaceOnUse" x1="8" y1="8" x2="56" y2="56">
+      <stop offset="0" stop-color="#a9b8ff"/>
+      <stop offset=".5" stop-color="#4b55ff"/>
+      <stop offset="1" stop-color="#00f2ff"/>
+    </linearGradient>
+    <mask id="lines">
+      <rect width="64" height="64" fill="#000"/>
+      <circle cx="32" cy="32" r="29" fill="#fff"/>
+      <rect x="31" y="19.5" width="18" height="7" rx="3.5" fill="#000"/>
+      <rect x="17" y="30" width="32" height="7" rx="3.5" fill="#000"/>
+      <rect x="17" y="40.5" width="22" height="7" rx="3.5" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#tile)"/>
+  <rect x=".75" y=".75" width="62.5" height="62.5" rx="15.25" fill="none" stroke="url(#edge)" stroke-width="1.5"/>
+  <g transform="translate(9.6 9.6) scale(.7)">
+    <circle cx="32" cy="32" r="29" fill="url(#core)" mask="url(#lines)"/>
+    <circle cx="21.5" cy="23" r="4.3" fill="#00f2ff"/>
+  </g>
+</svg>

@@ -19,7 +19,6 @@ import { PricingSection } from "../Pricing/PricingSection";
 import { DashboardMockup } from "./DashboardMockup";
 import { FeatureShowcase } from "./FeatureShowcase";
 import { MoreFeatures } from "./MoreFeatures";
-import Navbar from "../Navigation/Navbar";
 
 const STATUS_UI: Record<ServerStatus, { label: string; dot: string }> = {
   checking: { label: "Checking status…", dot: "bg-text-secondary animate-pulse" },
@@ -73,8 +72,6 @@ export const Home = () => {
 
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col font-sans overflow-x-hidden">
-      <Navbar />
-
       <main className="flex-grow pt-16">
         {/* ───────── Hero ───────── */}
         <section className="relative overflow-hidden px-6 pt-16 md:pt-20">

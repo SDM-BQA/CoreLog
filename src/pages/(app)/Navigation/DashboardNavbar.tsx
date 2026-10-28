@@ -64,19 +64,17 @@ const DashboardNavbar = () => {
   return (
     <nav className="sticky top-0 z-50 px-4 py-2.5">
       {/* Glass pill container — same style as main Navbar */}
-      <div className="mx-auto bg-bg-secondary/70 backdrop-blur-xl border border-border rounded-xl shadow-lg px-5 py-2.5 flex items-center justify-between gap-6">
+      <div className="mx-auto bg-bg-secondary/40 backdrop-blur-2xl backdrop-saturate-150 border border-border/60 shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.08)] rounded-2xl px-5 py-2.5 flex items-center justify-between gap-6">
         {/* ── Logo ── */}
         <Link
           to="/dashboard"
           className="flex items-center gap-2.5 shrink-0 group"
         >
-          <div className="w-8 h-8 rounded-lg overflow-hidden ring-1 ring-border group-hover:ring-border-secondary transition-all duration-300">
-            <img
-              src="/logo.png"
-              alt="Logo"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <img
+            src="/logo.png"
+            alt={`${appConfig.appName} logo`}
+            className="h-8 w-8 object-contain transition-transform duration-300 group-hover:scale-105"
+          />
           <span className="text-text-primary font-semibold font-inter text-base tracking-tight">
             {appConfig.appName}
           </span>

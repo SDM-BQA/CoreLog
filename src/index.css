@@ -178,3 +178,154 @@ button:disabled {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
+
+/* ── Brand cursor, text selection and caret ─────────────────────────── */
+:root {
+  /* Arrow: brand blue with a white edge. Hotspot is the arrow tip (5, 3). */
+  --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M5 3v18.5l5.2-4.9 3.6 8.1 3.3-1.5-3.5-7.9H21z' fill='%233b3bff' stroke='white' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 5 3, auto;
+  /* Same arrow in cyan over anything clickable */
+  --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M5 3v18.5l5.2-4.9 3.6 8.1 3.3-1.5-3.5-7.9H21z' fill='%2300f2ff' stroke='%23101022' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 5 3, pointer;
+}
+
+/* Fallback arrow: used when the brand cursor isn't running (touch, no JS yet) */
+html:not(.brand-cursor),
+html:not(.brand-cursor) body {
+  cursor: var(--cursor-default);
+}
+
+html:not(.brand-cursor) :is(
+    a,
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="tab"],
+    summary,
+    select,
+    label[for],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="range"],
+    input[type="file"],
+    .cursor-pointer:not(:disabled)
+  ) {
+  cursor: var(--cursor-pointer);
+}
+
+/* Brand cursor (BrandCursor.tsx): hide the system cursor, except over text fields */
+html.brand-cursor,
+html.brand-cursor * {
+  cursor: none !important;
+}
+
+html.brand-cursor :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="color"]),
+    textarea,
+    [contenteditable="true"]
+  ) {
+  cursor: text !important;
+}
+
+.brand-cursor-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.brand-cursor-head,
+.brand-cursor-seg {
+  position: fixed;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.brand-cursor-head {
+  width: 0;
+  height: 0;
+}
+
+.brand-cursor-ring {
+  position: absolute;
+  left: -18px;
+  top: -18px;
+  overflow: visible;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
+}
+
+.brand-cursor-fill {
+  fill: rgba(0, 242, 255, 0);
+  transition: fill 0.2s ease;
+}
+
+.brand-cursor-core {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #00f2ff;
+  box-shadow: 0 0 0 2px #101022, 0 0 12px rgba(0, 242, 255, 0.85);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease, opacity 0.15s ease;
+}
+
+.brand-cursor-seg {
+  height: 6px;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+/* Over something clickable: the ring tightens and fills, the core grows (lock-on) */
+.brand-cursor-root[data-mode="hot"] .brand-cursor-ring {
+  transform: scale(0.82);
+}
+.brand-cursor-root[data-mode="hot"] .brand-cursor-fill {
+  fill: rgba(0, 242, 255, 0.28);
+}
+.brand-cursor-root[data-mode="hot"] .brand-cursor-core {
+  transform: scale(1.7);
+  background: #ffffff;
+}
+
+.brand-cursor-root[data-mode="disabled"] .brand-cursor-core {
+  background: #94a3b8;
+  box-shadow: 0 0 0 2px #101022;
+}
+
+.brand-cursor-root[data-mode="off"] .brand-cursor-core {
+  opacity: 0;
+}
+
+.brand-cursor-root[data-down="true"] .brand-cursor-ring {
+  transform: scale(0.65);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .brand-cursor-root {
+    display: none;
+  }
+}
+
+::selection {
+  background: rgb(59 59 255 / 0.6);
+  color: #fff;
+  text-shadow: none;
+}
+
+.light ::selection {
+  background: rgb(24 144 255 / 0.28);
+  color: rgb(17 24 39);
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: var(--color-secondary);
+}
+
+.light input,
+.light textarea,
+.light [contenteditable="true"] {
+  caret-color: var(--color-accent);
+}
