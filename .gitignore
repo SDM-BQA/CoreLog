@@ -29,3 +29,6 @@ Thumbs.db
 
 # Optional: cache
 .cache/
+
+# Vite temp files
+vite.config.ts.timestamp-*
