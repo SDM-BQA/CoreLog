@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     Music,
     Disc,
@@ -20,9 +20,8 @@ import {
     Calendar,
 } from "lucide-react";
 import { useGetSongsListQuery, useGetAlbumsListQuery, useGetMyPlaylistsQuery, useGetMusicFiltersQuery } from "../../../../@store/api/music.api";
-import { get_genre_display, get_genre_key } from "../../../../@utils/genres";
+import { get_genre_display } from "../../../../@utils/genres";
 import { get_full_image_url } from "../../../../@utils/api.utils";
-import { formatDate } from "../../../../@utils/date.utils";
 import { FilterDropdown } from "../../../../@components/@smart";
 
 type Tab = "songs" | "albums" | "playlists" | "artists" | "years";
@@ -40,7 +39,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const MusicHub = () => {
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [activeTab, setActiveTab] = useState<Tab>((searchParams.get("tab") as Tab) || "songs");
@@ -153,7 +151,6 @@ const MusicHub = () => {
     };
 
     const toggleFilter = (
-        filter: string[],
         setFilter: React.Dispatch<React.SetStateAction<string[]>>,
         val: string
     ) => {
@@ -320,26 +317,25 @@ const MusicHub = () => {
                                 <FilterDropdown
                                     label="Genre"
                                     icon={Filter}
-                                    options={genreOptions.map((g: string) => ({ value: g, label: get_genre_display(g) }))}
+                                    options={genreOptions as string[]}
                                     selected={genreFilter}
-                                    onToggle={(val) => toggleFilter(genreFilter, setGenreFilter, val)}
-                                    onClear={() => { setGenreFilter([]); setCurrentPage(1); }}
+                                    onSelect={(val) => toggleFilter(setGenreFilter, val)}
+                                    renderOption={(val) => get_genre_display(val)}
                                 />
                                 <FilterDropdown
                                     label="Status"
                                     icon={Filter}
-                                    options={statusOptions.map((s: string) => ({ value: s, label: STATUS_MAP[s] || s }))}
+                                    options={statusOptions as string[]}
                                     selected={statusFilter}
-                                    onToggle={(val) => toggleFilter(statusFilter, setStatusFilter, val)}
-                                    onClear={() => { setStatusFilter([]); setCurrentPage(1); }}
+                                    onSelect={(val) => toggleFilter(setStatusFilter, val)}
+                                    renderOption={(val) => STATUS_MAP[val] || val}
                                 />
                                 <FilterDropdown
                                     label="Artist"
                                     icon={Mic}
-                                    options={artistOptions.map((a: string) => ({ value: a, label: a }))}
+                                    options={artistOptions as string[]}
                                     selected={artistFilter}
-                                    onToggle={(val) => toggleFilter(artistFilter, setArtistFilter, val)}
-                                    onClear={() => { setArtistFilter([]); setCurrentPage(1); }}
+                                    onSelect={(val) => toggleFilter(setArtistFilter, val)}
                                 />
 
                                 {/* View toggle */}

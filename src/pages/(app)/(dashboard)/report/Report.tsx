@@ -190,9 +190,9 @@ const Report = () => {
   const [movieFilter,  setMovieFilter]  = useState("all");
   const [seriesFilter, setSeriesFilter] = useState("all");
 
-  const books  = booksData?.books  ?? [];
-  const movies = moviesData?.movies ?? [];
-  const series = seriesData?.series ?? [];
+  const books: any[]  = booksData?.books  ?? [];
+  const movies: any[] = moviesData?.movies ?? [];
+  const series: any[] = seriesData?.series ?? [];
 
   const filteredBooks  = bookFilter  === "all" ? books  : books.filter((b)  => b.status === bookFilter);
   const filteredMovies = movieFilter === "all" ? movies : movies.filter((m) => m.status === movieFilter);

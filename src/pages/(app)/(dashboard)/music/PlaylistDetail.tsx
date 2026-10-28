@@ -7,7 +7,6 @@ import {
     Music,
     Disc,
     Trash2,
-    Pencil,
     Plus,
     X,
     Mic,
@@ -17,7 +16,6 @@ import {
     useGetPlaylistByIdQuery,
     useGetSongsListQuery,
     useGetAlbumsListQuery,
-    useUpdatePlaylistMutation,
     useDeletePlaylistMutation,
     useAddToPlaylistMutation,
     useRemoveFromPlaylistMutation,
@@ -32,7 +30,6 @@ const PlaylistDetail = () => {
     const navigate = useNavigate();
 
     const { data: playlist, isLoading } = useGetPlaylistByIdQuery(id);
-    const [updatePlaylist] = useUpdatePlaylistMutation();
     const [deletePlaylist] = useDeletePlaylistMutation();
     const [addToPlaylist] = useAddToPlaylistMutation();
     const [removeFromPlaylist] = useRemoveFromPlaylistMutation();
@@ -93,7 +90,7 @@ const PlaylistDetail = () => {
         );
     }
 
-    const items = playlist.items || [];
+    const items: any[] = playlist.items || [];
     const isSmartPlaylist = playlist.type === "smart";
 
     const smartFilterText = isSmartPlaylist && playlist.smart_filter
@@ -307,7 +304,7 @@ const PlaylistDetail = () => {
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}
                 title="Delete Playlist"
-                message={`Are you sure you want to delete "${playlist.name}"? This cannot be undone.`}
+                itemName={playlist.name}
             />
         </div>
     );
