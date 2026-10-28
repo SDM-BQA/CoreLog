@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import Pages from "./pages";
+import { BrandCursor } from "./@components/BrandCursor";
 import { useAppDispatch, useAppSelector } from "./@store/hooks/store.hooks";
 import { get_user_account_query } from "./@apis/users";
 import { update_user, clear_user } from "./@store/slices/user/user.slice";
@@ -34,5 +35,10 @@ export const App = () => {
     revalidate();
   }, []);
 
-  return <Pages />;
+  return (
+    <>
+      <Pages />
+      <BrandCursor />
+    </>
+  );
 };
