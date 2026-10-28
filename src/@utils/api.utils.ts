@@ -1,17 +1,17 @@
 import axios from "axios";
-import { delete_string, get_string, set_string } from "./storage.utils";
+import { delete_auth_string, get_auth_string, set_auth_string } from "./storage.utils";
 import { api_configs } from "../@configs/api.configs";
 import { toSentenceCase } from "./case.utils";
 
 
 export const get_token = (): string | undefined => {
-    return get_string("token") || undefined;
+    return get_auth_string("token") || undefined;
 };
 export const remove_token = (): void => {
-    delete_string("token");
+    delete_auth_string("token");
 };
 export const set_token = (token: string): void => {
-    set_string("token", token);
+    set_auth_string("token", token, !!localStorage.getItem("token"));
 };
 
 export const get_headers = (authorization: boolean = true) => {
@@ -57,9 +57,9 @@ export const check_graphql_error = (data: GraphqlServerErrorResponse) => {
 
         // Auto logout if token is expired or invalid
         if (error_message === "Invalid or expired token" || error_message === "Authentication required" || error_message === "User not found") {
-            delete_string("token");
-            delete_string("userId");
-            delete_string("refreshToken");
+            delete_auth_string("token");
+            delete_auth_string("userId");
+            delete_auth_string("refreshToken");
             window.location.href = "/auth/login";
         }
 

@@ -18,12 +18,14 @@ import { useForm } from "../../../@hooks/Form/useForm";
 import { useAppDispatch } from "../../../@store/hooks/store.hooks";
 import { set_user } from "../../../@store/slices/user/user.slice";
 import { AuthSuccess } from "../../../@components/AuthSuccess";
+import { AuthShell } from "../../../@components/AuthShell";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [loginUser, setLoginUser] = useState<string | null>(null);
+  const [keepSignedIn, setKeepSignedIn] = useState(false);
 
   const {
     values,
@@ -45,6 +47,7 @@ const Login = () => {
         const response = await login_user_account_mutation({
           email_id: values.email,
           password: values.password,
+          keep_signed_in: keepSignedIn,
         });
 
         if (response) {
@@ -54,6 +57,7 @@ const Login = () => {
               user: response.user,
               accessToken: response.accessToken,
               refreshToken: response.refreshToken,
+              keepSignedIn,
             })
           );
 
@@ -80,20 +84,7 @@ const Login = () => {
   }
 
   return (
-    <div className="bg-bg min-h-screen flex flex-col items-center justify-center px-4">
-      <div className="absolute bottom-8 right-8 hidden md:block">
-        <img src="/gear.png" alt="Gear" className="w-64 h-64 opacity-20" />
-      </div>
-
-      <div className="bg-bg-secondary backdrop-blur-md shadow-xl p-8 rounded-md w-full max-w-md flex flex-col gap-6">
-        <div>
-          <div className="text-text-primary text-2xl font-semibold font-inter">
-            Welcome Back
-          </div>
-          <div className="text-text-secondary text-base mt-1">
-            Enter your credentials to access your dashboard.
-          </div>
-        </div>
+    <AuthShell variant="login" title="Welcome back" subtitle="Enter your credentials to access your dashboard.">
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-6">
             {/* EMAIL FIELD */}
@@ -102,9 +93,9 @@ const Login = () => {
                 Email
               </span>
               <div
-                className={`flex items-center px-4 py-3 bg-surface rounded-md gap-2 border transition-all ${
+                className={`flex items-center px-4 py-3.5 bg-bg/60 rounded-xl gap-2 border transition-all ${
                   errors.email ? "border-error" : "border-border"
-                } focus-within:border-border-secondary`}
+                } focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20`}
               >
                 <IoPersonOutline size={18} className="text-text-secondary" />
                 <input
@@ -126,14 +117,17 @@ const Login = () => {
             <label htmlFor="password" className="flex flex-col gap-2">
               <span className="flex items-center justify-between text-sm font-medium text-text-secondary">
                 <span>Password</span>
-                <Link to="/" className="text-xs text-accent hover:text-primary">
-                  Forgot Password?
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-xs text-blue-300 hover:text-text-primary transition-colors"
+                >
+                  Forgot password?
                 </Link>
               </span>
               <div
-                className={`flex items-center px-4 py-3 bg-surface rounded-md gap-2 border transition-all ${
+                className={`flex items-center px-4 py-3.5 bg-bg/60 rounded-xl gap-2 border transition-all ${
                   errors.password ? "border-error" : "border-border"
-                } focus-within:border-border-secondary`}
+                } focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20`}
               >
                 <LockIcon size={18} className="text-text-secondary" />
                 <input
@@ -172,6 +166,8 @@ const Login = () => {
               <input
                 id="remember"
                 type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) => setKeepSignedIn(e.target.checked)}
                 className="w-4 h-4 accent-primary rounded"
                 disabled={isSubmitting}
               />
@@ -180,7 +176,7 @@ const Login = () => {
 
             {/* LOGIN BUTTON */}
             <button
-              className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-md hover:bg-primary/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-xl shadow-lg shadow-primary/30 hover:bg-accent transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
               disabled={isSubmitting}
             >
@@ -190,24 +186,9 @@ const Login = () => {
                 className="ml-2 group-hover:translate-x-1 transition-all"
               />
             </button>
-
-            <div className="h-px w-full bg-border"></div>
-
-            <div className="flex justify-center items-center gap-2 text-sm">
-              <span className="text-text-secondary/60">
-                Don't have an account?
-              </span>
-              <Link
-                to="/auth/signup"
-                className="text-accent hover:text-primary font-medium transition-colors cursor-pointer"
-              >
-                Create one
-              </Link>
-            </div>
           </div>
         </form>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

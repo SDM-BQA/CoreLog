@@ -17,7 +17,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
   const [timeLeft, setTimeLeft] = useState(59);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
-  const inputs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Timer
   useEffect(() => {
@@ -39,7 +39,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
         } else {
           toast.error("Failed to send OTP. Please try again.");
         }
-      } catch (error) {
+      } catch {
         toast.error("An error occurred while sending OTP.");
       } finally {
         setIsSendingOTP(false);
@@ -61,7 +61,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
     setOtp(updated);
     setOtpError(null);
 
-    if (val && index < 5) inputs[index + 1].current?.focus();
+    if (val && index < 5) inputs.current[index + 1]?.focus();
   };
 
   const handleKeyDown = (
@@ -69,7 +69,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
     index: number
   ) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputs[index - 1].current?.focus();
+      inputs.current[index - 1]?.focus();
     }
   };
 
@@ -82,7 +82,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
     setOtp(updated);
     // focus last filled or last box
     const focusIndex = Math.min(pasted.length, 5);
-    inputs[focusIndex].current?.focus();
+    inputs.current[focusIndex]?.focus();
   };
 
   const handleVerify = async () => {
@@ -100,7 +100,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
         setOtpError("Invalid or expired OTP. Please try again.");
         toast.error("Verification failed.");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred during verification.");
     }
   };
@@ -117,11 +117,11 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
       if (success) {
         setTimeLeft(59);
         toast.success("A new OTP has been sent!");
-        inputs[0].current?.focus();
+        inputs.current[0]?.focus();
       } else {
         toast.error("Failed to resend OTP.");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred.");
     } finally {
       setIsSendingOTP(false);
@@ -137,15 +137,19 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
       {/* Email hint */}
       <p className="text-text-secondary text-sm text-center">
         We've sent a 6-digit code to{" "}
-        <span className="text-primary font-semibold">{email}</span>
+        <span className="text-blue-300 font-semibold">{email}</span>
       </p>
 
       {/* OTP BOXES */}
       <div className="flex items-center justify-between gap-2">
-        {inputs.map((ref, index) => (
+        {otp.map((_, index) => (
           <input
             key={index}
-            ref={ref}
+            ref={(el) => {
+              inputs.current[index] = el;
+            }}
+            aria-label={`Digit ${index + 1}`}
+            autoComplete={index === 0 ? "one-time-code" : "off"}
             type="text"
             inputMode="numeric"
             maxLength={1}
@@ -156,7 +160,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
             onPaste={index === 0 ? handlePaste : undefined}
             className={`
               w-full aspect-square max-w-[52px] text-center text-lg font-semibold
-              bg-surface border rounded-md outline-none text-text-primary
+              bg-bg/60 border rounded-xl outline-none text-text-primary
               transition-colors
               ${otpError
                 ? "border-text-error"
@@ -179,7 +183,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
         type="button"
         onClick={handleVerify}
         disabled={isSubmitting || isSendingOTP || !isFilled}
-        className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-md hover:bg-primary/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-xl shadow-lg shadow-primary/30 hover:bg-accent transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? "Verifying..." : isSendingOTP ? "Sending OTP..." : "Verify Account"}
         <FaArrowRightLong
@@ -190,7 +194,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
 
       {/* TIMER */}
       <div className="flex justify-center">
-        <span className="flex items-center gap-2 bg-surface border border-border text-text-secondary text-xs py-2 px-4 rounded-md">
+        <span className="flex items-center gap-2 bg-bg/60 border border-border text-text-secondary text-xs py-2 px-4 rounded-full">
           <Clock size={14} />
           {timeLeft > 0
             ? `Resend code in 00:${String(timeLeft).padStart(2, "0")}`
@@ -218,7 +222,7 @@ const OTPVerify = ({ email, onStepComplete, onBack, isSubmitting = false }: Prop
           className={`transition-colors font-medium ${
             timeLeft > 0 || isSendingOTP
               ? "text-text-secondary/40 cursor-not-allowed"
-              : "text-accent hover:text-primary"
+              : "text-blue-300 hover:text-text-primary"
           }`}
         >
           {isSendingOTP ? "Sending..." : "Resend Code"}

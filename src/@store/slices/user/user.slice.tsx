@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { get_string, set_string, delete_string } from "../../../@utils/storage.utils";
+import { get_auth_string, set_auth_string, delete_auth_string, delete_string } from "../../../@utils/storage.utils";
 
 interface User {
   _id: string;
@@ -26,10 +26,10 @@ interface UserState {
 
 const initialState: UserState = {
   user: null,
-  userId: get_string("userId"),
-  accessToken: get_string("token"),
-  refreshToken: get_string("refreshToken"),
-  isAuthenticated: !!get_string("token"),
+  userId: get_auth_string("userId"),
+  accessToken: get_auth_string("token"),
+  refreshToken: get_auth_string("refreshToken"),
+  isAuthenticated: !!get_auth_string("token"),
 };
 
 const user_slice = createSlice({
@@ -42,6 +42,7 @@ const user_slice = createSlice({
         user: User;
         accessToken: string;
         refreshToken: string;
+        keepSignedIn?: boolean;
       }>,
     ) => {
       state.user = action.payload.user;
@@ -51,9 +52,10 @@ const user_slice = createSlice({
       state.isAuthenticated = true;
 
       // Persist only IDs and tokens
-      set_string("userId", action.payload.user._id);
-      set_string("token", action.payload.accessToken);
-      set_string("refreshToken", action.payload.refreshToken);
+      const persist = !!action.payload.keepSignedIn;
+      set_auth_string("userId", action.payload.user._id, persist);
+      set_auth_string("token", action.payload.accessToken, persist);
+      set_auth_string("refreshToken", action.payload.refreshToken, persist);
       // Remove full user object if it was there
       delete_string("user");
     },
@@ -66,9 +68,9 @@ const user_slice = createSlice({
 
       // Remove from localStorage
       delete_string("user");
-      delete_string("userId");
-      delete_string("token");
-      delete_string("refreshToken");
+      delete_auth_string("userId");
+      delete_auth_string("token");
+      delete_auth_string("refreshToken");
     },
     update_user: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
