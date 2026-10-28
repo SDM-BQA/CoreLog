@@ -1,5 +1,8 @@
-const dev_mode = import.meta.env.VITE_DEV_MODE === "true"
-const prod_domain = ""
+// Production builds always use the deployed API; VITE_DEV_MODE only applies to `vite dev`
+const dev_mode = import.meta.env.DEV && import.meta.env.VITE_DEV_MODE === "true"
+const prod_domain = (import.meta.env.VITE_API_DOMAIN || "corelog-backend.onrender.com")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "")
 const dev_domain = "localhost:4002"
 const prod_protocol = "https"
 const dev_protocol = "http"

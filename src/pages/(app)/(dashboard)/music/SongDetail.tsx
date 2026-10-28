@@ -433,9 +433,23 @@ const SongDetail = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title="Edit Song"
-                onConfirm={handleSave}
-                confirmLabel={isUpdating ? "Saving..." : "Save Changes"}
-                isLoading={isUpdating}
+                footer={
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setIsModalOpen(false)}
+                            className="px-5 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isUpdating}
+                            className="bg-accent hover:bg-accent/90 disabled:opacity-70 disabled:cursor-not-allowed text-white text-sm font-semibold px-8 py-2.5 rounded-xl transition-all active:scale-95"
+                        >
+                            {isUpdating ? "Saving..." : "Save Changes"}
+                        </button>
+                    </div>
+                }
             >
                 <div className="flex flex-col gap-4">
                     <div>
@@ -597,7 +611,7 @@ const SongDetail = () => {
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDelete}
                 title="Delete Song"
-                message={`Are you sure you want to delete "${song.title}"? This cannot be undone.`}
+                itemName={song.title}
             />
         </div>
     );
