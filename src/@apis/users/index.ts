@@ -1,6 +1,6 @@
 import { axios_graphql_service_auth, axios_graphql_service_no_auth, check_graphql_error } from "../../@utils/api.utils"
 import { api_configs } from "../../@configs/api.configs"
-import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION, GET_DASHBOARD_STATS_QUERY, SEND_JOURNAL_PIN_RESET_OTP_MUTATION, GET_INNER_CIRCLE_STATUS_QUERY, SEND_INNER_CIRCLE_OTP_MUTATION, VERIFY_INNER_CIRCLE_OTP_MUTATION, CANCEL_INNER_CIRCLE_MEMBERSHIP_MUTATION } from "./structure"
+import { CREATE_USER_ACCOUNT_MUTATION, LIST_USERS_QUERY, SEND_OTP_MUTATION, VERIFY_OTP_MUTATION, LOGIN_USER_ACCOUNT_MUTATION, CHECK_EMAIL_EXISTS_QUERY, CHECK_USERNAME_EXISTS_QUERY, GET_USER_ACCOUNT_QUERY, UPDATE_USER_ACCOUNT_MUTATION, GET_DASHBOARD_STATS_QUERY, SEND_JOURNAL_PIN_RESET_OTP_MUTATION, GET_INNER_CIRCLE_STATUS_QUERY, SEND_INNER_CIRCLE_OTP_MUTATION, VERIFY_INNER_CIRCLE_OTP_MUTATION, CANCEL_INNER_CIRCLE_MEMBERSHIP_MUTATION, SEND_PASSWORD_RESET_OTP_MUTATION, RESET_PASSWORD_MUTATION } from "./structure"
 
 export const get_dashboard_stats_query = async (): Promise<DashboardStats> => {
     const service = axios_graphql_service_auth()
@@ -219,7 +219,7 @@ export const login_user_account_mutation = async (input: LoginUserAccountMutatio
     const { data } = await service({
         data: {
             query: LOGIN_USER_ACCOUNT_MUTATION,
-            variables: { emailId: input.email_id, password: input.password }
+            variables: { emailId: input.email_id, password: input.password, keepSignedIn: input.keep_signed_in }
         }
     })
     check_graphql_error(data)
@@ -230,6 +230,7 @@ export const login_user_account_mutation = async (input: LoginUserAccountMutatio
 interface LoginUserAccountMutationParams {
     email_id: string
     password: string
+    keep_signed_in?: boolean
 }
 
 
@@ -254,4 +255,28 @@ interface UpdateUserInput {
     profile_pic?: string
     gender?: string
     user_name?: string
+}
+
+export const send_password_reset_otp_mutation = async (email: string) => {
+    const service = axios_graphql_service_no_auth()
+    const { data } = await service({
+        data: {
+            query: SEND_PASSWORD_RESET_OTP_MUTATION,
+            variables: { email }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.send_password_reset_otp as boolean
+}
+
+export const reset_password_mutation = async (email: string, otp: string, new_password: string) => {
+    const service = axios_graphql_service_no_auth()
+    const { data } = await service({
+        data: {
+            query: RESET_PASSWORD_MUTATION,
+            variables: { email, otp, newPassword: new_password }
+        }
+    })
+    check_graphql_error(data)
+    return data.data.reset_password as boolean
 }

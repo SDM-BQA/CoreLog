@@ -3,6 +3,7 @@ import { Home } from "./(app)/Home";
 import NotFoundPage from "./(app)/Not-Found";
 import Login from "./(app)/Auth/Login";
 import SignUp from "./(app)/Auth/SignUp/SignUp";
+import ForgotPassword from "./(app)/Auth/ForgotPassword";
 import DashboardHome from "./(app)/(dashboard)/Dashboard-Home/DashboardHome";
 import AppLayout from "./(app)/Layout/APPLayout";
 import DashboardLayout from "./(app)/Layout/DashboardLayout";
@@ -55,6 +56,10 @@ const router = createBrowserRouter([
             {
                 path: "/auth/signup",
                 Component: SignUp,
+            },
+            {
+                path: "/auth/forgot-password",
+                Component: ForgotPassword,
             },
             {
                 path: "/pricing",

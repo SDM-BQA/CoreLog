@@ -1,7 +1,6 @@
-import { LockIcon } from "lucide-react";
+import { CheckIcon, LockIcon } from "lucide-react";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { FaArrowRightLong } from "react-icons/fa6";
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { check_email_exists_query } from "../../../../../@apis/users";
 import { toast } from "react-toast";
@@ -15,6 +14,14 @@ import {
   validatePhone,
 } from "../../../../../@validator/auth.validator";
 import { useForm } from "../../../../../@hooks/Form/useForm";
+
+const PASSWORD_RULES = [
+  { label: "8+ characters", test: (v: string) => v.length >= 8 },
+  { label: "Uppercase letter", test: (v: string) => /[A-Z]/.test(v) },
+  { label: "Lowercase letter", test: (v: string) => /[a-z]/.test(v) },
+  { label: "A number", test: (v: string) => /\d/.test(v) },
+  { label: "A special character", test: (v: string) => /[@$!%*?&#^()_\-+=]/.test(v) },
+];
 
 type BasicInfoValues = {
   firstName: string;
@@ -59,12 +66,13 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
     },
     onSubmit: async (values) => {
       try {
-        const exists = await check_email_exists_query(values.email);
+        const email = values.email.trim();
+        const exists = await check_email_exists_query(email);
         if (exists) {
           toast.error("This email is already registered. Please use another one or login.");
           return;
         }
-        onStepComplete(values);
+        onStepComplete({ ...values, email });
       } catch (error) {
         console.log(error);
         toast.error("An error occurred during email validation.");
@@ -81,7 +89,7 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
             <span className="text-text-secondary text-sm font-medium">
               First Name
             </span>
-            <div className="flex items-center px-4 py-3 bg-surface rounded-md border border-border focus-within:border-border-secondary transition-colors">
+            <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
               <input
                 type="text"
                 className="w-full outline-none bg-transparent text-sm text-text-primary"
@@ -102,7 +110,7 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
             <span className="text-text-secondary text-sm font-medium">
               Last Name
             </span>
-            <div className="flex items-center px-4 py-3 bg-surface rounded-md border border-border focus-within:border-border-secondary transition-colors">
+            <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
               <input
                 type="text"
                 className="w-full outline-none bg-transparent text-sm text-text-primary"
@@ -124,7 +132,7 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
             <span className="text-text-secondary text-sm font-medium">
               Email Address
             </span>
-            <div className="flex items-center px-4 py-3 bg-surface rounded-md border border-border focus-within:border-border-secondary transition-colors">
+            <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
               <input
                 type="email"
                 className="w-full outline-none bg-transparent text-sm text-text-primary"
@@ -143,7 +151,7 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
             <span className="text-text-secondary text-sm font-medium">
               Phone Number
             </span>
-            <div className="flex items-center px-4 py-3 bg-surface rounded-md border border-border focus-within:border-border-secondary transition-colors">
+            <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
               <input
                 type="tel"
                 maxLength={10}
@@ -170,7 +178,7 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
           <span className="text-text-secondary text-sm font-medium">
             Password
           </span>
-          <div className="flex items-center px-4 py-3 bg-surface rounded-md gap-2 border border-border focus-within:border-border-secondary transition-colors">
+          <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl gap-2 border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
             <LockIcon size={18} className="text-text-secondary" />
             <input
               type={showPassword ? "text" : "password"}
@@ -195,41 +203,67 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
           {errors.password && (
             <span className="text-text-error text-xs">{errors.password}</span>
           )}
+          {values.password.length > 0 && (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-1">
+              {PASSWORD_RULES.map(({ label, test }) => {
+                const ok = test(values.password);
+                return (
+                  <li
+                    key={label}
+                    className={`flex items-center gap-1.5 text-xs transition-colors ${
+                      ok ? "text-emerald-400" : "text-text-secondary/60"
+                    }`}
+                  >
+                    <CheckIcon size={12} className={ok ? "" : "opacity-30"} />
+                    {label}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </label>
 
         {/* GENDER */}
-        <label className="flex flex-col gap-2">
-          <span className="text-text-secondary text-sm font-medium">
+        <div className="flex flex-col gap-2">
+          <span className="text-text-secondary text-sm font-medium" id="gender-label">
             Gender Identity
           </span>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-            {["Male", "Female", "Others", "N/A"].map((gender) => (
-              <div
-                key={gender}
-                onClick={() => !isSubmitting && setFieldValue("gender", gender)}
-                className={`px-2 py-2 border border-border rounded text-center transition-colors
-                  ${
-                    values.gender === gender
-                      ? "bg-primary text-text-primary"
-                      : isSubmitting
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:bg-accent cursor-pointer"
+          <div
+            role="radiogroup"
+            aria-labelledby="gender-label"
+            className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm"
+          >
+            {["Male", "Female", "Others", "N/A"].map((gender) => {
+              const selected = values.gender === gender;
+              return (
+                <button
+                  key={gender}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={isSubmitting}
+                  onClick={() => setFieldValue("gender", gender)}
+                  className={`px-2 py-2.5 border rounded-lg text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    selected
+                      ? "bg-primary border-primary text-text-primary font-medium"
+                      : "bg-bg/60 border-border text-text-secondary hover:border-border-secondary hover:text-text-primary cursor-pointer"
                   }`}
-              >
-                {gender}
-              </div>
-            ))}
+                >
+                  {gender}
+                </button>
+              );
+            })}
           </div>
           {errors.gender && (
             <span className="text-text-error text-xs">{errors.gender}</span>
           )}
-        </label>
+        </div>
 
         {/* SUBMIT */}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-md hover:bg-primary/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-xl shadow-lg shadow-primary/30 hover:bg-accent transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Validating..." : "Continue"}
           <FaArrowRightLong
@@ -237,20 +271,6 @@ const BasicInfo = ({ onStepComplete, defaultValues }: Props) => {
             className="ml-2 group-hover:translate-x-1 transition-all"
           />
         </button>
-
-        <div className="h-px w-full bg-border" />
-
-        <div className="flex justify-center items-center gap-2 text-sm">
-          <span className="text-text-secondary/60">
-            Already have an account?
-          </span>
-          <Link
-            to="/auth/login"
-            className="text-accent hover:text-primary font-medium transition-colors"
-          >
-            Login
-          </Link>
-        </div>
       </div>
     </form>
   );

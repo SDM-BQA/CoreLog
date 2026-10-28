@@ -88,8 +88,8 @@ mutation Verify_otp($email: String!, $otp: String!) {
 `
 
 export const LOGIN_USER_ACCOUNT_MUTATION = `
-mutation Login_user_account($emailId: String!, $password: String!) {
-  login_user_account(email_id: $emailId, password: $password) {
+mutation Login_user_account($emailId: String!, $password: String!, $keepSignedIn: Boolean) {
+  login_user_account(email_id: $emailId, password: $password, keep_signed_in: $keepSignedIn) {
     accessToken
     refreshToken
     user {
@@ -186,5 +186,17 @@ mutation Cancel_inner_circle_membership($email: String!, $otp: String!) {
     renewal_cycle
     email
   }
+}
+`
+
+export const SEND_PASSWORD_RESET_OTP_MUTATION = `
+mutation Send_password_reset_otp($email: String!) {
+  send_password_reset_otp(email: $email)
+}
+`
+
+export const RESET_PASSWORD_MUTATION = `
+mutation Reset_password($email: String!, $otp: String!, $newPassword: String!) {
+  reset_password(email: $email, otp: $otp, new_password: $newPassword)
 }
 `

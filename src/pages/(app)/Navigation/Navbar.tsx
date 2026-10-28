@@ -2,9 +2,8 @@ import { Link, useLocation } from "react-router-dom";
 import { appConfig } from "../../../@configs/app.config";
 
 const NAV_LINKS = [
-  { label: "Features", to: "/" },
-  { label: "Community", to: "/about" },
-  { label: "Pricing", to: "/pricing" },
+  { label: "Features", to: "/#features" },
+  { label: "Pricing", to: "/#pricing" },
 ];
 
 const Navbar = () => {
@@ -16,11 +15,11 @@ const Navbar = () => {
       <div className="mx-auto bg-bg-secondary/70 backdrop-blur-xl border border-border rounded-xl shadow-lg px-4 md:px-6 py-3 flex items-center justify-between gap-3 md:gap-8 max-w-full">
         {/* Logo  */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="w-8 h-8 rounded-lg overflow-hidden ring-1 ring-border group-hover:ring-border-secondary transition-all duration-300">
+          <div className="w-8 h-8 flex items-center justify-center">
             <img
               src="/logo.png"
-              alt="Logo"
-              className="w-full h-full object-cover"
+              alt={`${appConfig.appName} logo`}
+              className="w-full h-full object-contain"
             />
           </div>
           <span className="text-text-primary font-semibold font-inter text-base tracking-tight hidden sm:block">
@@ -31,11 +30,17 @@ const Navbar = () => {
         {/* ── Nav links — centered ── */}
         <div className="hidden md:flex items-center gap-1">
           {NAV_LINKS.map(({ label, to }) => {
-            const isActive = location.pathname === to;
+            const isActive = location.pathname === to && !to.includes("#");
             return (
               <Link
                 key={label}
                 to={to}
+                onClick={() => {
+                  if (to.includes("#") && location.pathname === "/")
+                    document
+                      .getElementById(to.split("#")[1])
+                      ?.scrollIntoView({ behavior: "smooth" });
+                }}
                 className={`
                   relative px-4 py-1.5 text-sm rounded-lg font-medium transition-all duration-200
                   ${
