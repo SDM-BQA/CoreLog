@@ -5,6 +5,7 @@ import BasicInfo from "./Steps/BasicInfo";
 import ProfileSetup from "./Steps/ProfileSetup";
 import OTPVerify from "./Steps/OTP-Verify";
 import { AuthSuccess } from "../../../../@components/AuthSuccess";
+import { AuthShell } from "../../../../@components/AuthShell";
 import { create_user_account_mutation, upload_image_api } from "../../../../@apis/users";
 
 import { useNavigate } from "react-router-dom";
@@ -99,33 +100,13 @@ const SignUp = () => {
   }
 
   return (
-    <div className="bg-bg min-h-screen flex flex-col w-full mx-auto justify-center items-center px-4">
-      <div className="mt-20"></div>
-      {/* ── Heading ── */}
-      <div className="flex flex-col gap-1 mb-6 text-center">
-        <div className="text-text-primary text-2xl font-semibold font-inter">
-          {meta.title}
-        </div>
-        <div className="text-text-secondary text-base mt-1">
-          {meta.subtitle}
-        </div>
-      </div>
-
-      {/* ── Decorative gear ── */}
-      <div className="absolute bottom-8 right-8 hidden md:block">
-        <img src="/gear.png" alt="Gear" className="w-64 h-64 opacity-20" />
-      </div>
-
-      {/* ── Card ── */}
-      <div className="bg-bg-secondary backdrop-blur-md shadow-xl p-8 rounded-md w-full max-w-2xl flex flex-col gap-6">
+    <AuthShell variant="signup" title={meta.title} subtitle={meta.subtitle} wide>
         {/* Progress bar */}
         <StepProgressBar
           steps={[...STEPS]}
           currentIndex={currentStepIndex}
           onStepClick={(index) => index < currentStepIndex && prevStep()}
         />
-
-        <div className="h-px w-full bg-border" />
 
         {/* ── Steps ── */}
         {currentStep.id === "basicInfo" && (
@@ -151,8 +132,7 @@ const SignUp = () => {
             isSubmitting={isSubmitting}
           />
         )}
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

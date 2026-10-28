@@ -48,7 +48,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
           return;
         }
         onStepComplete(values);
-      } catch (error) {
+      } catch {
         toast.error("An error occurred during username validation.");
       }
     },
@@ -90,7 +90,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
           {/* Drop zone / Preview */}
           {preview ? (
             /* ── Preview state ── */
-            <div className="flex items-center gap-4 p-4 bg-surface rounded-md border border-border">
+            <div className="flex items-center gap-4 p-4 bg-bg/60 rounded-xl border border-border">
               <div className="relative w-20 h-20 shrink-0">
                 <img
                   src={preview}
@@ -118,7 +118,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-accent hover:text-primary transition-colors mt-1 text-left"
+                  className="text-xs text-blue-300 hover:text-text-primary transition-colors mt-1 text-left"
                 >
                   Change photo
                 </button>
@@ -135,7 +135,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
               onDrop={handleDrop}
               className={`
                 flex flex-col items-center justify-center gap-3 px-4 py-8
-                bg-surface rounded-md border-2 border-dashed transition-colors cursor-pointer
+                bg-bg/60 rounded-xl border-2 border-dashed transition-colors cursor-pointer
                 ${
                   dragOver
                     ? "border-primary bg-primary/5"
@@ -152,7 +152,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
                 </span>
                 <span className="text-text-secondary/60 text-xs">
                   or{" "}
-                  <span className="text-accent hover:text-primary transition-colors">
+                  <span className="text-blue-300 hover:text-text-primary transition-colors">
                     browse files
                   </span>{" "}
                   · JPG, PNG, WEBP · max 5MB
@@ -180,7 +180,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
           <span className="text-text-secondary text-sm font-medium">
             Username
           </span>
-          <div className="flex items-center px-4 py-3 bg-surface rounded-md gap-2 border border-border focus-within:border-border-secondary transition-colors">
+          <div className="flex items-center px-4 py-3.5 bg-bg/60 rounded-xl gap-2 border border-border focus-within:border-accent focus-within:ring-4 focus-within:ring-primary/20 transition-colors">
             <AtSignIcon size={16} className="text-text-secondary shrink-0" />
             <input
               type="text"
@@ -213,7 +213,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
 
         {/* USERNAME PREVIEW PILL */}
         {values.username && !errors.username && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-surface rounded-md border border-border w-fit">
+          <div className="flex items-center gap-2 px-3 py-2 bg-bg/60 rounded-xl border border-border w-fit">
             <UserIcon size={13} className="text-text-secondary" />
             <span className="text-text-secondary/60 text-xs">Looks like:</span>
             <span className="text-text-primary text-xs font-medium">
@@ -228,7 +228,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
             type="button"
             onClick={onBack}
             disabled={isSubmitting}
-            className="flex items-center justify-center w-full py-3 bg-surface text-text-secondary text-sm font-semibold rounded-md border border-border hover:bg-accent/10 hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center w-full py-3 bg-bg/60 text-text-secondary text-sm font-semibold rounded-xl border border-border hover:border-border-secondary hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Back
           </button>
@@ -236,7 +236,7 @@ const ProfileSetup = ({ onStepComplete, onBack, defaultValues }: Props) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-md hover:bg-primary/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group flex items-center justify-center w-full py-3 bg-primary text-text-primary text-sm font-semibold rounded-xl shadow-lg shadow-primary/30 hover:bg-accent transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Saving..." : "Continue"}
             <FaArrowRightLong

@@ -1,10 +1,4 @@
-// @components/StepProgressBar/StepProgressBar.tsx
-
-import { CheckIcon } from "lucide-react";
-import {
-  computeProgressPercent,
-  computeStepProgress,
-} from "../@utils/step.progress.utils";
+import { computeStepProgress } from "../@utils/step.progress.utils";
 
 type Props = {
   steps: { id: string; label: string }[];
@@ -12,81 +6,45 @@ type Props = {
   onStepClick?: (index: number) => void;
 };
 
-export const StepProgressBar = ({
-  steps,
-  currentIndex,
-  onStepClick,
-}: Props) => {
+/** Compact segmented progress: "Step 2 of 3 · Profile" over one bar per step. */
+export const StepProgressBar = ({ steps, currentIndex, onStepClick }: Props) => {
   const items = computeStepProgress(steps, currentIndex);
-  const percent = computeProgressPercent(currentIndex, steps.length);
+  const current = items[currentIndex];
 
   return (
-    <div className="w-full flex flex-col gap-3">
-      {/* Track + Nodes */}
-      <div className="relative flex items-center justify-between">
-        {/* Background line */}
-        <div className="absolute top-1/2 left-0 right-0 h-px bg-border -translate-y-1/2 z-0" />
+    <div className="flex w-full flex-col gap-3" role="group" aria-label="Sign up progress">
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium text-text-primary">{current?.label}</span>
+        <span className="text-xs text-text-secondary">
+          Step {currentIndex + 1} of {steps.length}
+        </span>
+      </div>
 
-        {/* Filled line */}
-        <div
-          className="absolute top-1/2 left-0 h-px bg-primary -translate-y-1/2 z-0 transition-all duration-500"
-          style={{ width: `${percent}%` }}
-        />
-
-        {/* Step nodes */}
+      <div className="flex gap-2">
         {items.map((step) => {
-          const isClickable = step.status === "completed" && onStepClick;
+          const clickable = step.status === "completed" && !!onStepClick;
           return (
             <button
               key={step.id}
               type="button"
-              disabled={!isClickable}
-              onClick={() => isClickable && onStepClick(step.index)}
-              className={`
-                relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center
-                text-xs font-semibold transition-all duration-300
-                ${
-                  step.status === "completed"
-                    ? "bg-primary border-primary text-text-primary cursor-pointer"
-                    : step.status === "current"
-                      ? "bg-bg-secondary border-primary text-primary"
-                      : "bg-bg-secondary border-border text-text-secondary cursor-not-allowed"
-                }
-              `}
+              disabled={!clickable}
+              onClick={() => clickable && onStepClick(step.index)}
+              aria-label={`${step.label}${step.status === "completed" ? " (completed)" : ""}`}
+              aria-current={step.status === "current" ? "step" : undefined}
+              className="group flex-1 py-1 disabled:cursor-default"
             >
-              {step.status === "completed" ? (
-                <CheckIcon size={14} />
-              ) : (
-                step.index + 1
-              )}
+              <span
+                className={`block h-1.5 rounded-full transition-colors duration-300 ${
+                  step.status === "upcoming"
+                    ? "bg-border"
+                    : step.status === "current"
+                      ? "bg-accent"
+                      : "bg-primary group-hover:bg-accent"
+                }`}
+              />
             </button>
           );
         })}
-      </div>
-
-      {/* Labels — each one sits in a flex-1 cell, centered under its node */}
-      <div className="flex items-start">
-        {items.map((step, i) => (
-          <div
-            key={step.id}
-            className={`
-              flex-1 flex
-              ${i === 0 ? "justify-start" : i === items.length - 1 ? "justify-end" : "justify-center"}
-            `}
-          >
-            <span
-              className={`text-xs transition-colors duration-300 ${
-                step.status === "current"
-                  ? "text-primary font-medium"
-                  : step.status === "completed"
-                    ? "text-text-primary"
-                    : "text-text-secondary/50"
-              }`}
-            >
-              {step.label}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );
