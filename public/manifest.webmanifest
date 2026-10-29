@@ -3,7 +3,7 @@
   "name": "CoreLog",
   "short_name": "CoreLog",
   "description": "Log everything you watch, read and feel: movies, series, books, music, poetry and journal entries in one place.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

@@ -7,6 +7,37 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#101022" />
+    <!-- Loading screen: plain HTML + CSS so it paints before any JavaScript has loaded -->
+    <style>
+      html, body { margin: 0; background: #101022; }
+      #splash {
+        position: fixed; inset: 0; z-index: 2147483600;
+        display: grid; place-items: center;
+        background: #101022 radial-gradient(ellipse 60% 40% at 50% 0%, rgba(59, 59, 255, 0.28), transparent 70%);
+        font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+        transition: opacity 0.35s ease, visibility 0.35s;
+      }
+      #splash.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+      #splash .inner { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+      #splash img { width: 76px; height: 76px; animation: splash-pulse 1.8s ease-in-out infinite; }
+      #splash .name { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; color: #fff; }
+      #splash .name span {
+        background: linear-gradient(90deg, #8aa0ff, #3b3bff 55%, #00f2ff);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      #splash .bar { width: 120px; height: 3px; border-radius: 3px; background: rgba(148, 163, 184, 0.18); overflow: hidden; }
+      #splash .bar i {
+        display: block; width: 40%; height: 100%; border-radius: 3px; background: #00f2ff;
+        box-shadow: 0 0 10px rgba(0, 242, 255, 0.7);
+        animation: splash-slide 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      @keyframes splash-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+      @keyframes splash-slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(300%); } }
+      @media (prefers-reduced-motion: reduce) {
+        #splash img, #splash .bar i { animation: none; }
+        #splash .bar i { width: 100%; opacity: 0.6; }
+      }
+    </style>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,6 +48,13 @@
     <meta name="description" content="Track movies, series, books, music, poetry and your daily journal in one unified workspace." />
   </head>
   <body>
+    <div id="splash" role="status" aria-label="Loading CoreLog">
+      <div class="inner">
+        <img src="/logo.svg" alt="" width="76" height="76" />
+        <div class="name">Core<span>Log</span></div>
+        <div class="bar"><i></i></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

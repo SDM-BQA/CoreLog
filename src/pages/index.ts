@@ -1,4 +1,5 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, redirect, RouterProvider } from "react-router-dom";
+import { get_auth_string } from "../@utils/storage.utils";
 import { Home } from "./(app)/Home";
 import NotFoundPage from "./(app)/Not-Found";
 import Login from "./(app)/Auth/Login";
@@ -40,6 +41,20 @@ const Pages = () => {
 
 export default Pages;
 
+/** Calls back once the router has finished its initial loaders (i.e. the first real screen can render). */
+export const onRouterReady = (callback: () => void) => {
+    if (router.state.initialized) {
+        callback();
+        return;
+    }
+    const unsubscribe = router.subscribe((state) => {
+        if (state.initialized) {
+            unsubscribe();
+            callback();
+        }
+    });
+};
+
 const router = createBrowserRouter([
     {
         path: "/",
@@ -48,6 +63,8 @@ const router = createBrowserRouter([
             {
                 index: true,
                 Component: Home,
+                // Signed-in users never see the marketing page: redirect before anything renders
+                loader: () => (get_auth_string("token") ? redirect("/dashboard") : null),
             },
             {
                 path: "/auth/login",
